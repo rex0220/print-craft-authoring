@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-04 00:00:00",
+  "pluginName": "印刷屋プラグイン",
+  "pluginID": "rex0220 Print craft plugin",
+  "PluginVersion": "6",
+  "appId": 381,
+  "appName": "案件管理",
+  "pluginEnable": true,
+  "commonCssEnable": true,
+  "pluginComment": "AI オーサリングのサンプル（一覧帳票）。docs/帳票レシピ集.md の R5",
+  "pluginDescription": "一覧画面に表示中のレコード（または選択したレコード）を表にした PDF をダウンロードします。",
+  "menuInfo": { "recselect": true, "enabled": false, "menuLabel": { "default": "印刷屋", "ja": "印刷屋", "en": "Print craft", "zh": "打印" } },
+  "pluginInfos": [
+    {
+      "state": true,
+      "menu": "案件一覧",
+      "menu_en": "Deal list",
+      "mcheck": true,
+      "list": true,
+      "authority": false,
+      "desc": "表示中の案件を一覧表にして PDF をダウンロードします",
+      "viewsCsv": "",
+      "tagsInfo": {
+        "fieldsInfo": [
+          { "state": true, "desc": "ボタン表示条件", "fieldcode": "$out", "formulaSet": "" },
+          { "state": true, "desc": "ファイル名", "fieldcode": "$fname", "formulaSet": "\"案件一覧-\" & DATE_FORMAT(TODAY(), \"YYYYMMDD\") & \".pdf\"" },
+          {
+            "state": true,
+            "desc": "一覧",
+            "css": ".pcraft-table-row {\n  height: 40px;\n}\n.value-right {\n  text-align: right;\n}\n.value-center {\n  text-align: center;\n}",
+            "html": "",
+            "formulaSet": "RECS_HTML(\n  OPT(\"title\", \"案件情報 \" & DATE_FORMAT(TODAY(), \"YYYY年M月D日\"), \"pagination\", \"Y\", \"perPage\", \"15\", \"footer\", \"Y\"),\n  ARRAY(\"#\", $rseq + 1),\n  顧客名, 部署名, 案件名,\n  ARRAY(\"確度\", 確度, \"value-center\"),\n  ARRAY(\"プラン費用\", YEN(プラン費用), \"value-right\", \"YEN(RECS_SUM(プラン費用))\"),\n  ARRAY(\"オプション費用\", YEN(オプション費用), \"value-right\", \"YEN(RECS_SUM(オプション費用))\"),\n  ARRAY(\"合計費用\", YEN(合計費用), \"value-right\", \"YEN(RECS_SUM(合計費用))\")\n)"
+          }
+        ],
+        "filecode": "",
+        "pageSize": "A4",
+        "orientation": "l",
+        "dpi": "96"
+      },
+      "calcInfo": { "fieldsInfo": [] }
+    }
+  ]
+}

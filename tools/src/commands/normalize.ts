@@ -2,12 +2,10 @@
  * normalize <settings.json> --fields <fields.json> [--out <path>] [--check] [--policy <path>] [--json]
  * AI が書いた封筒形式の設定 JSON を、設定画面と同じ手順で派生値を作り直し（derive.ts）、検査して（checks.ts）、保存値の大きさを測り（size.ts）、
  * エラーが無ければ封筒形式で書き出す（date を更新）。--check は入力の派生値と生成した値の差を出す（AI の自己点検、エクスポートの往復の確認）。
- * 終了コード: エラーがあれば 1（書き出さない）。
+ * 印刷屋のコード（スキーマ、派生値、kit の検証）は利用者の zip の authoring API（engine.api）から。終了コード: エラーがあれば 1（書き出さない）。
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { validate, ValidationError } from "plugin-config-kit/src/validate.ts";
-import { CONFIG_LIMITS, CONFIG_SCHEMA } from "print-craft/src/config/schema.ts";
 import type { Engine } from "../engine.ts";
 import type { FieldsFile } from "./fields.ts";
 import { Findings } from "../normalize/findings.ts";
@@ -17,8 +15,6 @@ import { checkBody } from "../normalize/checks.ts";
 import { loadPolicy, type Policy } from "../normalize/policy.ts";
 import { formatSize, measureStored, type StoredSize } from "../normalize/size.ts";
 
-/** 印刷屋の pluginID（print-craft の src/config/main.ts の PLUGIN_ID_NAME と同じ。テストで照合する） */
-export const PLUGIN_ID = "rex0220 Print craft plugin";
 export const PLUGIN_NAME = "印刷屋プラグイン";
 
 export interface NormalizeInput {
@@ -26,7 +22,6 @@ export interface NormalizeInput {
   settingsFile?: string;
   fields: FieldsFile;
   engine: Engine;
-  pluginVersion: string;
   policy?: Policy;
   check?: boolean;
   now?: () => Date;
@@ -34,12 +29,9 @@ export interface NormalizeInput {
 
 export interface NormalizeResult {
   findings: Findings;
-  /** エラーが無いときだけ */
   output?: Record<string, unknown>;
-  /** 正規化した設定本体（エラーがあっても検査のために作る） */
   body?: Record<string, unknown>;
   size?: StoredSize;
-  /** --check の差（入力の派生値 → 生成した値） */
   checkDiffs?: string[];
   summary: string;
 }
@@ -69,6 +61,8 @@ export function jsonDiff(a: unknown, b: unknown, pathStr: string, out: string[])
 
 export async function normalizeSettings(input: NormalizeInput): Promise<NormalizeResult> {
   const f = new Findings();
+  const api = input.engine.api;
+  const pluginVersion = api.pluginVersion;
   const where = input.settingsFile ?? "settings";
   let envelope: Record<string, unknown>;
   try {
@@ -82,8 +76,8 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
     return { findings: f, summary: "封筒形式でない" };
   }
   // ---- 封筒 ----
-  if (envelope.pluginID !== PLUGIN_ID) f.error("envelope.pluginID", where, `pluginID は "${PLUGIN_ID}": ${JSON.stringify(envelope.pluginID)}（封筒なしの素の設定は作らない）`);
-  if (String(envelope.PluginVersion ?? "") !== input.pluginVersion) f.error("envelope.version", where, `PluginVersion は tools が対応する ${input.pluginVersion}: ${JSON.stringify(envelope.PluginVersion)}`);
+  if (envelope.pluginID !== api.pluginId) f.error("envelope.pluginID", where, `pluginID は "${api.pluginId}": ${JSON.stringify(envelope.pluginID)}（封筒なしの素の設定は作らない）`);
+  if (String(envelope.PluginVersion ?? "") !== pluginVersion) f.error("envelope.version", where, `PluginVersion は印刷屋の版 ${pluginVersion}（zip の manifest）: ${JSON.stringify(envelope.PluginVersion)}`);
   if (envelope.appId !== undefined && Number(envelope.appId) !== input.fields.appId) f.warning("envelope.appId", where, `appId ${JSON.stringify(envelope.appId)} が fields のアプリ ${input.fields.appId} と違う`);
   if (f.hasErrors) return { findings: f, summary: "封筒の誤り" };
 
@@ -91,10 +85,9 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   const inputBody = bodyOf(envelope);
   let inputClean: Record<string, unknown>;
   try {
-    // --check の比較は、インポートと同じく未知のキーを落とした形で行う（エクスポートに外枠の error などが残っていても差にしない）
-    inputClean = validate<Record<string, unknown>>(inputBody, CONFIG_SCHEMA, CONFIG_LIMITS);
+    inputClean = api.validate<Record<string, unknown>>(inputBody, api.CONFIG_SCHEMA, api.CONFIG_LIMITS);
   } catch (e) {
-    if (e instanceof ValidationError) {
+    if (e instanceof api.ValidationError) {
       f.error("schema", where, `設定のスキーマに合わない: ${e.message}`);
       return { findings: f, summary: "スキーマの誤り" };
     }
@@ -102,22 +95,21 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   }
 
   // ---- 派生値 → 検査 → 大きさ ----
-  const model = buildModel(input.fields);
+  const model = buildModel(input.fields, api);
   const body = deriveBody(inputBody, model, input.engine, f);
   const policy = input.policy ?? { allowExternal: [] };
   await checkBody(body, model, f, { policy, settingsFile: input.settingsFile });
-  // 出力は CONFIG_SCHEMA で検査した形（未知のキーを落とす。インポートと同じ）
   let cleaned: Record<string, unknown>;
   try {
-    cleaned = validate<Record<string, unknown>>(body, CONFIG_SCHEMA, CONFIG_LIMITS);
+    cleaned = api.validate<Record<string, unknown>>(body, api.CONFIG_SCHEMA, api.CONFIG_LIMITS);
   } catch (e) {
-    if (e instanceof ValidationError) {
+    if (e instanceof api.ValidationError) {
       f.error("schema", where, `正規化した設定がスキーマに合わない: ${e.message}`);
       return { findings: f, body, summary: "スキーマの誤り" };
     }
     throw e;
   }
-  const size = await measureStored(cleaned);
+  const size = await measureStored(cleaned, api);
   if (!size.ok) f.error("size", where, formatSize(size));
   else f.info("size", where, formatSize(size));
 
@@ -134,8 +126,8 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   const output: Record<string, unknown> = {
     date: formatDate(now),
     pluginName: typeof envelope.pluginName === "string" && envelope.pluginName ? envelope.pluginName : PLUGIN_NAME,
-    pluginID: PLUGIN_ID,
-    PluginVersion: input.pluginVersion,
+    pluginID: api.pluginId,
+    PluginVersion: pluginVersion,
     appId: input.fields.appId,
     appName: typeof envelope.appName === "string" && envelope.appName ? envelope.appName : input.fields.appName
   };
@@ -144,7 +136,6 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   return { findings: f, output, body: cleaned, size, checkDiffs, summary };
 }
 
-/** CLI 用: ファイルを読んで実行する */
 export async function readFieldsFile(file: string): Promise<FieldsFile> {
   const fields = JSON.parse(readFileSync(file, "utf8")) as FieldsFile;
   if (!fields || typeof fields !== "object" || !fields.properties) throw new Error(`${file} は fields コマンドの出力ではない（properties が無い）`);

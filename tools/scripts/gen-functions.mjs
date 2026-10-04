@@ -18,14 +18,16 @@ const { loadEngine } = await import(pathToFileURL(path.join(root, "src", "engine
 const { PRINT_CRAFT_ROOT } = await import(pathToFileURL(path.join(root, "src", "paths.ts")).href);
 
 const FORMULA_DOC = path.resolve(PRINT_CRAFT_ROOT, "..", "formula");
-const qiita = readFileSync(path.join(FORMULA_DOC, "doc", "qiita_計算式プラグイン.md"), "utf8").split("\n");
+const qiita = readFileSync(path.join(FORMULA_DOC, "doc", "qiita_計算式プラグイン.md"), "utf8").split(/\r?\n/);
 const htmlDoc = readFileSync(path.join(FORMULA_DOC, "doc", "HTML 関連関数.md"), "utf8");
 
 // 「関数」章の ## 見出しごとに「- NAME:」を拾う
 const start = qiita.findIndex((l) => /^# 関数/.test(l));
 const end = qiita.findIndex((l, i) => i > start && /^# /.test(l));
 const categoryOf = new Map();
-let category = "";
+// 「# 関数」の直後、最初の ## 見出しより前の項目（ABS、SUM、IF、ARRAY_* など）の分類名
+export const BASIC_CATEGORY = "基本関数（数値・集計・配列・条件）";
+let category = BASIC_CATEGORY;
 for (const line of qiita.slice(start, end)) {
   const h = line.match(/^## (.+)$/);
   if (h) {
@@ -41,18 +43,25 @@ const UNSUPPORTED = new Set(["CLIPBORD_WRITE", "BUTTON", "BOPT", "DIALOG", "EV_S
 const KINTONE_META = new Set(["APP_URL", "LOOKUP_GETID", "RELATED_GETID"]);
 const UNSUPPORTED_CATEGORIES = new Set(["ボタン関連", "イベント情報"]);
 
+// 記事に項目が無い関数の分類（親の関数の説明の中にだけ出るものなど）
+const MANUAL_CATEGORY = {
+  TPFILTER: "テーブル関数", TPSORT: "テーブル関数", TPOUT: "テーブル関数", TPOPT: "テーブル関数", TPKEY: "テーブル関数", TPVAL: "テーブル関数", TPLABEL: "テーブル関数", TABLE_SORT: "テーブル関数",
+  HTML: "HTML 関連", OPT: "HTML 関連", UNESC_HTML: "HTML 関連",
+  BOPT: "ボタン関連", CLIPBORD_WRITE: "文字列関数", R_MIRR: "財務関連の関数 R_..."
+};
+
 const engine = await loadEngine();
 const names = engine.functionNames();
 const file = path.join(root, "functions.json");
 const existing = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { functions: {} };
-const out = { note: "関数の分類の正本（docs/authoring-plan.md 12.4、12.7）。scripts/gen-functions.mjs が lib と文書から既定を作り、見直しは手で行う", engineSha256: engine.engineSha256, functions: {}, removed: [] };
+const out = { note: "関数の分類の正本（docs/authoring-plan.md 12.4、12.7）。scripts/gen-functions.mjs が lib と文書から category / doc を作り直し、kind / node の見直しは手で行う（手で直した kind / node は残る）", engineSha256: engine.source.engineSha256, functions: {}, removed: [] };
 for (const name of names) {
   const prev = existing.functions?.[name];
-  const cat = categoryOf.get(name) ?? (htmlNames.has(name) || PRINT_CRAFT_EXTRA.has(name) ? "HTML 関連" : "未分類");
+  const cat = categoryOf.get(name) ?? MANUAL_CATEGORY[name] ?? (htmlNames.has(name) || PRINT_CRAFT_EXTRA.has(name) ? "HTML 関連" : "未分類");
   const kind = cat === "HTML 関連" || htmlNames.has(name) || PRINT_CRAFT_EXTRA.has(name) ? "print-craft" : "general";
   const node = UNSUPPORTED.has(name) || UNSUPPORTED_CATEGORIES.has(cat) ? "unsupported" : KINTONE_META.has(name) ? "kintone-meta" : kind === "print-craft" ? "dom" : "node";
   const doc = categoryOf.has(name) ? "qiita" : htmlNames.has(name) ? "html" : "none";
-  out.functions[name] = prev ? { ...{ category: cat, kind, node, doc }, ...prev, doc } : { category: cat, kind, node, doc };
+  out.functions[name] = { category: cat, kind: prev?.kind ?? kind, node: prev?.node ?? node, doc };
 }
 for (const name of Object.keys(existing.functions ?? {})) if (!names.includes(name)) out.removed.push(name);
 writeFileSync(file, JSON.stringify(out, null, 2) + "\n", "utf8");

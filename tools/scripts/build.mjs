@@ -1,41 +1,26 @@
 /**
- * tools をビルドする（docs/authoring-plan.md 12.1）。
+ * tools をビルドする（docs/authoring-plan.md 12.1、12.9 の 9）。
  *   - src/cli.ts を esbuild で 1 本（dist/cli.mjs。platform node、ESM、Node 20）。happy-dom は依存のまま外に置く
- *   - print-craft の src/shared・src/config と plugin-config-kit の src は bundle に取り込む（alias は kit の build-plugin.mjs と同じ）
- *   - 同梱する lib（計算式エンジン min.js、bignumber、moment-timezone）を print-craft の prod/desktop_js から dist/lib/ に複写し、
- *     SHA-256 を dist/lib/manifest.json に書く
- *   - 版・対応する印刷屋の版・スキーマの版・commit・エンジンの SHA-256 を __PCRAFT_TOOLS_META__ に埋める（version コマンドが出す）
- * 実行は Node 22.6 以上（print-craft の schema.ts を直接読むため）。
+ *   - 印刷屋と kit のコードは bundle に入れない（型だけ import している。実行時は利用者の印刷屋 zip の authoring API と計算式エンジンを読む）
+ *   - tools の版と commit を __PCRAFT_TOOLS_META__ に埋める（version コマンドが出す）
  */
 import { build } from "esbuild";
-import { createHash } from "node:crypto";
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
-const { AUTHORING_ROOT, PRINT_CRAFT_ROOT, LIB_FILES, kitRoot, rexgridRoot } = await import(pathToFileURL(path.join(root, "src", "paths.ts")).href);
+// 前のビルドの残り（以前は dist/lib/ にエンジンを複写していた）を消す。npm pack は dist/** を全部入れるので、古いファイルが残っていると配布物に入る
+rmSync(path.join(root, "dist"), { recursive: true, force: true });
 const { devMeta } = await import(pathToFileURL(path.join(root, "src", "meta.ts")).href);
+const { kitRoot, rexgridRoot, PRINT_CRAFT_ROOT } = await import(pathToFileURL(path.join(root, "src", "paths.ts")).href);
 
-const meta = { ...(await devMeta()), builtAt: new Date().toISOString(), mode: "build" };
-const dist = path.join(AUTHORING_ROOT, "dist");
-const distLib = path.join(dist, "lib");
-mkdirSync(distLib, { recursive: true });
-
-// lib の複写
-const libManifest = { source: `print-craft ${meta.printCraftCommit} prod/desktop_js`, files: {} };
-for (const name of LIB_FILES) {
-  const src = path.join(PRINT_CRAFT_ROOT, "prod", "desktop_js", name);
-  copyFileSync(src, path.join(distLib, name));
-  libManifest.files[name] = createHash("sha256").update(readFileSync(src)).digest("hex");
-}
-writeFileSync(path.join(distLib, "manifest.json"), JSON.stringify(libManifest, null, 2) + "\n", "utf8");
-
-const banner = `#!/usr/bin/env node\n/*! @rex0220/print-craft-authoring-tools ${meta.toolsVersion} for 印刷屋プラグイン v${meta.pluginVersion} (c) rex0220. print-craft ${meta.printCraftCommit}. engine sha256 ${meta.engineSha256.slice(0, 12)}. All rights reserved. */`;
-await build({
+const meta = { ...devMeta(), builtAt: new Date().toISOString(), mode: "build" };
+const banner = `#!/usr/bin/env node\n/*! @rex0220/print-craft-authoring-tools ${meta.toolsVersion} (c) rex0220. MIT License. 計算式エンジンと印刷屋のコードは利用者の印刷屋プラグインの zip から読む（このファイルには含まれない）。commit ${meta.commit}. */`;
+const result = await build({
   entryPoints: [path.join(root, "src", "cli.ts")],
-  outfile: path.join(dist, "cli.mjs"),
+  outfile: path.join(root, "dist", "cli.mjs"),
   bundle: true,
   format: "esm",
   platform: "node",
@@ -44,13 +29,18 @@ await build({
   legalComments: "none",
   external: ["happy-dom"],
   banner: { js: banner },
-  define: {
-    __PCRAFT_TOOLS_META__: JSON.stringify(JSON.stringify(meta)),
-    __PLUGIN_VERSION__: JSON.stringify(meta.pluginVersion)
-  },
-  alias: { "plugin-config-kit": kitRoot(), rexgrid: rexgridRoot() },
+  define: { __PCRAFT_TOOLS_META__: JSON.stringify(JSON.stringify(meta)) },
+  // 型だけの import が残っていればここで解決される（実行コードには入らない）。入っていないことを下で確かめる
+  alias: { "print-craft": PRINT_CRAFT_ROOT, "plugin-config-kit": kitRoot(), rexgrid: rexgridRoot() },
   absWorkingDir: root,
+  metafile: true,
   logLevel: "warning"
 });
-console.log(`wrote dist/cli.mjs (tools ${meta.toolsVersion}, plugin v${meta.pluginVersion}, schema ${meta.schemaRevision}, print-craft ${meta.printCraftCommit})`);
-console.log(`lib: ${LIB_FILES.join(", ")} → dist/lib/ (engine sha256 ${meta.engineSha256})`);
+const inputs = Object.keys(result.metafile.inputs);
+const leaked = inputs.filter((p) => /print-craft[\\/](src|lib|prod)[\\/]|plugin-config-kit[\\/]src|rexgrid[\\/]src/.test(p));
+if (leaked.length) {
+  console.error(`印刷屋 / kit / rexgrid のコードが bundle に入っている（型だけの import にする）:\n  ${leaked.join("\n  ")}`);
+  process.exit(1);
+}
+const size = readFileSync(path.join(root, "dist", "cli.mjs")).length;
+console.log(`wrote dist/cli.mjs (${size.toLocaleString()} bytes; tools ${meta.toolsVersion}, commit ${meta.commit}; ${inputs.length} inputs, 印刷屋 / kit のコードは含まない)`);

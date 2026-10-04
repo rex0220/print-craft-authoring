@@ -1,471 +1,471 @@
 {
-  "note": "関数の分類の正本（docs/authoring-plan.md 12.4、12.7）。scripts/gen-functions.mjs が lib と文書から既定を作り、見直しは手で行う",
+  "note": "関数の分類の正本（docs/authoring-plan.md 12.4、12.7）。scripts/gen-functions.mjs が lib と文書から category / doc を作り直し、kind / node の見直しは手で行う（手で直した kind / node は残る）",
   "engineSha256": "8a5f78f78f51e04b5daaa435b0e8a8c0ea4d08d388d84d279f0cd1b50a857140",
   "functions": {
     "ABS": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ADD_TAGS": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "AND": {
-      "category": "",
+      "category": "論理関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "APP_URL": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "kintone-meta",
       "doc": "qiita"
     },
     "ARRAY": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ARRAY_COUNT": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ARRAY_DEL": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ARRAY_DIC": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ARRAY_EQUALS": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ARRAY_EVERY": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ARRAY_FIL": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ARRAY_FOR": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ARRAY_GET": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ARRAY_MAP": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ARRAY_SOME": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ARRAY_SORT": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ASC": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ATTR": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "AVE": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "AVEIF": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "BATTR": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "BOOL": {
-      "category": "",
+      "category": "論理関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "BOPT": {
-      "category": "未分類",
+      "category": "ボタン関連",
       "kind": "general",
       "node": "unsupported",
       "doc": "none"
     },
     "BROUND": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "BUTTON": {
-      "category": "",
+      "category": "ボタン関連",
       "kind": "general",
       "node": "unsupported",
       "doc": "qiita"
     },
     "CEIL": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "CHOOSE": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "CLIPBORD_WRITE": {
-      "category": "未分類",
+      "category": "文字列関数",
       "kind": "general",
       "node": "unsupported",
       "doc": "none"
     },
     "CONCAT": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "CONCATIF": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "CONTAINS": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "COUNT": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "COUNTA": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "COUNTIF": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "COUNTROW": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "CSV_TVAL": {
-      "category": "",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DATE_ADD": {
-      "category": "",
+      "category": "日付関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DATE_DIFF": {
-      "category": "",
+      "category": "日付関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DATE_ENDOF": {
-      "category": "",
+      "category": "日付関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DATE_FORMAT": {
-      "category": "",
+      "category": "日付関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DATE_STARTOF": {
-      "category": "",
+      "category": "日付関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DECODE_URI": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DECODE_URICP": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DIALOG": {
-      "category": "",
+      "category": "ボタン関連",
       "kind": "general",
       "node": "unsupported",
       "doc": "qiita"
     },
     "DIC": {
-      "category": "",
+      "category": "ディクショナリー関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DIC_ASSIGN": {
-      "category": "",
+      "category": "ディクショナリー関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DIC_COUNT": {
-      "category": "",
+      "category": "ディクショナリー関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DIC_DEL": {
-      "category": "",
+      "category": "ディクショナリー関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DIC_EXISTS": {
-      "category": "",
+      "category": "ディクショナリー関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DIC_ITEM": {
-      "category": "",
+      "category": "ディクショナリー関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DIC_KEYS": {
-      "category": "",
+      "category": "ディクショナリー関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DIC_MAP": {
-      "category": "",
+      "category": "ディクショナリー関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DISTINCT": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DQUOTE": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DURATION": {
-      "category": "",
+      "category": "日付関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DURATION_AS": {
-      "category": "",
+      "category": "日付関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DURATION_FORMAT": {
-      "category": "",
+      "category": "日付関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "DURATION_GET": {
-      "category": "",
+      "category": "日付関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ENCODE_URI": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ENCODE_URICP": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ESC_HTML": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "EV_INFO": {
-      "category": "",
+      "category": "イベント情報",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "EV_SET": {
-      "category": "",
+      "category": "イベント情報",
       "kind": "general",
       "node": "unsupported",
       "doc": "qiita"
     },
     "FIELDS_HTML": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "FILE": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "FIND": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "FIRST": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "FIRSTIF": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "FISCAL_YEAR": {
-      "category": "",
+      "category": "日付関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "FIXED": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "FLOOR": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "FSET": {
-      "category": "",
+      "category": "ボタン関連",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "FSET_TADD": {
-      "category": "",
+      "category": "ボタン関連",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "FSIZE": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "FVAL": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "GINFO": {
-      "category": "",
+      "category": "グループ情報",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "GUSERS": {
-      "category": "",
+      "category": "グループ情報",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "HIRAGANA": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
@@ -477,379 +477,379 @@
       "doc": "none"
     },
     "HTML_TAGS": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "IF": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "IFS": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "IMGSRC": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "IN": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "INDEXOF": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "INT": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "INTERSECT": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ISBLANK": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ISNUMBER": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "JIS": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "JOIN": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "JSON_P": {
-      "category": "",
+      "category": "JSON 関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "JSON_S": {
-      "category": "",
+      "category": "JSON 関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "KATAKANA": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "LAST": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "LASTIF": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "LEFT": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "LENGTH": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "LET": {
-      "category": "",
+      "category": "LET関数（変数を利用した計算式）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "LOG": {
-      "category": "",
+      "category": "LOG 関数（計算式の実行結果をコンソールログに出力）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "LOGIN_CODE": {
-      "category": "",
+      "category": "ログイン情報",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "LOGIN_EMAIL": {
-      "category": "",
+      "category": "ログイン情報",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "LOGIN_INFO": {
-      "category": "",
+      "category": "ログイン情報",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "LOGIN_NAME": {
-      "category": "",
+      "category": "ログイン情報",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "LOOKUP_GETID": {
-      "category": "",
+      "category": "アプリ関連",
       "kind": "general",
       "node": "kintone-meta",
       "doc": "qiita"
     },
     "LOWER": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "LTRIM": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "MATCH": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "MAX": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "MAXIF": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "MAX_STR": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "MID": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "MIN": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "MINIF": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "MIN_STR": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "MOD": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "MROUND": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_ACOS": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_ACOSH": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_ASIN": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_ASINH": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_ATAN": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_ATAN2": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_ATANH": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_COS": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_COSH": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_DEG": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_EXP": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_LN": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_LOG": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_NTHROOT": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_POW": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_RAD": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_SIN": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_SINH": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_TAN": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "M_TANH": {
-      "category": "",
+      "category": "数学関数 M_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "NEWLINE": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "NOT": {
-      "category": "",
+      "category": "論理関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "NOW": {
-      "category": "",
+      "category": "日付関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "NVL": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "OINFO": {
-      "category": "",
+      "category": "組織情報",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
@@ -861,559 +861,559 @@
       "doc": "none"
     },
     "OR": {
-      "category": "",
+      "category": "論理関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "OTCSV": {
-      "category": "",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "OTVAL": {
-      "category": "",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "OUSERS": {
-      "category": "",
+      "category": "組織情報",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "PAGE_HTML": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "PI": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "PRODUCT": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "PRODUCTIF": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "RAND": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "RANDBETWEEN": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "RECS_HTML": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "RECS_MAP": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "RECS_SUM": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "RELATED_GETID": {
-      "category": "",
+      "category": "アプリ関連",
       "kind": "general",
       "node": "kintone-meta",
       "doc": "qiita"
     },
     "REPEAT": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "REPLACE": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "REPLACEALL": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "REPLACERE": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "REVERSE": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "RIGHT": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ROUND": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ROUNDDOWN": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ROUNDUP": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ROWID": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "ROWNO": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "RTRIM": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_CUMIPMT": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_CUMPRINC": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_EFFECT": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_FV": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_IPMT": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_IRR": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_MIRR": {
-      "category": "未分類",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "none"
     },
     "R_NOMINAL": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_NPER": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_NPV": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_PMT": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_PPMT": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_PV": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_RATE": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_RRI": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_XIRR": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "R_XNPV": {
-      "category": "",
+      "category": "財務関連の関数 R_...",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "SEARCH": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "SEL_CODE": {
-      "category": "",
+      "category": "ユーザー選択、組織選択、グループ選択情報",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "SEL_NAME": {
-      "category": "",
+      "category": "ユーザー選択、組織選択、グループ選択情報",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "SET_CODE": {
-      "category": "",
+      "category": "ユーザー選択、組織選択、グループ選択情報",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "SHUFFLE": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "SLICE": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "SPLIT": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "SQRT": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "STRIP_TAGS": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "STR_COMP": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "STYLE": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "SUBSTR": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "SUBSTRING": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "SUBTABLE": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "SUM": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "SUMIF": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "SWITCH": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TABLE_DATA": {
-      "category": "",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TABLE_DIC": {
-      "category": "",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TABLE_HTML": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "TABLE_MAP": {
-      "category": "",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TABLE_SORT": {
-      "category": "未分類",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "none"
     },
     "TAG": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "TAGS_HTML": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "TARRAY": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TARRAYIF": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TDS": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TDSIF": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TDUPCK": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TEST": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TESTRE": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TEXTJOIN": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TLTABLE": {
-      "category": "",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TODAY": {
-      "category": "",
+      "category": "日付関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TPDIC": {
-      "category": "",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TPFILTER": {
-      "category": "未分類",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "none"
     },
     "TPKEY": {
-      "category": "未分類",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "none"
     },
     "TPLABEL": {
-      "category": "未分類",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "none"
     },
     "TPOPT": {
-      "category": "未分類",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "none"
     },
     "TPOUT": {
-      "category": "未分類",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "none"
     },
     "TPSORT": {
-      "category": "未分類",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "none"
     },
     "TPVAL": {
-      "category": "未分類",
+      "category": "テーブル関数",
       "kind": "general",
       "node": "node",
       "doc": "none"
     },
     "TRIM": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TR_AVE": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TR_COUNT": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TR_COUNTA": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TR_MAX": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TR_MIN": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "TR_SUM": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "UINFO": {
-      "category": "",
+      "category": "ユーザー情報",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
@@ -1425,37 +1425,37 @@
       "doc": "html"
     },
     "UPPER": {
-      "category": "",
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "URL": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "VTAG": {
-      "category": "",
+      "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
       "doc": "qiita"
     },
     "WHICH": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "XOR": {
-      "category": "",
+      "category": "論理関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
     },
     "YEN": {
-      "category": "",
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"

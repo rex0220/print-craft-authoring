@@ -1,20 +1,11 @@
 /**
- * 計算式エンジン（配布する min.js）が Node で動き、段階 0（work/authoring-spike/spike-engine.mjs、docs/authoring-plan.md 11 章）と同じ結果を出すこと。
+ * 計算式エンジンと authoring API を利用者の zip（fixture: print-craft の dist zip）から読み、段階 0（docs/authoring-plan.md 11 章）と同じ結果を出すこと。
  * Node 22.6 以上（型の除去で src/*.ts を直接読む）。
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
-import { loadEngine } from "../src/engine.ts";
-import { PRINT_CRAFT_ROOT } from "../src/paths.ts";
+import { loadEngine, PLUGIN_ZIP } from "./helpers.mjs";
 
-const src = (rel) => import(pathToFileURL(path.join(PRINT_CRAFT_ROOT, rel)).href);
-const { expandFields } = await src("src/shared/fields.ts");
-const { createCheckRecord, stripComments } = await src("src/config/load.ts");
-const { computePluginUOG } = await src("src/shared/config.ts");
-
-// 段階 0 と同じ項目定義（/k/v1/app/form/fields の properties の形）とレコード
 const FIELDS = {
   宛名: { type: "SINGLE_LINE_TEXT", code: "宛名", label: "宛名" },
   見積番号: { type: "SINGLE_LINE_TEXT", code: "見積番号", label: "見積番号" },
@@ -67,22 +58,31 @@ const QIITA_FORMULA = `LET(
 )`;
 
 const engine = await loadEngine();
-const ppCheck = expandFields(clone(FIELDS), "実行条件");
-const crec = createCheckRecord(ppCheck);
-const ppRun = expandFields(clone(FIELDS), "実行条件");
+const api = engine.api;
+const ppCheck = { ...clone(FIELDS), $id: { type: "RECORD_NUMBER", code: "$id", label: "$id" }, $revision: { type: "__REVISION__", code: "$revision", label: "$revision" }, $html: { type: "MULTI_LINE_TEXT", code: "$html", label: "$html" } };
+const crec = api.createCheckRecord(ppCheck);
+const ppRun = api.expandFields(clone(FIELDS), "実行条件");
 const check = (formulaSet) => {
   const kf = engine.checker(ppCheck, crec);
   kf.usedFields({});
-  const result = kf.dq(stripComments(formulaSet));
+  const result = kf.dq(api.stripComments(formulaSet));
   return { result, usedFields: kf.usedFields() };
 };
 const run = (formula) => engine.runner(ppRun, RECORD).dq(formula);
 
-test("配布する min.js を読み、関数表が 243 件", () => {
-  assert.match(engine.engineFile, /KintoneFormulaPCraft\.min\.js$/);
-  assert.match(engine.engineSha256, /^[0-9a-f]{64}$/);
+test("利用者の zip から読む: 版 6、API 1、エンジンは既知、関数表が 243 件", () => {
+  assert.equal(engine.source.kind, "zip");
+  assert.equal(engine.source.from, PLUGIN_ZIP);
+  assert.equal(engine.source.pluginVersion, "6");
+  assert.equal(engine.source.engineKnown, true);
+  assert.deepEqual(engine.warnings, []);
+  assert.equal(api.apiVersion, 1);
+  assert.equal(api.pluginVersion, "6");
+  assert.equal(api.pluginId, "rex0220 Print craft plugin");
   assert.equal(engine.functionNames().length, 243);
   assert.ok(engine.functionNames().includes("TABLE_HTML"));
+  assert.equal(typeof api.buildMenuRows, "function");
+  assert.equal(typeof api.writeConfig, "function");
 });
 
 test("構文チェック + usedFields（段階 0 と同じ: Qiita の見積書の式）", () => {
@@ -93,7 +93,7 @@ test("構文チェック + usedFields（段階 0 と同じ: Qiita の見積書�
 test("UINFO は $UGO$ を記録し、pluginUOG が真になる", () => {
   const { usedFields } = check('UINFO(担当者, "name")');
   assert.deepEqual(usedFields, { $UGO$: 1, 担当者: 1 });
-  assert.equal(computePluginUOG([{ state: true, calcInfo: { usedFields, fieldsInfo: [] } }]), true);
+  assert.equal(api.computePluginUOG([{ state: true, calcInfo: { usedFields, fieldsInfo: [] } }]), true);
 });
 
 test("構文エラーは例外", () => {
@@ -102,7 +102,6 @@ test("構文エラーは例外", () => {
 
 test("エスケープの実際（11 章の表）: ESC_HTML は & < > だけ、TAG の子は < > だけ、ATTR はしない", () => {
   assert.equal(run("ESC_HTML(宛名)"), '□□□□株式会社 &lt;b&gt;&amp;"\'&lt;/b&gt;');
-  // TAG() は HTML を組む前のオブジェクト。TAGS_HTML / PAGE_HTML が文字列にする
   assert.equal(run('TAGS_HTML(TAG("p", 宛名))'), '<p>□□□□株式会社 &lt;b&gt;&"\'&lt;/b&gt;</p>');
   assert.ok(String(run('TAGS_HTML(TAG("p", ATTR("title", 宛名), "x"))')).includes('title="□□□□株式会社 <b>&"\'</b>"'));
   assert.ok(String(run("FVAL(備考)")).includes("<b>太字</b><br>"));
@@ -113,9 +112,11 @@ test("TABLE_HTML のセルはエスケープされない（レコードの値が
   assert.ok(html.includes("<script>x</script>"));
 });
 
-test("PAGE_HTML はページの class を付け、IMGSRC は置き換えタグを返す", () => {
+test("PAGE_HTML はページの class を付け、IMGSRC は置き換えタグを返す。API の getPaperSize / defaultCssRows", () => {
   assert.ok(String(run('PAGE_HTML(TAG("div", "x"))')).includes('class="rex0220-pcraft-page"'));
   assert.equal(typeof run("IMGSRC(見積ファイル)"), "string");
+  assert.deepEqual(api.getPaperSize("A4", "p", 96).scr, { width: 794, height: 1123 });
+  assert.deepEqual(api.defaultCssRows().map((r) => r.name), ["table", "card", "comm", "invoice"]);
 });
 
 test("setContext で APP_URL の元になる URL とアプリ番号が変わる", () => {

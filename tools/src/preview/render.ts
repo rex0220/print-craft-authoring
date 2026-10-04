@@ -1,30 +1,19 @@
 /**
- * 帳票 HTML のプレビュー（docs/authoring-plan.md 12.2 の preview、Codex BLOCKER 1 / MAJOR 4 の反映）。
+ * 帳票 HTML のプレビュー（docs/authoring-plan.md 12.2 の preview、Codex BLOCKER 1 / MAJOR 4 の反映）。印刷屋のコードは API（engine.api）から。
  *   - CSS は印刷屋と同じ buildReportCss（ページの基本 → 共通 CSS → 行の CSS）
  *   - HTML は authoring 専用の行単位レンダラー: ${式} ごと・行の計算式ごとに catch し、失敗した式はエスケープして赤字で埋めて続ける
- *     （印刷屋の buildReportHtml は 1 式の失敗で全体を止める）
  *   - #{&f(…)} / #{&q(…)} はダミー画像、#{&p} / #{&n} はページ番号（印刷屋の replaceTags を happy-dom の DOM で動かす）
- *   - 出力は 2 層の HTML: 外側の文書（ボタン名・ファイル名・エラーの一覧）の中に、sandbox 属性だけの iframe を置き、
- *     帳票の文書を srcdoc で入れる。帳票の文書にも CSP（default-src 'none' …）を入れる。スクリプト・通信・フォーム・遷移は起きない
- * 近似であることに注意: 画像はダミー、Web フォントは読まない（CSP で止まる。font-family は入るので OS の書体で代替）、PDF の見た目は印刷屋で確かめる。
+ *   - 出力は 2 層の HTML: 外側の文書の中に sandbox 属性だけの iframe を置き、帳票の文書を srcdoc で入れる。帳票の文書にも CSP
  */
-import { getPaperSize } from "print-craft/src/shared/paper.ts";
-import { buildReportCss, fileNameOf } from "print-craft/src/shared/template.ts";
-import { formulaOf } from "print-craft/src/shared/formula.ts";
-import { webFontOf } from "print-craft/src/shared/web-fonts.ts";
-import { mountReportHtml, replaceTags } from "print-craft/src/shared/report-dom.ts";
-import { DUMMY_IMAGE } from "print-craft/src/shared/media.ts";
+import type { PrintCraftAuthoringApi } from "print-craft/src/authoring/api.ts";
 import type { MenuRow, TagRow } from "print-craft/src/config/schema.ts";
 import type { Engine, FormulaInstance } from "../engine.ts";
 import type { Model } from "../normalize/model.ts";
 import type { KintoneRecord } from "../commands/record.ts";
 
-/** 帳票の文書（iframe の中）の CSP */
 export const PREVIEW_CSP = "default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; font-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
-/** 外側の文書の CSP（srcdoc の iframe は許す） */
 export const OUTER_CSP = "script-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'";
 
-/** 印刷屋のプレビューの覆いと同じ文字の大きさと書体（PC の kintone と同じ並び。m_print-craft1.css） */
 const PAGES_CSS = `body { margin: 0; background: #f7f7f7; }
 .xp-rex0220-print-craft-overlay-pages { display: block; width: fit-content; font-size: 16px; font-family: "メイリオ", Meiryo, "Hiragino Kaku Gothic ProN", "ヒラギノ角ゴ ProN W3", "ＭＳ Ｐゴシック", "Lucida Grande", "Lucida Sans Unicode", Arial, Verdana, sans-serif; -webkit-text-size-adjust: 100%; }
 .pcraft-authoring-error { color: #b00020; background: #fde7e9; border: 1px solid #b00020; border-radius: 3px; padding: 0 4px; font-size: 12px; font-family: monospace; }`;
@@ -39,13 +28,9 @@ export interface RenderedButton {
   pageSize: string;
   orientation: string;
   dpi: string;
-  /** .rex0220-pcraft-page の数 */
   pages: number;
-  /** 式の失敗など（帳票には赤字で入っている） */
   errors: string[];
-  /** 帳票の文書（iframe の中身） */
   inner: string;
-  /** 外側の文書（ファイルに書くもの） */
   html: string;
 }
 
@@ -55,7 +40,7 @@ function errorSpan(expression: string, e: unknown): string {
 }
 
 /** authoring 専用の行単位レンダラー（印刷屋の buildReportHtml と同じ順序・同じ \ → &yen; の置き換え。失敗しても続ける） */
-export function renderRows(row: MenuRow, record: KintoneRecord, kf: FormulaInstance, errors: string[]): string {
+export function renderRows(api: PrintCraftAuthoringApi, row: MenuRow, record: KintoneRecord, kf: FormulaInstance, errors: string[]): string {
   const rows: TagRow[] = row.tagsInfo?.fieldsInfo ?? [];
   let html = "";
   for (let index = 2; index < rows.length; index++) {
@@ -72,7 +57,7 @@ export function renderRows(row: MenuRow, record: KintoneRecord, kf: FormulaInsta
           }
         })
       : "";
-    const formula = formulaOf(info);
+    const formula = api.formulaOf(info);
     if (formula) {
       (record as Record<string, unknown>).$html = { value: tmp, type: "MULTI_LINE_TEXT" };
       try {
@@ -89,7 +74,6 @@ export function renderRows(row: MenuRow, record: KintoneRecord, kf: FormulaInsta
 }
 
 export interface RenderInput {
-  /** 正規化した設定本体 */
   body: Record<string, unknown>;
   row: MenuRow;
   model: Model;
@@ -99,22 +83,22 @@ export interface RenderInput {
 
 export function renderButton(input: RenderInput): RenderedButton {
   const { row, model, engine, body } = input;
+  const api = model.api;
   const tags = row.tagsInfo;
   if (!tags) throw new Error(`${row.menu}: HTML 設定が無い`);
   const errors: string[] = [];
   const record = JSON.parse(JSON.stringify(input.record)) as KintoneRecord;
-  const paper = getPaperSize(tags.pageSize || "A4", tags.orientation || "p", Number(tags.dpi) || 96);
-  const kf = engine.runner(model.ppRun, record) as unknown as FormulaInstance & { dq(expression: string): unknown };
-  const fileName = fileNameOf(row, kf as unknown as Parameters<typeof fileNameOf>[1]);
-  const font = webFontOf(body.fontInfo);
-  const css = buildReportCss(body as Parameters<typeof buildReportCss>[0], row, paper.scr, font);
-  const html = renderRows(row, record, kf, errors);
+  const paper = api.getPaperSize(tags.pageSize || "A4", tags.orientation || "p", Number(tags.dpi) || 96);
+  const kf = engine.runner(model.ppRun, record);
+  const fileName = api.fileNameOf(row, kf as unknown as Parameters<PrintCraftAuthoringApi["fileNameOf"]>[1]);
+  const font = api.webFontOf(body.fontInfo);
+  const css = api.buildReportCss(body as Parameters<PrintCraftAuthoringApi["buildReportCss"]>[0], row, paper.scr, font);
+  const html = renderRows(api, row, record, kf, errors);
 
-  // 印刷屋と同じ DOM の処理（happy-dom）: ページを数え、#{…} を置き換える
   const doc = (engine.window as { document: Document }).document;
   const host = doc.createElement("div");
-  const pages = mountReportHtml(host as unknown as HTMLElement, html);
-  replaceTags(pages, {}, {}, DUMMY_IMAGE);
+  const pages = api.mountReportHtml(host as unknown as HTMLElement, html);
+  api.replaceTags(pages, {}, {}, api.DUMMY_IMAGE);
   if (pages.length === 0) errors.push("ページ要素（class=\"rex0220-pcraft-page\"）が無い。印刷屋は 0 ページの PDF を作る");
   const inner = `<!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
@@ -151,7 +135,6 @@ ${errorList}
   return { menu: row.menu, fileName, pageSize: tags.pageSize, orientation: tags.orientation, dpi: String(tags.dpi), pages: pages.length, errors, inner, html: outer };
 }
 
-/** ファイル名に使える形（ボタン名から） */
 export function safeFileName(menu: string, index: number): string {
   const s = menu.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_").trim();
   return s || `button-${index + 1}`;

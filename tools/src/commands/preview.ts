@@ -17,12 +17,9 @@ export interface PreviewInput {
   settingsText: string;
   settingsFile?: string;
   fields: FieldsFile;
-  /** record コマンドの出力、/k/v1/record の応答、またはレコードそのもの */
   recordFile: unknown;
   engine: Engine;
-  pluginVersion: string;
   policy?: Policy;
-  /** このボタンだけ */
   button?: string;
 }
 
@@ -44,13 +41,13 @@ export function extractRecord(file: unknown): KintoneRecord {
 }
 
 export async function runPreview(input: PreviewInput): Promise<PreviewResult> {
-  const normalized = await normalizeSettings({ settingsText: input.settingsText, settingsFile: input.settingsFile, fields: input.fields, engine: input.engine, pluginVersion: input.pluginVersion, policy: input.policy });
+  const normalized = await normalizeSettings({ settingsText: input.settingsText, settingsFile: input.settingsFile, fields: input.fields, engine: input.engine, policy: input.policy });
   const findings = normalized.findings;
   const results: PreviewResult["results"] = [];
   const skipped: string[] = [];
   if (!normalized.body) return { findings, results, skipped, summary: normalized.summary };
   const record = extractRecord(input.recordFile);
-  const model = buildModel(input.fields);
+  const model = buildModel(input.fields, input.engine.api);
   input.engine.setContext({ baseUrl: input.fields.baseUrl, appId: input.fields.appId });
   const rows = (normalized.body.pluginInfos ?? []) as MenuRow[];
   rows.forEach((row, i) => {

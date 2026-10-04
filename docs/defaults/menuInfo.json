@@ -1,0 +1,10 @@
+{
+  "recselect": false,
+  "enabled": false,
+  "menuLabel": {
+    "default": "印刷屋",
+    "ja": "印刷屋",
+    "en": "Print craft",
+    "zh": "印刷工坊"
+  }
+}

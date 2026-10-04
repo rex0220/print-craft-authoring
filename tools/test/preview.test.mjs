@@ -1,7 +1,7 @@
 /** preview: 行単位のレンダラー（失敗しても続ける）、ページ番号とダミー画像、sandbox の iframe + CSP、一覧帳票は対象外、--button */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { loadEngine } from "../src/engine.ts";
+import { loadEngine } from "./helpers.mjs";
 import { runPreview, extractRecord } from "../src/commands/preview.ts";
 import { PREVIEW_CSP, escapeHtml } from "../src/preview/render.ts";
 import { FIELDS_FILE, aiSettings } from "./fixtures.mjs";
@@ -27,7 +27,7 @@ const RECORD = {
   ])
 };
 const recordFile = { tool: "pcraft-authoring record", fetchedAt: "", baseUrl: "https://x.cybozu.com", appId: 3740, id: 3, record: RECORD };
-const run = (settings, extra = {}) => runPreview({ settingsText: JSON.stringify(settings), settingsFile: "settings/見積書.json", fields: FIELDS_FILE, recordFile, engine, pluginVersion: "6", ...extra });
+const run = (settings, extra = {}) => runPreview({ settingsText: JSON.stringify(settings), settingsFile: "settings/見積書.json", fields: FIELDS_FILE, recordFile, engine, ...extra });
 
 test("見積書のプレビュー: 1 ページ、sandbox の iframe、CSP、テーブルと値、##table## は置き換わる", async () => {
   const r = await run(aiSettings());
@@ -60,7 +60,6 @@ test("ページ番号と添付ファイルの画像の置き換えタグ、\\ �
   assert.deepEqual(b.errors, []);
   assert.ok(b.inner.includes('<p class="pn">1 / 1</p>'));
   assert.ok(/<img class="seal" width="10" src="data:image\/svg\+xml,/.test(b.inner), "ダミー画像");
-  // 印刷屋は \ を &yen; にする。happy-dom が innerHTML を直すときに実体を文字に戻すので ¥ でもよい
   assert.ok(b.inner.includes("C:¥dir") || b.inner.includes("C:&yen;dir"));
 });
 

@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "state": true,
+    "name": "table",
+    "desc": "table style",
+    "css": "\n/* css table */\n.table-header {\n    font-size: 24px;\n    text-align: center;\n    margin-bottom: 4px;\n}\n\n.pcraft-table-table {\n    width: 100%;\n    border: 2px solid #000;\n    border-collapse: collapse;\n    background: white;\n    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);\n}\n\n.pcraft-table-table th,\n.pcraft-table-table td {\n    border: 1px solid #000;\n    padding: 10px;\n}\n\n.pcraft-table-table th {\n    white-space: nowrap;\n    background: #f0f0f0;\n    font-weight: bold;\n}\n\n.pcraft-table-table tr:nth-child(even) {\n    background: #f9f9f9;    /* 偶数行の背景色を変更 */\n}\n\n.pcraft-table-footer {\n    background-color: #e9f7f7 !important;\n}\n"
+  },
+  {
+    "id": 2,
+    "state": true,
+    "name": "card",
+    "desc": "card style",
+    "css": "\n/* css card */\n.pcraft-card-container {\n    display: flex;\n    flex-wrap: wrap;\n    gap: 20px;\n    justify-content: flex-start;\n}\n\n.pcraft-card-header {\n    font-size: 24px;\n}\n\n/* .pcraft-card-header-left {\n    text-decoration: underline;\n} */\n\n.pcraft-card-header-right {\n    position: absolute;\n    right: 60px;\n    font-size: 20px;\n}\n\n.pcraft-card-list {\n    display: flex;\n    flex-direction: column;\n    gap: 8px;\n    width: 400px;\n    background: white;\n    padding: 16px;\n    border-radius: 8px;\n    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);\n}\n\n.pcraft-card-item {\n    display: grid;\n    grid-template-columns: auto 1fr;\n    gap: 8px;\n    padding: 8px 0;\n    border-bottom: 1px solid #777;\n}\n\n.pcraft-card-item:last-child {\n    border-bottom: none;    /* 最後の項目は線を消す */\n}\n\n.pcraft-card-label {\n    font-weight: bold;\n    color: #333;\n    white-space: nowrap;    /* 折り返しを防ぐ */\n    width: 200px;\n}\n\n.pcraft-card-value {\n    color: #111;\n    width: 180px;\n}\n"
+  },
+  {
+    "id": 3,
+    "state": true,
+    "name": "comm",
+    "desc": "common style",
+    "css": "\n/* css common */\n.value-left {\n    text-align: left;\n}\n.value-center {\n    text-align: center;\n}\n.value-right {\n    text-align: right;\n}\n"
+  },
+  {
+    "id": 4,
+    "state": true,
+    "name": "invoice",
+    "desc": "invoice style",
+    "css": "\n.pcraft-inv-header {\n  text-align: center;\n  font-size: 28px;\n  font-weight: bold;\n  margin-bottom: 10px;\n}\n\n.pcraft-inv-info {\n  margin-bottom: 20px;\n  display: flex;\n  justify-content: space-between;\n  flex-wrap: wrap;\n  align-items: flex-start;\n}\n\n.pcraft-inv-info p {\n  margin: 5px 0;\n}\n\n.pcraft-inv-left {\n  text-align: left;\n  flex: 1;\n  min-width: 420px;\n}\n\n.pcraft-inv-left p {\n  font-size: 18px;\n  font-weight: bold;\n  border-bottom: 1px solid #000;\n  display: inline-block;\n  padding-bottom: 2px;\n  margin-bottom: 10px;\n}\n\n.pcraft-inv-right {\n  position: relative;\n  text-align: right;\n  flex: 1;\n}\n\n.pcraft-inv-seal {\n  position: absolute;\n  right: 100px;\n  bottom: 0;\n  width: 100px;\n  height: auto;\n  z-index: 10;\n  opacity: 0.8;\n}\n\n.pcraft-inv-left .pcraft-inv-validity {\n  font-size: 16px;\n  font-weight: normal;\n  border-bottom: none;\n  display: block;\n  margin-top: 5px;\n}\n\n.pcraft-inv-left .pcraft-inv-estimate-amount {\n  font-size: 16px;\n  font-weight: bold;\n  display: block;\n  margin-top: 5px;\n  width: 240px;\n}\n\n.pcraft-inv-estimate-amount span {\n  margin-left: 20px;\n}\n\ntable.pcraft-inv-item-table {\n  width: 100%;\n  border: 2px solid #000;\n  border-collapse: collapse;\n}\n\ntable.pcraft-inv-item-table th,\ntable.pcraft-inv-item-table td {\n  border: 1px solid #000;\n  box-sizing: border-box;\n  padding: 5px 10px;\n}\n\ntable.pcraft-inv-item-table th {\n  text-align: center;\n}\n\ntable.pcraft-inv-item-table td:nth-child(1) {\n  text-align: center;\n}\n\ntable.pcraft-inv-item-table td:nth-child(3),\ntable.pcraft-inv-item-table td:nth-child(4),\ntable.pcraft-inv-item-table td:nth-child(5) {\n  text-align: right;\n}\n\n.pcraft-inv-item-table th:nth-child(1) {\n  width: 40px;\n}\n\n.pcraft-inv-item-table th:nth-child(2) {\n  width: 288px;\n}\n\n.pcraft-inv-item-table th:nth-child(3) {\n  width: 90PX;\n}\n\n.pcraft-inv-item-table th:nth-child(4),\n.pcraft-inv-item-table th:nth-child(5) {\n  width: 130px;\n}\n\n.pcraft-inv-summary-section {\n  margin-top: 10px;\n  display: flex;\n  justify-content: space-between;\n}\n\n.pcraft-inv-remarks-section {\n  border: 2px solid #000;\n  padding: 5px 10px;\n  box-sizing: border-box;\n  width: 400px;\n}\n\n.pcraft-inv-total-section table {\n  width: 100%;\n  border: 2px solid #000;\n  border-collapse: collapse;\n}\n\n.pcraft-inv-total-section th,\n.pcraft-inv-total-section td {\n  border: 1px solid #000;\n  padding: 6px 10px;\n  text-align: right;\n  width: 133px;\n  box-sizing: border-box;\n}\n\n.pcraft-inv-total-section th {\n  text-align: left;\n}\n\n.pcraft-inv-footer {\n  margin-top: 20px;\n  padding-top: 10px;\n  border-top: 2px solid #000;\n  text-align: left;\n}\n\n.pcraft-inv-footer p {\n  margin-block: initial;\n  font-size: 15px;\n}\n"
+  }
+]

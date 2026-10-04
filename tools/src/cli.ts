@@ -1,31 +1,33 @@
 /**
  * pcraft-authoring <command>（docs/authoring-plan.md 12.2）。
- *   version [--expect <PluginVersion>] [--json]
+ *   version [--plugin-zip <zip>] [--json]
  *   fields --app N [--lang ja] [--preview] [--guest S] [--env <.env>] [--out <file>]
  *   record --app N --id R [--fields-from <settings.json>] [--guest S] [--env <.env>] [--out <file>]
- *   normalize <settings.json> --fields <fields.json> [--out <file>] [--dry-run] [--check] [--policy <file>] [--json]
+ *   normalize <settings.json> --fields <fields.json> [--out <file>] [--dry-run] [--check] [--policy <file>] [--plugin-zip <zip>] [--json]
  *   diff <before.json> <after.json> [--derived]
- *   preview <settings.json> --fields <fields.json> --record <record.json> [--button <名前>] [--out-dir <dir>] [--policy <file>] [--json]
- * 終了コード: 0 = 正常、1 = 検査や照合で不一致・kintone や認証のエラー、2 = 使い方の誤り
+ *   preview <settings.json> --fields <fields.json> --record <record.json> [--button <名前>] [--out-dir <dir>] [--policy <file>] [--plugin-zip <zip>] [--json]
+ * 計算式エンジンと印刷屋のコードは利用者の印刷屋 zip（.env の PCRAFT_PLUGIN_ZIP か --plugin-zip）から読む。tools は配らない。
+ * 終了コード: 0 = 正常、1 = 検査や照合で不一致・kintone や認証や zip のエラー、2 = 使い方の誤り
  * 画面に出すのは件数と名前だけで、レコードの値と認証情報は出さない。
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { AuthError, describeAuth, loadAuth } from "./env.ts";
+import { AuthError, describeAuth, loadAuth, pluginZipPath } from "./env.ts";
 import { NotAllowedError, RestError, createRestClient } from "./kintone-rest.ts";
 import { fetchFields, summarizeFields } from "./commands/fields.ts";
 import { fetchRecord, summarizeRecord, usedFieldCodes } from "./commands/record.ts";
 import { loadPolicy, normalizeSettings, readFieldsFile, relativeSettingsPath } from "./commands/normalize.ts";
 import { diffSettings } from "./commands/diff.ts";
 import { runPreview } from "./commands/preview.ts";
-import { loadEngine } from "./engine.ts";
-import { toolsMeta } from "./meta.ts";
+import { loadEngine, type Engine } from "./engine.ts";
+import { PluginZipError } from "./plugin-zip.ts";
+import { schemaRevisionOf, toolsMeta } from "./meta.ts";
 
 const USAGE = `使い方: pcraft-authoring <command> [options]
 
-  version [--expect <PluginVersion>] [--json]
-      tools の版、対応する印刷屋プラグインの版、設定スキーマの版、元の commit、同梱する計算式エンジンの SHA-256。
-      --expect を付けると対応する版が違うときに終了コード 1。
+  version [--plugin-zip <zip>] [--json]
+      tools の版と、印刷屋の zip から読んだプラグインの版・authoring API の版・計算式エンジンの SHA-256・設定スキーマの版。
+      zip が読めない、または対応しない版なら終了コード 1。
   fields --app N [--lang ja] [--preview] [--guest <spaceId>] [--env <.env>] [--out <file>]
       項目定義とレイアウトとアプリ名を fields/<N>.json に保存（既定は運用中の形。--preview は設定画面と同じ preview の API）。
   record --app N --id R [--fields-from <settings.json>] [--guest <spaceId>] [--env <.env>] [--out <file>]
@@ -39,8 +41,9 @@ const USAGE = `使い方: pcraft-authoring <command> [options]
       有効なボタンごとに帳票の HTML を out/<ボタン名>.html に書く（sandbox の iframe + CSP。画像はダミー、Web フォントは読まない）。
       一覧帳票は対象外。式の失敗は赤字で埋めて終了コード 1。
 
-認証は OS の環境変数か .env（kintone 公式 MCP と同じ KINTONE_BASE_URL と、KINTONE_API_TOKEN または KINTONE_USERNAME / KINTONE_PASSWORD。
-dashboard の KSQL_* も読む）。kintone には GET しか送らない。
+.env（または OS の環境変数）: KINTONE_BASE_URL と、KINTONE_API_TOKEN または KINTONE_USERNAME / KINTONE_PASSWORD（kintone 公式 MCP と同じ）、
+PCRAFT_PLUGIN_ZIP=<印刷屋プラグインの zip のパス>（計算式エンジンと印刷屋のコードをここから読む。--plugin-zip でも指定可）。
+kintone には GET しか送らない。
 `;
 
 const FLAGS = new Set(["preview", "check", "json", "dry-run", "derived"]);
@@ -54,7 +57,6 @@ function flag(args: string[], name: string): boolean {
   return args.includes(`--${name}`);
 }
 
-/** 「--」で始まらない引数（位置引数） */
 function positional(args: string[]): string[] {
   const out: string[] = [];
   for (let i = 0; i < args.length; i++) {
@@ -89,24 +91,41 @@ function writeText(file: string, text: string): void {
   writeFileSync(file, text, "utf8");
 }
 
+/** エンジンを読む（--plugin-zip → .env / 環境変数 PCRAFT_PLUGIN_ZIP → 開発中の print-craft）。読み込み時の注意は stderr に */
+async function engineFor(args: string[]): Promise<Engine> {
+  const zip = option(args, "plugin-zip") ?? pluginZipPath({ envFile: option(args, "env") });
+  const engine = await loadEngine({ pluginZip: zip });
+  for (const w of engine.warnings) console.error(`注意: ${w}`);
+  return engine;
+}
+
 async function version(args: string[]): Promise<number> {
-  const meta = await toolsMeta();
+  const meta = toolsMeta();
+  let engine: Engine | null = null;
+  let error: string | undefined;
+  try {
+    engine = await engineFor(args);
+  } catch (e) {
+    error = e instanceof Error ? e.message : String(e);
+  }
+  const info = {
+    ...meta,
+    plugin: engine ? { source: engine.source.kind, from: engine.source.from, pluginVersion: engine.source.pluginVersion, apiVersion: engine.api.apiVersion, engineSha256: engine.source.engineSha256, engineKnown: engine.source.engineKnown, schemaRevision: schemaRevisionOf(engine.api.CONFIG_SCHEMA) } : null,
+    error
+  };
   if (flag(args, "json")) {
-    console.log(JSON.stringify(meta, null, 2));
+    console.log(JSON.stringify(info, null, 2));
   } else {
-    console.log(`@rex0220/print-craft-authoring-tools ${meta.toolsVersion}${meta.mode === "dev" ? "（開発中: print-craft の src と prod を直接読んでいる）" : ""}`);
-    console.log(`対応する印刷屋プラグインの版: ${meta.pluginVersion}`);
-    console.log(`設定スキーマの版: ${meta.schemaRevision}`);
-    console.log(`print-craft の commit: ${meta.printCraftCommit}`);
-    console.log(`計算式エンジン: ${meta.engineFile} sha256 ${meta.engineSha256}`);
-    if (meta.builtAt) console.log(`ビルド: ${meta.builtAt}`);
+    console.log(`@rex0220/print-craft-authoring-tools ${meta.toolsVersion}${meta.mode === "dev" ? "（開発中）" : ""}（対応する印刷屋の版 ${meta.supportedPluginVersions.join(", ")}、API ${meta.supportedApiVersion}。commit ${meta.commit}${meta.builtAt ? `、ビルド ${meta.builtAt}` : ""}）`);
+    if (engine) {
+      console.log(`印刷屋プラグイン: 版 ${engine.source.pluginVersion}、authoring API ${engine.api.apiVersion}（${engine.source.kind === "zip" ? "zip" : "開発中の print-craft"}: ${engine.source.from}）`);
+      console.log(`計算式エンジン: sha256 ${engine.source.engineSha256}${engine.source.engineKnown ? "（既知）" : "（未知）"}`);
+      console.log(`設定スキーマの版: ${schemaRevisionOf(engine.api.CONFIG_SCHEMA)}`);
+    } else {
+      console.error(`印刷屋の zip: ${error}`);
+    }
   }
-  const expect = option(args, "expect");
-  if (expect !== undefined && expect !== meta.pluginVersion) {
-    console.error(`対応する印刷屋プラグインの版が違う: tools は ${meta.pluginVersion}、期待は ${expect}`);
-    return 1;
-  }
-  return 0;
+  return engine ? 0 : 1;
 }
 
 function client(args: string[]) {
@@ -150,8 +169,7 @@ async function normalize(args: string[]): Promise<number> {
   if (!settingsFile) throw new UsageError("設定 JSON のパスが要る");
   const fieldsFile = option(args, "fields");
   if (!fieldsFile) throw new UsageError("--fields <fields.json> が要る（fields コマンドの出力）");
-  const meta = await toolsMeta();
-  const engine = await loadEngine();
+  const engine = await engineFor(args);
   const fieldsData = await readFieldsFile(fieldsFile);
   engine.setContext({ baseUrl: fieldsData.baseUrl, appId: fieldsData.appId });
   const result = await normalizeSettings({
@@ -159,7 +177,6 @@ async function normalize(args: string[]): Promise<number> {
     settingsFile: relativeSettingsPath(settingsFile),
     fields: fieldsData,
     engine,
-    pluginVersion: meta.pluginVersion,
     policy: loadPolicy({ policyFile: option(args, "policy") }),
     check: flag(args, "check")
   });
@@ -201,8 +218,7 @@ async function preview(args: string[]): Promise<number> {
   const fieldsFile = option(args, "fields");
   const recordFile = option(args, "record");
   if (!fieldsFile || !recordFile) throw new UsageError("--fields <fields.json> と --record <record.json> が要る（fields / record コマンドの出力）");
-  const meta = await toolsMeta();
-  const engine = await loadEngine();
+  const engine = await engineFor(args);
   const fieldsData = await readFieldsFile(fieldsFile);
   const result = await runPreview({
     settingsText: readFileSync(settingsFile, "utf8"),
@@ -210,7 +226,6 @@ async function preview(args: string[]): Promise<number> {
     fields: fieldsData,
     recordFile: JSON.parse(readFileSync(recordFile, "utf8")) as unknown,
     engine,
-    pluginVersion: meta.pluginVersion,
     policy: loadPolicy({ policyFile: option(args, "policy") }),
     button: option(args, "button")
   });
@@ -274,7 +289,7 @@ main(process.argv.slice(2)).then(
     if (e instanceof UsageError) {
       console.error(`${e.message}\n${USAGE}`);
       process.exitCode = 2;
-    } else if (e instanceof AuthError || e instanceof RestError || e instanceof NotAllowedError) {
+    } else if (e instanceof AuthError || e instanceof RestError || e instanceof NotAllowedError || e instanceof PluginZipError) {
       console.error(e.message);
       process.exitCode = 1;
     } else {

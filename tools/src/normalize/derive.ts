@@ -1,5 +1,5 @@
 /**
- * 派生値の生成（docs/authoring-plan.md 12.2。段階 0 の work/authoring-spike/spike-normalize.mjs の移植 + 更新項目の行の再構成）。
+ * 派生値の生成（docs/authoring-plan.md 12.2。段階 0 の work/authoring-spike/spike-normalize.mjs の移植 + 更新項目の行の再構成）。印刷屋のコードは API から使う。
  * 入力にあった派生値は信用せず上書きする:
  *   - HTML 設定の各行: id、formula（formulaSet からコメントを除いたもの）、usedFields（実エンジンで crec を評価）
  *   - 更新項目: 行の並びと state / formulaSet / remark は AI のまま、type / ptcode / row_type / lookup / fieldlabel / required は
@@ -11,15 +11,14 @@
 import type { Engine } from "../engine.ts";
 import type { Findings } from "./findings.ts";
 import { calcIneligibleReason, type Model } from "./model.ts";
-import { buildMenuRows, computeUsage, defaultMenuInfo, normalizeCssRows, normalizeTagsInfo, stripComments, toSavedRows, type PrintCraftSaved } from "print-craft/src/config/load.ts";
 import type { CalcField, MenuRow, TagRow } from "print-craft/src/config/schema.ts";
+import type { PrintCraftSaved } from "print-craft/src/config/load.ts";
 
 /** 封筒のキー（kit の export-import.ts と同じ） */
 export const ENVELOPE_KEYS = ["date", "pluginName", "pluginID", "PluginVersion", "appId", "appName"] as const;
 /** 外枠（kit の shell）が付け足すキー。CONFIG_SCHEMA に無く、インポートで落ちる */
 export const SHELL_KEYS = ["pluginProductEnv", "pluginLastUpdate", "pluginUpdater", "startDate", "name", "version", "ldate"] as const;
 
-const AI_CALC_KEYS = ["state", "formulaSet", "remark"] as const;
 const META_CALC_KEYS = ["row_type", "type", "lookup", "ptcode", "fieldlabel", "required"] as const;
 
 export interface EvalResult {
@@ -30,7 +29,7 @@ export interface EvalResult {
 
 /** 設定画面の formulaRule と同じ: 検証用レコードで評価して usedFields を取る */
 export function evaluateFormula(engine: Engine, model: Model, formulaSet: string): EvalResult {
-  const formula = stripComments(formulaSet.replace(/\r\n?/g, "\n"));
+  const formula = model.api.stripComments(formulaSet.replace(/\r\n?/g, "\n"));
   if (!formula.trim()) return { formula, usedFields: {} };
   const kf = engine.checker(model.pp, model.crec);
   kf.usedFields({});
@@ -60,11 +59,12 @@ export function bodyOf(envelope: Record<string, unknown>): Record<string, unknow
 }
 
 export function deriveBody(input: Record<string, unknown>, model: Model, engine: Engine, f: Findings): Record<string, unknown> {
-  const rows = buildMenuRows(input as PrintCraftSaved, "ja");
+  const api = model.api;
+  const rows = api.buildMenuRows(input as PrintCraftSaved, "ja");
   rows.forEach((row, i) => {
     const label = rowLabel(row, i);
     // ---- HTML 設定 ----
-    const tags = normalizeTagsInfo(row.tagsInfo);
+    const tags = api.normalizeTagsInfo(row.tagsInfo);
     if (tags) {
       tags.fieldsInfo = tags.fieldsInfo.map((t, j) => {
         const base: TagRow = { ...t, id: j + 1, formulaSet: String(t.formulaSet ?? "").replace(/\r\n?/g, "\n") };
@@ -76,7 +76,6 @@ export function deriveBody(input: Record<string, unknown>, model: Model, engine:
       row.tagsInfo = tags;
     }
     // ---- 更新項目 ----
-    // 設定画面は dialog を開いたことが無いボタンの fieldsInfo を [] のまま保存する。入力が空ならそのまま（$out も足さない）
     const given = row.calcInfo.fieldsInfo;
     if (given.length === 0) {
       row.calcInfo.usedFields = {};
@@ -85,13 +84,12 @@ export function deriveBody(input: Record<string, unknown>, model: Model, engine:
     }
     const outRow = given.find((x) => x.fieldcode === "$out");
     const rebuilt: CalcField[] = [];
-    // $out の row_type は設定画面の言語の文言（dialogs.ts の outLabel）。入力にあればそのまま、無ければ日本語
     rebuilt.push(
       outRow
         ? { ...outRow, row_type: outRow.row_type || "更新条件", type: "BOOL", lookup: false, ptcode: "", fieldlabel: "", fieldcode: "$out", required: false }
         : { id: 1, state: false, row_type: "更新条件", type: "BOOL", lookup: false, ptcode: "", fieldlabel: "", fieldcode: "$out", required: false, remark: "", formulaSet: "1", formula: "1", usedFields: {} }
     );
-    if (!outRow && given.length) f.info("calc.out", `${label} / 更新項目`, "先頭の $out（更新条件）が無いので既定（1 = 常に更新）を足した");
+    if (!outRow) f.info("calc.out", `${label} / 更新項目`, "先頭の $out（更新条件）が無いので既定（1 = 常に更新）を足した");
     const seen = new Set<string>(["$out"]);
     for (const x of given) {
       if (x.fieldcode === "$out") continue;
@@ -112,7 +110,6 @@ export function deriveBody(input: Record<string, unknown>, model: Model, engine:
         remark: String(x.remark ?? ""), formulaSet: String(x.formulaSet ?? "").replace(/\r\n?/g, "\n"), formula: "", usedFields: {}
       });
     }
-    // 一覧にあって入力に無い項目は足さない（設定画面の「未使用を除く」の後の形。dialog は開いたときに全候補を並べるが、保存されるのは残した行だけ）
     let used: Record<string, unknown> = {};
     row.calcInfo.fieldsInfo = rebuilt.map((c, j) => {
       const base: CalcField = { ...c, id: j + 1 };
@@ -126,22 +123,21 @@ export function deriveBody(input: Record<string, unknown>, model: Model, engine:
     row.calcInfo.flinkage = false;
   });
 
-  const saved = toSavedRows(rows);
-  const usage = computeUsage(rows, model.pp);
+  const saved = api.toSavedRows(rows);
+  const usage = api.computeUsage(rows, model.pp);
   const body: Record<string, unknown> = {
     pluginEnable: input.pluginEnable === undefined ? true : !!input.pluginEnable,
-    menuInfo: input.menuInfo && typeof input.menuInfo === "object" ? input.menuInfo : defaultMenuInfo("ja"),
+    menuInfo: input.menuInfo && typeof input.menuInfo === "object" ? input.menuInfo : api.defaultMenuInfo("ja"),
     guestsInfo: Array.isArray(input.guestsInfo) ? input.guestsInfo : [],
     pluginComment: String(input.pluginComment ?? ""),
     pluginDescription: String(input.pluginDescription ?? ""),
     commonCssEnable: input.commonCssEnable === undefined ? true : !!input.commonCssEnable,
-    cssInfo: normalizeCssRows(input.cssInfo),
+    cssInfo: api.normalizeCssRows(input.cssInfo),
     ...(input.fontInfo && typeof input.fontInfo === "object" ? { fontInfo: input.fontInfo } : {}),
     pluginInfos: saved,
     usedFields: usage.usedFields,
     pluginUOG: usage.pluginUOG
   };
-  // 上に無いキーはそのまま残す（CONFIG_SCHEMA の検証が後で落とす・弾く）
   for (const k of Object.keys(input)) if (!(k in body)) body[k] = input[k];
   return body;
 }

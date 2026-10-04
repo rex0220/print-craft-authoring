@@ -1,0 +1,723 @@
+{
+  "note": "印刷屋の authoring API の CONFIG_SCHEMA から tools/scripts/gen-schema-manifest.mjs が作る。手で直さない。仕様書（設定ファイル仕様.md）との照合は tools/test/spec-sync.test.mjs",
+  "pluginVersion": "6",
+  "apiVersion": 1,
+  "schemaRevision": "ac1fd5820aa3",
+  "source": "dev: C:\\Users\\rex02\\Projects\\kintone-plugin\\print-craft\\prod",
+  "limits": {
+    "maxDepth": 16,
+    "maxArrayItems": 5000,
+    "maxStringLength": 200000,
+    "maxBytes": 4194304
+  },
+  "enums": {
+    "pluginInfos[].tagsInfo.pageSize": {
+      "runtime": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "B1",
+        "B2",
+        "B3",
+        "B4",
+        "B5",
+        "Letter",
+        "Legal",
+        "Tabloid",
+        "4R",
+        "5R",
+        "8R"
+      ],
+      "screen": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "B1",
+        "B2",
+        "B3",
+        "B4",
+        "B5",
+        "Letter",
+        "Legal",
+        "Tabloid"
+      ]
+    },
+    "pluginInfos[].tagsInfo.orientation": [
+      "p",
+      "l"
+    ],
+    "pluginInfos[].tagsInfo.dpi": [
+      "96",
+      "150"
+    ],
+    "pluginInfos[].tagsInfo.printMode": [
+      "preview",
+      "confirm",
+      "direct"
+    ]
+  },
+  "entries": [
+    {
+      "path": "pluginEnable",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "menuInfo",
+      "type": "object",
+      "optional": true,
+      "unknown": "strip"
+    },
+    {
+      "path": "menuInfo.recselect",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "menuInfo.enabled",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "menuInfo.menuLabel",
+      "type": "object",
+      "optional": true,
+      "unknown": "strip"
+    },
+    {
+      "path": "menuInfo.menuLabel.name",
+      "type": "string",
+      "optional": true,
+      "maxLength": 100
+    },
+    {
+      "path": "menuInfo.menuLabel.default",
+      "type": "string",
+      "optional": true,
+      "maxLength": 100
+    },
+    {
+      "path": "menuInfo.menuLabel.ja",
+      "type": "string",
+      "optional": true,
+      "maxLength": 100
+    },
+    {
+      "path": "menuInfo.menuLabel.en",
+      "type": "string",
+      "optional": true,
+      "maxLength": 100
+    },
+    {
+      "path": "menuInfo.menuLabel.zh",
+      "type": "string",
+      "optional": true,
+      "maxLength": 100
+    },
+    {
+      "path": "guestsInfo",
+      "type": "array",
+      "optional": true,
+      "maxItems": 5000,
+      "items": "object"
+    },
+    {
+      "path": "guestsInfo[]",
+      "type": "object",
+      "optional": false,
+      "unknown": "strip"
+    },
+    {
+      "path": "guestsInfo[].state",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "guestsInfo[].id",
+      "type": "number",
+      "optional": true,
+      "min": null,
+      "max": null,
+      "integer": false
+    },
+    {
+      "path": "guestsInfo[].email",
+      "type": "string",
+      "optional": true,
+      "maxLength": 256
+    },
+    {
+      "path": "guestsInfo[].name",
+      "type": "string",
+      "optional": true,
+      "maxLength": 256
+    },
+    {
+      "path": "guestsInfo[].status",
+      "type": "string",
+      "optional": true,
+      "maxLength": 100
+    },
+    {
+      "path": "guestsInfo[].expiration",
+      "type": "string",
+      "optional": true,
+      "maxLength": 100
+    },
+    {
+      "path": "guestsInfo[].company",
+      "type": "string",
+      "optional": true,
+      "maxLength": 256
+    },
+    {
+      "path": "guestsInfo[].note",
+      "type": "string",
+      "optional": true,
+      "maxLength": 2000
+    },
+    {
+      "path": "guestsInfo[].dummy",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "pluginComment",
+      "type": "string",
+      "optional": true,
+      "maxLength": 1000
+    },
+    {
+      "path": "pluginDescription",
+      "type": "string",
+      "optional": true,
+      "maxLength": 10000
+    },
+    {
+      "path": "commonCssEnable",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "cssInfo",
+      "type": "array",
+      "optional": true,
+      "maxItems": 500,
+      "items": "object"
+    },
+    {
+      "path": "cssInfo[]",
+      "type": "object",
+      "optional": false,
+      "unknown": "strip"
+    },
+    {
+      "path": "cssInfo[].id",
+      "type": "number",
+      "optional": true,
+      "min": null,
+      "max": null,
+      "integer": false
+    },
+    {
+      "path": "cssInfo[].state",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "cssInfo[].name",
+      "type": "string",
+      "optional": true,
+      "maxLength": 256
+    },
+    {
+      "path": "cssInfo[].desc",
+      "type": "string",
+      "optional": true,
+      "maxLength": 4000
+    },
+    {
+      "path": "cssInfo[].css",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "fontInfo",
+      "type": "object",
+      "optional": true,
+      "unknown": "strip"
+    },
+    {
+      "path": "fontInfo.enabled",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "fontInfo.preset",
+      "type": "string",
+      "optional": true,
+      "maxLength": 40
+    },
+    {
+      "path": "fontInfo.family",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200
+    },
+    {
+      "path": "fontInfo.cssUrl",
+      "type": "string",
+      "optional": true,
+      "maxLength": 2000
+    },
+    {
+      "path": "fontInfo.samples",
+      "type": "object",
+      "optional": true,
+      "unknown": "strip"
+    },
+    {
+      "path": "fontInfo.samples.ja",
+      "type": "string",
+      "optional": true,
+      "maxLength": 500
+    },
+    {
+      "path": "fontInfo.samples.en",
+      "type": "string",
+      "optional": true,
+      "maxLength": 500
+    },
+    {
+      "path": "fontInfo.samples.zh",
+      "type": "string",
+      "optional": true,
+      "maxLength": 500
+    },
+    {
+      "path": "pluginInfos",
+      "type": "array",
+      "optional": true,
+      "maxItems": 100,
+      "items": "object"
+    },
+    {
+      "path": "pluginInfos[]",
+      "type": "object",
+      "optional": false,
+      "unknown": "strip"
+    },
+    {
+      "path": "pluginInfos[].state",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "pluginInfos[].id",
+      "type": "number",
+      "optional": true,
+      "min": null,
+      "max": null,
+      "integer": false
+    },
+    {
+      "path": "pluginInfos[].menu",
+      "type": "string",
+      "optional": true,
+      "maxLength": 256
+    },
+    {
+      "path": "pluginInfos[].menu_en",
+      "type": "string",
+      "optional": true,
+      "maxLength": 256
+    },
+    {
+      "path": "pluginInfos[].menu_ja",
+      "type": "string",
+      "optional": true,
+      "maxLength": 256
+    },
+    {
+      "path": "pluginInfos[].menu_zh",
+      "type": "string",
+      "optional": true,
+      "maxLength": 256
+    },
+    {
+      "path": "pluginInfos[].mcheck",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "pluginInfos[].list",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "pluginInfos[].authority",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "pluginInfos[].guest",
+      "type": "string",
+      "optional": true,
+      "maxLength": 20000
+    },
+    {
+      "path": "pluginInfos[].users",
+      "type": "string",
+      "optional": true,
+      "maxLength": 20000
+    },
+    {
+      "path": "pluginInfos[].organizations",
+      "type": "string",
+      "optional": true,
+      "maxLength": 20000
+    },
+    {
+      "path": "pluginInfos[].groups",
+      "type": "string",
+      "optional": true,
+      "maxLength": 20000
+    },
+    {
+      "path": "pluginInfos[].desc",
+      "type": "string",
+      "optional": true,
+      "maxLength": 4000
+    },
+    {
+      "path": "pluginInfos[].desc_en",
+      "type": "string",
+      "optional": true,
+      "maxLength": 4000
+    },
+    {
+      "path": "pluginInfos[].desc_ja",
+      "type": "string",
+      "optional": true,
+      "maxLength": 4000
+    },
+    {
+      "path": "pluginInfos[].desc_zh",
+      "type": "string",
+      "optional": true,
+      "maxLength": 4000
+    },
+    {
+      "path": "pluginInfos[].remark",
+      "type": "string",
+      "optional": true,
+      "maxLength": 4000
+    },
+    {
+      "path": "pluginInfos[].viewsCsv",
+      "type": "string",
+      "optional": true,
+      "maxLength": 4000
+    },
+    {
+      "path": "pluginInfos[].views",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "pluginInfos[].htmlStr",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "pluginInfos[].htmlInfo",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "pluginInfos[].calcStr",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "pluginInfos[].tagsInfo",
+      "type": "object",
+      "optional": true,
+      "unknown": "strip"
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.fieldsInfo",
+      "type": "array",
+      "optional": true,
+      "maxItems": 1000,
+      "items": "object"
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.fieldsInfo[]",
+      "type": "object",
+      "optional": false,
+      "unknown": "strip"
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.fieldsInfo[].id",
+      "type": "number",
+      "optional": true,
+      "min": null,
+      "max": null,
+      "integer": false
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.fieldsInfo[].state",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.fieldsInfo[].desc",
+      "type": "string",
+      "optional": true,
+      "maxLength": 4000
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.fieldsInfo[].remark",
+      "type": "string",
+      "optional": true,
+      "maxLength": 4000
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.fieldsInfo[].fieldcode",
+      "type": "string",
+      "optional": true,
+      "maxLength": 128
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.fieldsInfo[].css",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.fieldsInfo[].html",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.fieldsInfo[].formulaSet",
+      "type": "string",
+      "optional": true,
+      "maxLength": 20000
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.fieldsInfo[].formula",
+      "type": "string",
+      "optional": true,
+      "maxLength": 20000
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.fieldsInfo[].usedFields",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.filecode",
+      "type": "string",
+      "optional": true,
+      "maxLength": 128
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.pageSize",
+      "type": "string",
+      "optional": true,
+      "maxLength": 20
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.orientation",
+      "type": "string",
+      "optional": true,
+      "maxLength": 4
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.dpi",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "pluginInfos[].tagsInfo.printMode",
+      "type": "string",
+      "optional": true,
+      "maxLength": 10
+    },
+    {
+      "path": "pluginInfos[].calcInfo",
+      "type": "object",
+      "optional": true,
+      "unknown": "strip"
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo",
+      "type": "array",
+      "optional": true,
+      "maxItems": 1000,
+      "items": "object"
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[]",
+      "type": "object",
+      "optional": false,
+      "unknown": "strip"
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].id",
+      "type": "number",
+      "optional": true,
+      "min": null,
+      "max": null,
+      "integer": false
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].state",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].row_type",
+      "type": "string",
+      "optional": true,
+      "maxLength": 256
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].type",
+      "type": "string",
+      "optional": true,
+      "maxLength": 40
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].lookup",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].ptcode",
+      "type": "string",
+      "optional": true,
+      "maxLength": 128
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].fieldlabel",
+      "type": "string",
+      "optional": true,
+      "maxLength": 512
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].fieldcode",
+      "type": "string",
+      "optional": false,
+      "maxLength": 128
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].required",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].remark",
+      "type": "string",
+      "optional": true,
+      "maxLength": 4000
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].formulaSet",
+      "type": "string",
+      "optional": true,
+      "maxLength": 20000
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].formula",
+      "type": "string",
+      "optional": true,
+      "maxLength": 20000
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].usedFields",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].hide",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].input",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].need",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].enabled",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "pluginInfos[].calcInfo.fieldsInfo[].options",
+      "type": "string",
+      "optional": true,
+      "maxLength": 20000
+    },
+    {
+      "path": "pluginInfos[].calcInfo.usedFields",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "pluginInfos[].calcInfo.flinkage",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "usedFields",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "pluginUOG",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "pluginLang",
+      "type": "any",
+      "optional": true
+    }
+  ]
+}

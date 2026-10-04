@@ -1,0 +1,29 @@
+{
+  "tool": "pcraft-authoring record",
+  "fetchedAt": "2026-10-04T00:00:00.000Z",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 3740,
+  "id": 1,
+  "record": {
+    "$id": { "type": "RECORD_NUMBER", "value": "1" },
+    "$revision": { "type": "__REVISION__", "value": "3" },
+    "見積番号": { "type": "SINGLE_LINE_TEXT", "value": "A-20260224-001" },
+    "宛名": { "type": "SINGLE_LINE_TEXT", "value": "株式会社あれこれ" },
+    "見積日": { "type": "DATE", "value": "2026-02-24" },
+    "担当者": { "type": "USER_SELECT", "value": [{ "code": "sample", "name": "開発 太郎" }] },
+    "備考": { "type": "MULTI_LINE_TEXT", "value": "本見積の有効期限は発行日から 1 か月です。\n納期は別途ご相談ください。" },
+    "小計": { "type": "CALC", "value": "300000" },
+    "消費税": { "type": "CALC", "value": "30000" },
+    "合計": { "type": "CALC", "value": "330000" },
+    "見積ファイル": { "type": "FILE", "value": [] },
+    "ダミー": { "type": "SINGLE_LINE_TEXT", "value": "" },
+    "見積明細": {
+      "type": "SUBTABLE",
+      "value": [
+        { "id": "1", "value": { "商品名": { "type": "SINGLE_LINE_TEXT", "value": "A01 商品名XXXX" }, "数量": { "type": "NUMBER", "value": "10" }, "単価": { "type": "NUMBER", "value": "10000" }, "金額": { "type": "CALC", "value": "100000" } } },
+        { "id": "2", "value": { "商品名": { "type": "SINGLE_LINE_TEXT", "value": "A02 商品名XXXX" }, "数量": { "type": "NUMBER", "value": "5" }, "単価": { "type": "NUMBER", "value": "20000" }, "金額": { "type": "CALC", "value": "100000" } } },
+        { "id": "3", "value": { "商品名": { "type": "SINGLE_LINE_TEXT", "value": "A01 商品名XXXX" }, "数量": { "type": "NUMBER", "value": "10" }, "単価": { "type": "NUMBER", "value": "10000" }, "金額": { "type": "CALC", "value": "100000" } } }
+      ]
+    }
+  }
+}

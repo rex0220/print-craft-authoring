@@ -1,23 +1,25 @@
-/** version が出す情報（開発中の計算）と、RegExp を含む CONFIG_SCHEMA の安定したハッシュ */
+/** version が出す情報と、RegExp を含む CONFIG_SCHEMA の安定したハッシュ */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { devMeta, stableJson, schemaRevision } from "../src/meta.ts";
+import { devMeta, stableJson, schemaRevisionOf, SUPPORTED_PLUGIN_VERSIONS, SUPPORTED_API_VERSION } from "../src/meta.ts";
+import { loadEngine } from "./helpers.mjs";
 
-test("devMeta: tools の版、印刷屋の版 6、スキーマの版 12 桁、commit、エンジンの SHA-256", async () => {
-  const m = await devMeta();
+test("devMeta: tools の版、対応する印刷屋の版と API の版、commit", () => {
+  const m = devMeta();
   assert.match(m.toolsVersion, /^6\.\d+\.\d+$/);
-  assert.equal(m.pluginVersion, "6");
-  assert.match(m.schemaRevision, /^[0-9a-f]{12}$/);
-  assert.match(m.printCraftCommit, /^([0-9a-f]{7,}(\+dirty)?|unknown)$/);
-  assert.equal(m.engineFile, "KintoneFormulaPCraft.min.js");
-  assert.match(m.engineSha256, /^[0-9a-f]{64}$/);
+  assert.deepEqual(m.supportedPluginVersions, ["6"]);
+  assert.equal(m.supportedApiVersion, 1);
+  assert.match(m.commit, /^([0-9a-f]{7,}(\+dirty)?|unknown)$/);
   assert.equal(m.mode, "dev");
 });
 
-test("stableJson は RegExp を文字列にする（JSON.stringify は {} にする）。schemaRevision は 12 桁で安定", async () => {
+test("stableJson は RegExp を文字列にする。schemaRevisionOf は 12 桁で安定し、zip の API の CONFIG_SCHEMA で計算できる", async () => {
   assert.equal(stableJson({ a: /x+/i }), '{"a":"/x+/i"}');
   assert.equal(JSON.stringify({ a: /x+/i }), '{"a":{}}');
-  const r1 = await schemaRevision();
+  const engine = await loadEngine();
+  const r1 = schemaRevisionOf(engine.api.CONFIG_SCHEMA);
   assert.match(r1, /^[0-9a-f]{12}$/);
-  assert.equal(await schemaRevision(), r1);
+  assert.equal(schemaRevisionOf(engine.api.CONFIG_SCHEMA), r1);
+  assert.ok(SUPPORTED_PLUGIN_VERSIONS.includes(engine.source.pluginVersion));
+  assert.equal(engine.api.apiVersion, SUPPORTED_API_VERSION);
 });
