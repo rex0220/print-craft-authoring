@@ -2,7 +2,7 @@
   "note": "印刷屋の authoring API の CONFIG_SCHEMA から tools/scripts/gen-schema-manifest.mjs が作る。手で直さない。仕様書（設定ファイル仕様.md）との照合は tools/test/spec-sync.test.mjs",
   "pluginVersion": "6",
   "apiVersion": 1,
-  "schemaRevision": "ac1fd5820aa3",
+  "schemaRevision": "37d2ddd3907c",
   "source": "dev: C:\\Users\\rex02\\Projects\\kintone-plugin\\print-craft\\prod",
   "limits": {
     "maxDepth": 16,
@@ -58,6 +58,10 @@
       "preview",
       "confirm",
       "direct"
+    ],
+    "externalRefs": [
+      "block",
+      "allow"
     ]
   },
   "entries": [
@@ -305,6 +309,12 @@
       "type": "string",
       "optional": true,
       "maxLength": 500
+    },
+    {
+      "path": "externalRefs",
+      "type": "string",
+      "optional": true,
+      "maxLength": 10
     },
     {
       "path": "pluginInfos",

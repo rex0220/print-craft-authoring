@@ -1,4 +1,4 @@
-# 認証情報（KSQL_BASE_URL / KSQL_TOKEN / KSQL_USERNAME / KSQL_PASSWORD）
+# 認証情報（KINTONE_BASE_URL / KINTONE_API_TOKEN / KINTONE_USERNAME / KINTONE_PASSWORD と PCRAFT_PLUGIN_ZIP）
 .env
 node_modules/
 # record コマンドの出力（個人情報を含む）と preview の出力

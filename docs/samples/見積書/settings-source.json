@@ -7,6 +7,7 @@
   "appName": "見積書(印刷屋)",
   "pluginEnable": true,
   "commonCssEnable": true,
+  "externalRefs": "block",
   "pluginComment": "AI オーサリングのサンプル（見積書）。docs/帳票レシピ集.md の R1",
   "pluginDescription": "見積書アプリの詳細画面で A4 縦の見積書 PDF を作り、見積ファイルに保存します。",
   "pluginInfos": [

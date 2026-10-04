@@ -93,6 +93,25 @@ test("一覧帳票は対象外、--button で絞る、設定にエラーがあ�
   assert.equal(rb.results.length, 0);
 });
 
+test("preview の文書は閉じている: CSS の </style> で抜けられない、レコードの値の <a href> / <meta> / on* / <iframe> は外す、img-src は data: だけ", async () => {
+  const s = aiSettings({ cssInfo: [{ state: true, name: "x", desc: "", css: '.a{color:red} </style><meta http-equiv="refresh" content="0;url=https://evil.example/"><style>.b{content:"<"}' }] });
+  const rec = JSON.parse(JSON.stringify(recordFile));
+  rec.record.見積明細.value[0].value.商品名.value = '<a href="https://evil.example/">link</a><img src="x" onerror="alert(1)"><meta http-equiv="refresh" content="0;url=https://evil.example/"><iframe src="https://evil.example/"></iframe><style></style><meta></style><span onclick="x()">t</span><a href="#top">in</a>';
+  const r = await run(s, { recordFile: rec });
+  assert.ok(!r.findings.hasErrors, r.findings.format());
+  const inner = r.results[0].inner;
+  assert.ok(!inner.includes("</style><meta"), "CSS から </style> で抜けられない");
+  assert.ok(inner.includes("\\3c /style>") || inner.includes("\\3c /style&gt;"), "CSS の < はエスケープ");
+  assert.ok(!/<meta http-equiv="refresh"/.test(inner), "meta refresh は外す");
+  assert.ok(!/<iframe/.test(inner.replace(/<iframe sandbox=""/g, "")), "帳票の中の iframe は外す");
+  assert.ok(!/onerror=|onclick=/.test(inner), "イベント属性は外す");
+  assert.ok(!/href="https:\/\/evil/.test(inner), "外部へのリンクは外す");
+  assert.ok(inner.includes('href="#top"'), "文書内のリンクは残る");
+  assert.ok(inner.includes(">link</a>") && inner.includes("in</a>"), "リンクの文字は残る");
+  assert.ok(!PREVIEW_CSP.includes("blob:"));
+  assert.match(PREVIEW_CSP, /img-src data:;/);
+});
+
 test("extractRecord: record コマンドの出力、API の応答、レコードそのもの", () => {
   assert.equal(extractRecord(recordFile), RECORD);
   assert.equal(extractRecord({ record: RECORD }), RECORD);

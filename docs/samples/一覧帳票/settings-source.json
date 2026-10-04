@@ -7,6 +7,7 @@
   "appName": "案件管理",
   "pluginEnable": true,
   "commonCssEnable": true,
+  "externalRefs": "block",
   "pluginComment": "AI オーサリングのサンプル（一覧帳票）。docs/帳票レシピ集.md の R5",
   "pluginDescription": "一覧画面に表示中のレコード（または選択したレコード）を表にした PDF をダウンロードします。",
   "menuInfo": { "recselect": true, "enabled": false, "menuLabel": { "default": "印刷屋", "ja": "印刷屋", "en": "Print craft", "zh": "打印" } },

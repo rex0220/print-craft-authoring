@@ -128,16 +128,21 @@ export function deriveBody(input: Record<string, unknown>, model: Model, engine:
   const body: Record<string, unknown> = {
     pluginEnable: input.pluginEnable === undefined ? true : !!input.pluginEnable,
     menuInfo: input.menuInfo && typeof input.menuInfo === "object" ? input.menuInfo : api.defaultMenuInfo("ja"),
-    guestsInfo: Array.isArray(input.guestsInfo) ? input.guestsInfo : [],
+    // ゲストの行番号は tools が振る（docs/設定ファイル仕様.md の guestsInfo[].id）
+    guestsInfo: Array.isArray(input.guestsInfo) ? input.guestsInfo.map((g, i) => (g && typeof g === "object" && !Array.isArray(g) ? { ...(g as Record<string, unknown>), id: i + 1 } : g)) : [],
     pluginComment: String(input.pluginComment ?? ""),
     pluginDescription: String(input.pluginDescription ?? ""),
     commonCssEnable: input.commonCssEnable === undefined ? true : !!input.commonCssEnable,
     cssInfo: api.normalizeCssRows(input.cssInfo),
     ...(input.fontInfo && typeof input.fontInfo === "object" ? { fontInfo: input.fontInfo } : {}),
+    // 外部参照（Ver.6 の共通の設定。設定画面は常に明示して保存する）。キーが無ければ印刷屋は Ver.5 の設定として「許可」で動く（Takashi 2026-10-04）ので
+    // "allow" を明示する（checks.ts が利用者の承認を求める）。"block" / "allow" 以外はそのまま残して checks.ts がエラーにする
+    externalRefs: input.externalRefs === undefined ? "allow" : input.externalRefs,
     pluginInfos: saved,
     usedFields: usage.usedFields,
     pluginUOG: usage.pluginUOG
   };
   for (const k of Object.keys(input)) if (!(k in body)) body[k] = input[k];
+  if (input.externalRefs === undefined) f.info("externalRefs.legacy", "共通の設定", `外部参照（externalRefs）が無い（Ver.5 の設定か、書き忘れ）。印刷屋はキーが無い設定を「許可」（何も除かない）として動かすので "allow" を明示した。新しい設定なら "block" を書く`);
   return body;
 }

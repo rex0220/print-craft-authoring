@@ -12,6 +12,7 @@
     "vendor/**",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
+    "SECURITY.md",
     "README.md"
   ],
   "engines": {
@@ -36,7 +37,7 @@
     "url": "https://github.com/rex0220/print-craft-authoring/issues"
   },
   "dependencies": {
-    "happy-dom": "^20.0.0"
+    "happy-dom": "20.14.5"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

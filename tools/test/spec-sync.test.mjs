@@ -66,6 +66,8 @@ test("仕様書の列挙が印刷屋の定数と同じ", () => {
   assert.deepEqual(enums["pluginInfos[].tagsInfo.orientation"], manifest.enums["pluginInfos[].tagsInfo.orientation"]);
   assert.deepEqual(enums["pluginInfos[].tagsInfo.dpi"], manifest.enums["pluginInfos[].tagsInfo.dpi"]);
   assert.deepEqual(enums["pluginInfos[].tagsInfo.printMode"], manifest.enums["pluginInfos[].tagsInfo.printMode"]);
+  assert.deepEqual(enums["externalRefs"], manifest.enums["externalRefs"], "外部参照（Ver.6 の共通の設定）");
+  assert.deepEqual(manifest.enums["externalRefs"], ["block", "allow"]);
 });
 
 test("仕様書の上限が manifest と同じ（html / css / formulaSet / 全体）", () => {

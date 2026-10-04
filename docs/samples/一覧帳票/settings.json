@@ -20,6 +20,7 @@
   "pluginComment": "AI オーサリングのサンプル（一覧帳票）。docs/帳票レシピ集.md の R5",
   "pluginDescription": "一覧画面に表示中のレコード（または選択したレコード）を表にした PDF をダウンロードします。",
   "commonCssEnable": true,
+  "externalRefs": "block",
   "cssInfo": [
     {
       "id": 1,

@@ -8,6 +8,7 @@
 import type { PrintCraftAuthoringApi } from "print-craft/src/authoring/api.ts";
 import type { FieldInfo, FieldProp } from "print-craft/src/config/load.ts";
 import type { FieldsFile } from "../commands/fields.ts";
+import { isKintoneBaseUrl, normalizeKintoneBaseUrl } from "../kintone-url.ts";
 
 export const PSEUDO_FIELDS = new Set(["$id", "$revision", "$out", "$html", "$rseq"]);
 /** UINFO / OINFO / GINFO を使った印（項目ではない。lib 26 行） */
@@ -17,7 +18,10 @@ export const EXEC_CONDITION_LABEL = "実行条件";
 export interface Model {
   api: PrintCraftAuthoringApi;
   file: FieldsFile;
+  /** .env の KINTONE_BASE_URL（検証済み）。無ければ ""（iframe は使えない） */
   baseUrl: string;
+  /** fields の baseUrl（kintone のドメインなら正規化、違えば ""）。表示と警告だけに使う */
+  fieldsBaseUrl: string;
   appId: number;
   pp: Record<string, FieldProp>;
   crec: Record<string, unknown>;
@@ -28,7 +32,10 @@ export interface Model {
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
-export function buildModel(file: FieldsFile, api: PrintCraftAuthoringApi): Model {
+/**
+ * @param trustedBaseUrl .env の KINTONE_BASE_URL（検証済み）。iframe の同一オリジンの判定はこれだけを使う（無ければ iframe は使えない）
+ */
+export function buildModel(file: FieldsFile, api: PrintCraftAuthoringApi, trustedBaseUrl?: string): Model {
   // 検証用の pp は設定画面と同じ作り方。expandFields を先に通すと createCheckRecord が子の ptcode を "" に戻す（キーの順で上書き）ので使わない
   const pp: Record<string, FieldProp> = { ...(clone(file.properties) as unknown as Record<string, FieldProp>) };
   pp["$id"] = { type: "RECORD_NUMBER", code: "$id", label: "$id" };
@@ -40,7 +47,11 @@ export function buildModel(file: FieldsFile, api: PrintCraftAuthoringApi): Model
   const calcCandidates = api.createFieldsInfo(pp, clone(file.layout) as Parameters<PrintCraftAuthoringApi["createFieldsInfo"]>[1]).filter((c) => !c.ptcode && c.type !== "SUBTABLE");
   const calcByCode = new Map<string, FieldInfo>();
   for (const c of calcCandidates) calcByCode.set(c.fieldcode, c);
-  return { api, file, baseUrl: file.baseUrl, appId: file.appId, pp, crec, ppRun, calcCandidates, calcByCode };
+  // iframe の同一オリジンの判定に使う接続先は .env の KINTONE_BASE_URL（検証済み）だけ。fields の baseUrl は AI が書き換えられるファイルの値なので
+  // 判定には使わない（無ければ "" = iframe は使えない。1-10 レビュー BLOCKER 5、再レビュー BLOCKER 4）。fields の値は表示と警告（fieldsBaseUrl）だけ
+  const baseUrl = trustedBaseUrl ?? "";
+  const fieldsBaseUrl = typeof file.baseUrl === "string" && isKintoneBaseUrl(file.baseUrl) ? normalizeKintoneBaseUrl(file.baseUrl) : "";
+  return { api, file, baseUrl, fieldsBaseUrl, appId: file.appId, pp, crec, ppRun, calcCandidates, calcByCode };
 }
 
 /** 項目コードが使えるか（usedFields の実在チェック。12.3） */

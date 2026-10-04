@@ -1,5 +1,5 @@
 /**
- * record --app N --id R [--fields-from <settings.json>] [--guest S] [--env <.env>] [--out <file>]
+ * record --app N --id R [--fields-from <settings.json>] [--guest S] [--out records/<file>]
  * レコードを /k/v1/record（{ type, value }、テーブルは入れ子）で取って records/<app>-<id>.json に保存する。preview の入力。
  * レコードは個人情報を含むので、--fields-from で設定が使う項目だけ残し、中身は画面とログに出さない（Codex MAJOR 5）。
  */

@@ -53,13 +53,13 @@ tools の版と、zip から読んだ印刷屋の版（6）・authoring API の�
 - CSS は共通 CSS（既定の 4 行 `table` / `card` / `comm` / `invoice`）の class を使い、帳票の CSS には差分だけ書く
 - 金額は `${FVAL(項目)}`（桁区切りと単位）、日付は `${DATE_FORMAT(項目, "YYYY年M月D日")}`、複数行は `${REPLACE(ESC_HTML(項目), "\n", "<br>")}`（`FVAL` でもよいが生の HTML）
 - 1 ページは `<div class="rex0220-pcraft-page">…</div>`。A4 縦 96 dpi は 794 × 1123 px で、内側の余白は上下 40px・左 60px・右 40px。はみ出た部分は切れるので、テーブルが長いときは `TABLE_HTML` の `pagination`
-- 社印などの画像は小さな SVG（data URL）か、添付ファイルの `#{&f(fileKey)}`。外部の URL は利用者の承認が要る
+- 社印などの画像は小さな SVG（data URL）か、添付ファイルの `#{&f(fileKey)}`。外部の URL は `externalRefs: "block"`（新しい設定の既定）では帳票に出ない（`normalize` がエラー）。使うなら利用者が `externalRefs` を `"allow"` にして `policy/` で承認する
 
 ### ステップ 4 — 設定 JSON を組み立てて検査する
 
 - `設定ファイル仕様.md` に従い封筒形式で `settings/<アプリ名>-<帳票名>.json` に保存する。書くのは「AI」の列のキーだけ
-- `npx pcraft-authoring normalize settings/<ファイル>.json --fields fields/N.json` → エラー 0 にする。エラーの規則名: `envelope.*`（封筒）、`schema`、`tags.*`（列挙・保存先・行の並び）、`calc.ineligible`（更新できない項目）、`formula.syntax`（計算式）、`field.unknown`（無い項目）、`html.rule` / `css.rule`（危険な書き方）、`size`（256 KB）
-- **警告は消さずに利用者に伝える**: `html.rawExpression`（`${式}` が ESC_HTML を通していない）、`formula.rawHtml`（生の HTML を入れる関数）、`formula.attr`（属性にレコードの値）、`external.url`（外部 URL。承認は利用者が `policy/` に書く）
+- `npx pcraft-authoring normalize settings/<ファイル>.json --fields fields/N.json` → エラー 0 にする。エラーの規則名: `envelope.*`（封筒）、`schema`、`tags.*`（列挙・保存先・行の並び）、`calc.ineligible`（更新できない項目）、`formula.syntax`（計算式）、`field.unknown`（無い項目）、`html.rule` / `css.rule`（危険な書き方）、`external.blocked`（`"block"` の設定の HTML / CSS の外部 URL。帳票に出ない）、`externalRefs.*`（外部参照。`"allow"` とキーが無い設定は利用者の承認が無ければエラー、不正な値）、`size`（256 KB）
+- **警告は消さずに利用者に伝える**: `html.rawExpression`（`${式}` が ESC_HTML を通していない）、`formula.rawHtml`（生の HTML を入れる関数）、`formula.attr`（要素名・属性にレコードの値や式）、`formula.html`（計算式の文字列の HTML / CSS の危険な書き方）、`external.url`（`"allow"` の設定の外部 URL と Web フォント。承認は利用者が `policy/` に書く）、`external.blocked`（計算式の文字列の外部 URL。除かれる）
 - `--check` は、エクスポートした設定を戻すときに派生値が一致することの確認。`--dry-run` は書き戻さない
 
 ### ステップ 5 — プレビューと反映

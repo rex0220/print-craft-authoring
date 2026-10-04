@@ -5,6 +5,7 @@
  *   - tools の版と commit を __PCRAFT_TOOLS_META__ に埋める（version コマンドが出す）
  */
 import { build } from "esbuild";
+import { spawnSync } from "node:child_process";
 import { readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -42,5 +43,11 @@ if (leaked.length) {
   console.error(`印刷屋 / kit / rexgrid のコードが bundle に入っている（型だけの import にする）:\n  ${leaked.join("\n  ")}`);
   process.exit(1);
 }
+// 作った bundle が起動するか（1-10 の後に、ソースの shebang と banner の shebang が重なって構文エラーになったことがある）
+const smoke = spawnSync(process.execPath, [path.join(root, "dist", "cli.mjs"), "help"], { encoding: "utf8" });
+if (smoke.status !== 0 || !/使い方: pcraft-authoring/.test(smoke.stdout)) {
+  console.error(`dist/cli.mjs が起動しない（exit ${smoke.status}）:\n${smoke.stderr}`);
+  process.exit(1);
+}
 const size = readFileSync(path.join(root, "dist", "cli.mjs")).length;
-console.log(`wrote dist/cli.mjs (${size.toLocaleString()} bytes; tools ${meta.toolsVersion}, commit ${meta.commit}; ${inputs.length} inputs, 印刷屋 / kit のコードは含まない)`);
+console.log(`wrote dist/cli.mjs (${size.toLocaleString()} bytes; tools ${meta.toolsVersion}, commit ${meta.commit}; ${inputs.length} inputs, 印刷屋 / kit のコードは含まない, help が起動する)`);

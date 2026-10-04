@@ -1,5 +1,5 @@
 /**
- * fields --app N [--lang ja] [--preview] [--guest S] [--env <.env>] [--out <file>]
+ * fields --app N [--lang ja] [--preview] [--guest S] [--out fields/<file>]
  * 項目定義（/k/v1/app/form/fields の properties）、レイアウト（/k/v1/app/form/layout）、アプリ名（/k/v1/app）を 1 つの JSON に保存する。
  * 設定画面は preview の API を読む（load.ts 204 / 209 行）ので --preview で同じ API に切り替えられる（既定は運用中の形。
  * preview は API トークンでは呼べないことがある）。normalize / preview はこのファイルから pp と更新項目の一覧を作る。

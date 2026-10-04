@@ -136,22 +136,186 @@ test("検査: 列挙、保存先、更新項目にできない項目、無い項
   assert.equal(r.output, undefined, "エラーがあれば書き出さない");
 });
 
-test("検査: HTML の危険な書き方はエラー、外部 URL は警告（policy で許せば情報）、同一オリジンの iframe は許す", async () => {
+test("検査: HTML の危険な書き方はエラー。外部 URL は「除く」の設定ではエラー（印刷屋が除くので帳票に出ない）、「許可」の設定では承認（policy）が無ければ警告・あれば情報。.env の接続先と同じオリジンの iframe は許す", async () => {
   const s = aiSettings();
   const row = s.pluginInfos[0];
   row.tagsInfo.fieldsInfo[2].html = HTML_TEMPLATE.replace("##table##", `<script>alert(1)</script><p title="\${宛名}" onclick="x()">x</p><img src="https://cdn.example.com/seal.png"><iframe src="https://x.cybozu.com/k/3740/report/portlet?report=1"></iframe><iframe src="https://evil.example.com/"></iframe>##table##`);
-  const r = await run(s);
+  const env = { baseUrl: "https://x.cybozu.com" };
+  const r = await run(s, env);
   const msgs = r.findings.items.filter((f) => f.rule === "html.rule" && f.level === "error").map((f) => f.message);
   assert.ok(msgs.some((m) => m.includes("<script>")));
   assert.ok(msgs.some((m) => m.includes("onclick")));
   assert.ok(msgs.some((m) => m.includes("${式}")));
   assert.equal(msgs.filter((m) => m.includes("iframe")).length, 1, "他のオリジンの iframe だけエラー");
-  assert.ok(r.findings.items.some((f) => f.rule === "external.url" && f.level === "warning" && f.message.includes("cdn.example.com")));
-  const ok = await run(s, { policy: { allowExternal: [{ origin: "https://cdn.example.com", files: ["settings/見積書.json"] }] } });
+  const blocked = r.findings.items.filter((f) => f.rule === "external.blocked" && f.level === "error");
+  assert.ok(blocked.some((f) => f.message.includes("cdn.example.com") && f.message.includes("帳票に出ない")), r.findings.format());
+  assert.ok(!r.findings.items.some((f) => f.rule === "external.url"), "「除く」の設定では承認の対象にしない（承認しても帳票に出ない）");
+  // 「許可」（Ver.5 と同じ。自己責任）は利用者の承認（allowExternalRefs）が要る。承認があれば外部 URL は allowExternal の対象（警告 / 情報）
+  const allow = { ...s, externalRefs: "allow" };
+  const unapproved = await run(allow, env);
+  assert.ok(unapproved.findings.items.some((f) => f.rule === "externalRefs.unapproved" && f.level === "error" && f.message.includes("settings/見積書.json")), unapproved.findings.format());
+  assert.equal(unapproved.output, undefined);
+  const approved = { allowExternal: [], allowExternalRefs: ["settings/見積書.json"] };
+  const warn = await run(allow, { ...env, policy: approved });
+  assert.ok(warn.findings.items.some((f) => f.rule === "externalRefs.allowed" && f.level === "info"));
+  assert.ok(warn.findings.items.some((f) => f.rule === "external.url" && f.level === "warning" && f.message.includes("cdn.example.com")));
+  assert.ok(!warn.findings.items.some((f) => f.rule === "external.blocked"));
+  const ok = await run(allow, { ...env, policy: { ...approved, allowExternal: [{ origin: "https://cdn.example.com", files: ["settings/見積書.json"] }] } });
   assert.ok(ok.findings.items.some((f) => f.rule === "external.allowed" && f.level === "info"));
   assert.ok(!ok.findings.items.some((f) => f.rule === "external.url"));
-  const other = await run(s, { policy: { allowExternal: [{ origin: "https://cdn.example.com", files: ["settings/other.json"] }] } });
+  const other = await run(allow, { ...env, policy: { ...approved, allowExternal: [{ origin: "https://cdn.example.com", files: ["settings/other.json"] }] } });
   assert.ok(other.findings.items.some((f) => f.rule === "external.url"));
+});
+
+test("外部参照（externalRefs）: キーが無ければ印刷屋は許可で動くので \"allow\" を明示して承認を求める。不正な値はエラー。diff に出る", async () => {
+  const legacy = aiSettings();
+  delete legacy.externalRefs;
+  const r = await run(legacy);
+  assert.ok(rules(r, "info").includes("externalRefs.legacy"), r.findings.format());
+  assert.ok(rules(r, "error").includes("externalRefs.unapproved"));
+  assert.equal(r.output, undefined);
+  const ok = await run(legacy, { policy: { allowExternal: [], allowExternalRefs: ["settings/見積書.json"] } });
+  assert.deepEqual(rules(ok, "error"), [], ok.findings.format());
+  assert.equal(ok.output.externalRefs, "allow", "出力には明示する（設定画面と同じ）");
+  const bad = await run(aiSettings({ externalRefs: "yes" }));
+  assert.ok(rules(bad, "error").includes("externalRefs.value"), bad.findings.format());
+  const block = await run(aiSettings());
+  assert.equal(block.output.externalRefs, "block");
+  assert.ok(!block.findings.items.some((f) => f.rule.startsWith("externalRefs.")), "\"block\" は何も言わない");
+  const { diffSettings } = await import("../src/commands/diff.ts");
+  assert.match(diffSettings(block.output, ok.output), /externalRefs: "block" → "allow"/);
+});
+
+test("検査: 帳票の行の計算式が作る HTML は警告だけ（止めるのは印刷屋の描画前の掃除）: HTML を作る関数、定数でない要素名・属性、定数の HTML / CSS、外部 URL", async () => {
+  const s = aiSettings();
+  const row = s.pluginInfos[0].tagsInfo.fieldsInfo[2];
+  // 文字列の中の // は印刷屋の stripComments が切るので（下のテスト）、ここでは https: の後に // を置かない形で書く
+  row.formulaSet = `"<img src=https:evil.example/pixel>" & TAGS_HTML(TAG("div", STYLE("background", "url(https:evil2.example/bg.png)"), ATTR("title", 宛名), "x")) & "<script>1</script>"`;
+  const r = await run(s);
+  const by = (rule, level) => r.findings.items.filter((f) => f.rule === rule && f.level === level).map((f) => f.message);
+  assert.ok(by("formula.rawHtml", "warning").some((m) => m.includes("TAG") && m.includes("ATTR") && m.includes("STYLE")), r.findings.format());
+  assert.ok(by("formula.attr", "warning").some((m) => m.includes("ATTR の値 宛名")), "ATTR の値がレコードの項目は警告");
+  assert.ok(by("formula.html", "warning").some((m) => m.includes("<script>")), "定数の HTML の禁止タグは警告");
+  const blocked = by("external.blocked", "warning");
+  assert.ok(blocked.some((m) => m.includes("evil.example/pixel")), "定数の HTML の外部 URL（除くの設定では除かれる。警告）");
+  assert.ok(blocked.some((m) => m.includes("evil2.example/bg.png")), "STYLE の定数の url()");
+  assert.ok(!r.findings.items.some((f) => f.level === "error"), `警告だけ: ${r.findings.format()}`);
+  assert.ok(r.output, "警告だけなので書き出す");
+  // 許可の設定（承認済み）では外部 URL は allowExternal の対象（警告 external.url）
+  const allow = await run({ ...s, externalRefs: "allow" }, { policy: { allowExternal: [], allowExternalRefs: ["settings/見積書.json"] } });
+  assert.ok(allow.findings.items.some((f) => f.rule === "external.url" && f.message.includes("evil.example/pixel")), allow.findings.format());
+  assert.ok(!allow.findings.items.some((f) => f.rule === "external.blocked"));
+  // 文字列の中の //（印刷屋の stripComments が切る）はエラー
+  const c = aiSettings();
+  c.pluginInfos[0].tagsInfo.fieldsInfo[1].formulaSet = '"https://x.example.com/" & 見積番号 // コメントは外でなら書ける';
+  const rc = await run(c);
+  assert.ok(rules(rc, "error").includes("formula.comment"), rc.findings.format());
+  const ok = aiSettings();
+  ok.pluginInfos[0].tagsInfo.fieldsInfo[1].formulaSet = '"見積書-" & 見積番号 & ".pdf" // https://… は外ならコメント';
+  assert.ok(!rules(await run(ok), "error").includes("formula.comment"));
+  const safe = aiSettings();
+  const r2 = await run(safe);
+  assert.ok(!r2.findings.items.some((f) => f.level === "error"), "既定の形（TABLE_HTML + REPLACE。##table## や <br>）はエラーにならない");
+});
+
+test("検査: 計算式が組む HTML は静的に追わない（断片の連結や分岐はエラーにしない。印刷屋が描画の前に除く）。定数でない要素名・属性は formula.attr の警告", async () => {
+  const has = (r, rule, level, text) => r.findings.items.some((f) => f.rule === rule && f.level === level && f.message.includes(text));
+  const cases = [
+    // 断片の連結・分岐・LET は追わない（エラー無し。警告は HTML を作る関数が無ければ出ない）
+    [`"<" & "img src=https:" & "/" & "/evil.example/pixel>"`, (r) => !r.findings.items.some((f) => f.level === "error")],
+    [`LET(a, "<", b, "img src=x onerror=alert(1)>", a & b)`, (r) => !r.findings.items.some((f) => f.level === "error")],
+    [Array.from({ length: 8 }, (_, i) => `IF(見積番号 = "${i}", "<b>${i}</b>", "")`).join(" & "), (r) => !r.findings.items.some((f) => f.level === "error" || f.rule === "formula.inspect")],
+    // 定数の HTML / CSS は同じ検査を警告として出す
+    [`"<" & "script>alert(1)</script>"`, (r) => !r.findings.items.some((f) => f.level === "error")],
+    [`"<script>alert(1)</script>"`, (r) => has(r, "formula.html", "warning", "<script>")],
+    [`TAGS_HTML(TAG("div", ATTR("title", "\\" onclick=\\"alert(1)"), "x"))`, (r) => !r.findings.items.some((f) => f.level === "error")],
+    [`"<img src=x onerror=alert(1)>"`, (r) => has(r, "formula.html", "warning", "onerror")],
+    [`TAGS_HTML(VTAG("img", ATTR("srcset", "data:image/png;base64,AAAA 1x, https:evil.example/pixel 2x")))`, (r) => has(r, "formula.rawHtml", "warning", "VTAG") && !r.findings.items.some((f) => f.level === "error")],
+    [`"background:url(https:evil3.example/b.png)"`, (r) => has(r, "external.blocked", "warning", "evil3.example")],
+    // 要素名・属性が定数でない
+    [`TAGS_HTML(TAG("div", BATTR(備考), "x"))`, (r) => has(r, "formula.attr", "warning", "BATTR の属性名 備考")],
+    [`TAGS_HTML(TAG("div", STYLE(備考), "x"))`, (r) => has(r, "formula.attr", "warning", "STYLE の名前 備考")],
+    [`TAGS_HTML(TAG("img", ATTR("title", "x", "src", 見積番号)))`, (r) => has(r, "formula.attr", "warning", "ATTR の値 見積番号")],
+    [`TAGS_HTML(TAG("div", ATTR("src", "https:" & "/" & "/evil.example/x"), "x"))`, (r) => has(r, "formula.attr", "warning", "ATTR の値")],
+    [`TAGS_HTML(TAG(見積番号, "x"))`, (r) => has(r, "formula.attr", "warning", "TAG の要素名 見積番号")],
+    [`"<p>" & 宛名 & "</p>"`, (r) => !r.findings.items.some((f) => f.level === "error")]
+  ];
+  for (const [formula, check] of cases) {
+    const s = aiSettings();
+    s.pluginInfos[0].tagsInfo.fieldsInfo[2].formulaSet = formula;
+    const r = await run(s);
+    assert.ok(check(r), `${formula}\n${r.findings.format()}`);
+  }
+  // 定数だけの書き方は formula.attr / formula.html の警告が出ない
+  for (const formula of [
+    `"<b>" & ESC_HTML(宛名) & "</b>"`,
+    `TAGS_HTML(TAG("p", ATTR("class", "x"), ESC_HTML(宛名)))`,
+    `TAGS_HTML(TAG("img", ATTR("src", "data:image/png;base64,AAAA", "width", "10")))`,
+    `TAGS_HTML(VTAG("br"))`,
+    `TAGS_HTML(TAG("div", STYLE("color", "red", "font-weight", "bold"), "x"))`,
+    `LET(t, TABLE_HTML(見積明細, 商品名), REPLACE($html, "##table##", t))`,
+    `REPLACE($html, "##x##", IF(見積番号 = "x", "<span class=\\"done\\">済</span>", ""))`,
+    `"<td>" & FVAL(合計金額) & " 円</td>"`
+  ]) {
+    const s = aiSettings();
+    s.pluginInfos[0].tagsInfo.fieldsInfo[2].formulaSet = formula;
+    const r = await run(s);
+    assert.ok(!r.findings.items.some((f) => f.level === "error" || f.rule === "formula.attr" || f.rule === "formula.html"), `${formula}\n${r.findings.format()}`);
+  }
+});
+
+test("検査: 有効なボタンに HTML 設定が無ければエラー、無効なら情報", async () => {
+  const s = aiSettings();
+  delete s.pluginInfos[0].tagsInfo;
+  const r = await run(s);
+  assert.ok(rules(r, "error").includes("tags.rows"), r.findings.format());
+  s.pluginInfos[0].state = false;
+  const r2 = await run(s);
+  assert.ok(!rules(r2, "error").includes("tags.rows"));
+});
+
+test("入力はスキーマで検証した値から派生させる: 緩い真偽値は型どおりに、appId は正の整数、4 MB を超える JSON は止まる", async () => {
+  const s = aiSettings();
+  s.pluginInfos[0].tagsInfo.fieldsInfo[2].state = "false";
+  const r = await run(s);
+  const st = r.output?.pluginInfos[0].tagsInfo.fieldsInfo[2].state ?? r.body?.pluginInfos[0].tagsInfo.fieldsInfo[2].state;
+  assert.equal(typeof st, "boolean", `state は真偽値になる: ${JSON.stringify(st)}`);
+  assert.deepEqual(rules(await run(aiSettings({ appId: "3740" })), "error"), ["envelope.appId"]);
+  assert.deepEqual(rules(await run(aiSettings({ appId: 0 })), "error"), ["envelope.appId"]);
+  assert.deepEqual(rules(await run(aiSettings({ appId: 3741 })), "error"), []);
+  assert.ok(rules(await run(aiSettings({ appId: 3741 })), "warning").includes("envelope.appId"));
+  const big = await normalizeSettings({ settingsText: JSON.stringify({ ...aiSettings(), pluginComment: "x".repeat(4 * 1024 * 1024 + 10) }), fields: FIELDS_FILE, engine });
+  assert.deepEqual(rules(big, "error"), ["json"]);
+  assert.match(big.findings.items[0].message, /大きすぎる/);
+});
+
+test("検査: HTML 設定の行の欠落、有効なボタン名の重複はエラー。guestsInfo の id は tools が振る", async () => {
+  const s = aiSettings();
+  s.pluginInfos[0].tagsInfo.fieldsInfo = [s.pluginInfos[0].tagsInfo.fieldsInfo[0]];
+  const r = await run(s);
+  assert.ok(rules(r, "error").includes("tags.rows"), r.findings.format());
+  assert.equal(r.output, undefined);
+  const d = aiSettings();
+  d.pluginInfos.push(JSON.parse(JSON.stringify(d.pluginInfos[0])));
+  const rd = await run(d);
+  assert.ok(rules(rd, "error").includes("menu.duplicate"), rd.findings.format());
+  d.pluginInfos[1].state = false;
+  assert.ok(!rules(await run(d), "error").includes("menu.duplicate"), "無効なボタンの同名は許す");
+  const g = await run(aiSettings({ guestsInfo: [{ state: true, email: "a@example.com", name: "a" }, { state: true, email: "b@example.com", name: "b" }] }));
+  assert.deepEqual(g.output.guestsInfo.map((x) => x.id), [1, 2]);
+});
+
+test("iframe の同一オリジンの判定は .env の接続先（baseUrl）だけを使う。無ければ iframe は使えない。fields の baseUrl は判定に使わず、違えば警告", async () => {
+  const s = aiSettings();
+  s.pluginInfos[0].tagsInfo.fieldsInfo[2].html = HTML_TEMPLATE.replace("##table##", '<iframe src="https://x.cybozu.com/k/3740/report/portlet?report=1"></iframe>##table##');
+  const noEnv = await run(s);
+  assert.ok(noEnv.findings.items.some((f) => f.rule === "html.rule" && f.message.includes("iframe の src") && f.message.includes("未設定")), ".env が無ければ fields の baseUrl（x.cybozu.com）と同じでも止まる");
+  const attacker = await run(s, { baseUrl: "https://env.cybozu.com" });
+  assert.ok(attacker.findings.items.some((f) => f.rule === "html.rule" && f.message.includes("iframe の src")), ".env と違う iframe は fields と同じでも止まる");
+  assert.ok(attacker.findings.items.some((f) => f.rule === "fields.baseUrl" && f.level === "warning"), "fields の baseUrl が .env と違う警告");
+  const same = await run(s, { baseUrl: "https://x.cybozu.com" });
+  assert.ok(!same.findings.items.some((f) => f.rule === "html.rule" && f.message.includes("iframe の src")), ".env の接続先と同じなら通る");
+  assert.ok(!same.findings.items.some((f) => f.rule === "fields.baseUrl"));
 });
 
 test("検査: CSS の @import と使えない URL、共通 CSS、Web フォントの URL", async () => {

@@ -97,6 +97,8 @@ export function aiSettings(overrides = {}) {
     appName: "見積書(印刷屋)",
     pluginEnable: true,
     commonCssEnable: true,
+    // 外部参照（Ver.6 の共通の設定）。新しい設定は "block"（印刷屋が描画の前に kintone 以外への読み込みとスクリプトを除く）を明示する
+    externalRefs: "block",
     pluginInfos: [
       {
         state: true,

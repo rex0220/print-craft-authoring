@@ -1,10 +1,12 @@
 /**
- * normalize <settings.json> --fields <fields.json> [--out <path>] [--check] [--policy <path>] [--json]
+ * normalize <settings.json> --fields <fields.json> [--out <file>] [--check] [--dry-run] [--json]
  * AI が書いた封筒形式の設定 JSON を、設定画面と同じ手順で派生値を作り直し（derive.ts）、検査して（checks.ts）、保存値の大きさを測り（size.ts）、
  * エラーが無ければ封筒形式で書き出す（date を更新）。--check は入力の派生値と生成した値の差を出す（AI の自己点検、エクスポートの往復の確認）。
  * 印刷屋のコード（スキーマ、派生値、kit の検証）は利用者の zip の authoring API（engine.api）から。終了コード: エラーがあれば 1（書き出さない）。
+ * 1-10 レビュー: 入力は kit の parseJsonSafely（4 MB、深さ、配列の上限）で読む（MAJOR 2）、派生値はスキーマで検証した値から作る（MAJOR 1。
+ * 互換のために受ける "false" などの緩い真偽値を !!x で真にしない）、appId は正の整数（MAJOR 1）。
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import type { Engine } from "../engine.ts";
 import type { FieldsFile } from "./fields.ts";
@@ -16,6 +18,10 @@ import { loadPolicy, type Policy } from "../normalize/policy.ts";
 import { formatSize, measureStored, type StoredSize } from "../normalize/size.ts";
 
 export const PLUGIN_NAME = "印刷屋プラグイン";
+/** fields / record / 設定 JSON のファイルの上限（設定 JSON はさらに kit の 4 MB） */
+export const MAX_INPUT_BYTES = 16 * 1024 * 1024;
+
+export class InputError extends Error {}
 
 export interface NormalizeInput {
   settingsText: string;
@@ -24,6 +30,8 @@ export interface NormalizeInput {
   engine: Engine;
   policy?: Policy;
   check?: boolean;
+  /** .env の KINTONE_BASE_URL（検証済み）。iframe の同一オリジンの判定はこちらを使い、fields の baseUrl と違えば警告 */
+  baseUrl?: string;
   now?: () => Date;
 }
 
@@ -66,9 +74,9 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   const where = input.settingsFile ?? "settings";
   let envelope: Record<string, unknown>;
   try {
-    envelope = JSON.parse(input.settingsText) as Record<string, unknown>;
+    envelope = api.parseJsonSafely(input.settingsText, api.CONFIG_LIMITS) as Record<string, unknown>;
   } catch (e) {
-    f.error("json", where, `JSON として読めない: ${(e as Error).message}`);
+    f.error("json", where, `JSON として読めない、または大きすぎる（${api.CONFIG_LIMITS.maxBytes.toLocaleString()} バイトまで）: ${(e as Error).message}`);
     return { findings: f, summary: "JSON を読めない" };
   }
   if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) {
@@ -78,7 +86,10 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   // ---- 封筒 ----
   if (envelope.pluginID !== api.pluginId) f.error("envelope.pluginID", where, `pluginID は "${api.pluginId}": ${JSON.stringify(envelope.pluginID)}（封筒なしの素の設定は作らない）`);
   if (String(envelope.PluginVersion ?? "") !== pluginVersion) f.error("envelope.version", where, `PluginVersion は印刷屋の版 ${pluginVersion}（zip の manifest）: ${JSON.stringify(envelope.PluginVersion)}`);
-  if (envelope.appId !== undefined && Number(envelope.appId) !== input.fields.appId) f.warning("envelope.appId", where, `appId ${JSON.stringify(envelope.appId)} が fields のアプリ ${input.fields.appId} と違う`);
+  if (envelope.appId !== undefined) {
+    if (typeof envelope.appId !== "number" || !Number.isInteger(envelope.appId) || envelope.appId <= 0) f.error("envelope.appId", where, `appId は正の整数（数値）: ${JSON.stringify(envelope.appId)}`);
+    else if (envelope.appId !== input.fields.appId) f.warning("envelope.appId", where, `appId ${envelope.appId} が fields のアプリ ${input.fields.appId} と違う`);
+  }
   if (f.hasErrors) return { findings: f, summary: "封筒の誤り" };
 
   // ---- 設定本体のスキーマ ----
@@ -94,9 +105,12 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
     throw e;
   }
 
-  // ---- 派生値 → 検査 → 大きさ ----
-  const model = buildModel(input.fields, api);
-  const body = deriveBody(inputBody, model, input.engine, f);
+  // ---- 派生値（検証済みの値から）→ 検査 → 大きさ ----
+  const model = buildModel(input.fields, api, input.baseUrl);
+  if (input.baseUrl && typeof input.fields.baseUrl === "string" && input.fields.baseUrl && model.fieldsBaseUrl !== input.baseUrl) {
+    f.warning("fields.baseUrl", where, `fields の baseUrl（${input.fields.baseUrl.slice(0, 60)}）が .env の KINTONE_BASE_URL と違う。iframe の判定は .env の接続先で行う。fields を取り直すなら npx pcraft-authoring fields --app ${input.fields.appId}`);
+  }
+  const body = deriveBody(JSON.parse(JSON.stringify(inputClean)) as Record<string, unknown>, model, input.engine, f);
   const policy = input.policy ?? { allowExternal: [] };
   await checkBody(body, model, f, { policy, settingsFile: input.settingsFile });
   let cleaned: Record<string, unknown>;
@@ -136,9 +150,30 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   return { findings: f, output, body: cleaned, size, checkDiffs, summary };
 }
 
+/** 大きさの上限を確かめてからテキストを読む */
+export function readTextLimited(file: string, maxBytes = MAX_INPUT_BYTES): string {
+  const size = statSync(file).size;
+  if (size > maxBytes) throw new InputError(`${file} が大きすぎる（${size.toLocaleString()} バイト。上限 ${maxBytes.toLocaleString()}）`);
+  return readFileSync(file, "utf8");
+}
+
+/** 大きさの上限を確かめてから JSON を読む（最上位はオブジェクト） */
+export function readJsonLimited(file: string, maxBytes = MAX_INPUT_BYTES): Record<string, unknown> {
+  let v: unknown;
+  try {
+    v = JSON.parse(readTextLimited(file, maxBytes));
+  } catch (e) {
+    if (e instanceof InputError) throw e;
+    throw new InputError(`${file} を JSON として読めない: ${(e as Error).message}`);
+  }
+  if (!v || typeof v !== "object" || Array.isArray(v)) throw new InputError(`${file} の最上位はオブジェクト`);
+  return v as Record<string, unknown>;
+}
+
 export async function readFieldsFile(file: string): Promise<FieldsFile> {
-  const fields = JSON.parse(readFileSync(file, "utf8")) as FieldsFile;
-  if (!fields || typeof fields !== "object" || !fields.properties) throw new Error(`${file} は fields コマンドの出力ではない（properties が無い）`);
+  const fields = readJsonLimited(file) as unknown as FieldsFile;
+  if (!fields.properties || typeof fields.properties !== "object") throw new InputError(`${file} は fields コマンドの出力ではない（properties が無い）`);
+  if (typeof fields.appId !== "number" || !Number.isInteger(fields.appId) || fields.appId <= 0) throw new InputError(`${file} の appId が正の整数でない`);
   return fields;
 }
 

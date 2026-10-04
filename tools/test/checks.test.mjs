@@ -1,9 +1,10 @@
-/** HTML / CSS の検査と承認（policy）の単体テスト */
+/** HTML / CSS の検査、承認（policy）、${式} の安全判定の単体テスト */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkCss, classifyUrl, extractUrls, stripCssComments } from "../src/normalize/css-check.ts";
 import { checkHtml, expressionsOf } from "../src/normalize/html-check.ts";
-import { isAllowed } from "../src/normalize/policy.ts";
+import { isAllowed, isExternalRefsAllowed, parsePolicy, PolicyError } from "../src/normalize/policy.ts";
+import { callsOf, commentInsideString, isSafeExpression, parseCall, splitTopLevel, stringLiterals } from "../src/normalize/checks.ts";
 
 test("classifyUrl: 置き換えタグ、data:image、https、相対、使えないもの", () => {
   assert.equal(classifyUrl("#{&f(2025ABC)}"), "placeholder");
@@ -63,7 +64,7 @@ test("HTML: 禁止の要素と属性、属性値の ${式}、URL の形、style 
   assert.match(e, /<base>/);
   assert.match(e, /srcset の URL が使えない形: javascript/);
   assert.match(e, /属性値に \$\{式\}/);
-  assert.match(e, /xlink:href の URL が使えない形/);
+  assert.match(e, /<svg> は使えない/);
   assert.match(e, /iframe の src は利用者の kintone/);
   assert.match(e, /srcdoc/);
   assert.match(e, /<style>: @import/);
@@ -71,29 +72,95 @@ test("HTML: 禁止の要素と属性、属性値の ${式}、URL の形、style 
   assert.equal(r.errors.filter((m) => m.includes("iframe の src")).length, 1, "同じオリジンの iframe はエラーにならない");
   assert.deepEqual(r.externals.map((u) => u.url).sort(), ["https://bg.example.com/x.png", "https://link.example.com/", "https://s.example.com/a.png", "https://st.example.com/a.png"]);
   assert.deepEqual(await checkHtml(""), { errors: [], warnings: [], externals: [] });
-  const ok = await checkHtml(`<div class="rex0220-pcraft-page"><p>\${ESC_HTML(宛名)}</p><img width="10" src="#{&f(ABC)}"><span style="color:red">x</span></div>`);
+  const ok = await checkHtml(`<div class="rex0220-pcraft-page"><p>\${ESC_HTML(宛名)}</p><img width="10" src="#{&f(ABC)}"><span style="color:red">x</span><img src="#{&q(https://a.example.com/?q=1)}" width="10"></div>`);
   assert.deepEqual(ok.errors, []);
   assert.deepEqual(ok.externals, []);
 });
 
-test("HTML: #{&q(…)} の中にレコードの値をつなぐと警告、許可一覧に無い要素は警告", async () => {
+test("HTML: 属性値の ${式} はエラー、許可一覧に無い要素もエラー", async () => {
   const r = await checkHtml(`<img src="#{&q(https://a.example.com/?q=\${名称})}"><marquee>x</marquee>`);
-  assert.ok(r.errors.some((m) => m.includes("属性値に ${式}")), "${} は属性値にあるのでエラーにもなる");
-  assert.ok(r.warnings.some((m) => m.includes("<marquee>")));
+  assert.ok(r.errors.some((m) => m.includes("属性値に ${式}")));
+  assert.ok(r.errors.some((m) => m.includes("<marquee> は使えない")));
+  assert.deepEqual(r.warnings, []);
 });
 
 test("expressionsOf: ${式} を列挙", () => {
   assert.deepEqual(expressionsOf('<p>${ESC_HTML(宛名)} ${ FVAL(合計) }</p>'), ["ESC_HTML(宛名)", "FVAL(合計)"]);
 });
 
-test("policy: Google Fonts は既定で許す。origin / url / files で照合", () => {
-  const p = { allowExternal: [{ origin: "https://cdn.example.com", files: ["settings/a.json"] }, { url: "https://img.example.com/logo.png" }] };
+test("isSafeExpression: 式全体で判定する（& でつないだ項がすべて安全なら安全。REPLACE の置換は <br> か記号無しの定数だけ）", () => {
+  const pp = { 宛名: { type: "SINGLE_LINE_TEXT" }, 備考: { type: "MULTI_LINE_TEXT" }, 合計: { type: "NUMBER" }, 税: { type: "CALC" }, 見積日: { type: "DATE" } };
+  for (const ok of ["ESC_HTML(宛名)", "ESC_HTML(宛名 & 備考)", 'REPLACE(ESC_HTML(備考), "\\n", "<br>")', 'REPLACE(ESC_HTML(備考), "\\n", "<br/>")', 'REPLACE(ESC_HTML(備考), "x", "y")', "合計", "FVAL(合計)", "FVAL(合計 * 1.1)", "ROUND(合計 + 税, 0)", 'DATE_FORMAT(見積日, "YYYY年M月D日")', 'DATE_FORMAT(DATE_ADD(見積日, 1, "days"), "YYYY-MM-DD")', "TODAY()", "NOW()", "123", '"御中"', 'ESC_HTML(宛名) & " 御中"', 'FVAL(合計) & " 円（税込 " & FVAL(税) & "）"']) {
+    assert.equal(isSafeExpression(ok, pp), true, ok);
+  }
+  for (const bad of ["宛名", "FVAL(備考)", "FVAL(宛名)", 'ESC_HTML(宛名) & UNESC_HTML("<img onerror=x>")', 'REPLACE(ESC_HTML(備考), "\\n", "<br>") & HTML(備考)', "TODAY() & HTML(備考)", '"</div><img onerror=alert(1)>"', "HTML(備考)", 'REPLACE(ESC_HTML(備考), 宛名, "<br>")', 'REPLACE(ESC_HTML(備考), "x", "<img src=\'https://evil.example/pixel\'>")', 'REPLACE(ESC_HTML(備考), "x", "<b>")', "FVAL(合計, 宛名)", "ESC_HTML(宛名", "TODAY(宛名)", "DATE_FORMAT(宛名, \"YYYY\")", 'ESC_HTML(宛名) & 宛名', "&", 'ESC_HTML(宛名) &']) {
+    assert.equal(isSafeExpression(bad, pp), false, bad);
+  }
+  assert.deepEqual(stringLiterals('REPLACE(x, "a\\"b", \'c\') & "<img src=\\"x\\">"'), ['a"b', "c", '<img src="x">']);
+  assert.deepEqual(callsOf('TAG("img", ATTR("src", URL項目), "x") & ATTR("a", "b")', "ATTR"), [['"src"', "URL項目"], ['"a"', '"b"']]);
+  assert.deepEqual(callsOf("ATTR()", "ATTR"), [[]]);
+  assert.deepEqual(splitTopLevel('a, "x, y", F(1, 2), c'), ["a", '"x, y"', "F(1, 2)", "c"]);
+  assert.equal(splitTopLevel("a, (b"), null);
+  assert.deepEqual(parseCall("F(1, G(2, 3))"), { name: "F", args: ["1", "G(2, 3)"] });
+  assert.equal(parseCall("A(1) & B(2)"), null);
+  assert.deepEqual(parseCall("TODAY()"), { name: "TODAY", args: [] });
+});
+
+test("commentInsideString: 実エンジンの文字列の規則（二重引用符だけ、直前の \\ がある \" はエスケープ）で // を見る", () => {
+  assert.equal(commentInsideString('"https://x.example.com/" & 見積番号'), true);
+  assert.equal(commentInsideString('"a" & b // https://x'), false, "文字列の外の // はコメント");
+  assert.equal(commentInsideString("'https://x'"), false, "' は文字列でないので // は文字列の外（コメント）");
+  assert.equal(commentInsideString('"a\\\\"//x"'), true, "\\\\\" も閉じない（実エンジンの規則）");
+  assert.equal(commentInsideString('"a\\"b" // c'), false);
+  assert.equal(commentInsideString('"x" // https://a\n"https://b"'), true, "2 行目の文字列の中");
+  assert.equal(commentInsideString(""), false);
+});
+
+test("policy: Google Fonts は既定で許す。origin / url / files で照合。URL はタブなどを捨てて比べる", () => {
+  const p = parsePolicy(JSON.stringify({ allowExternal: [{ origin: "https://cdn.example.com", files: ["settings/a.json"] }, { url: "https://img.example.com/logo.png" }] }), "policy.json");
   assert.equal(isAllowed(p, "https://fonts.googleapis.com/css2?family=X"), true);
   assert.equal(isAllowed(p, "https://cdn.example.com/x.png", "settings/a.json"), true);
   assert.equal(isAllowed(p, "https://cdn.example.com/x.png", ".\\settings\\a.json"), true);
+  assert.equal(isAllowed(p, "https://cdn.example.com/x.png", "settings//a.json"), true);
   assert.equal(isAllowed(p, "https://cdn.example.com/x.png", "settings/b.json"), false);
+  assert.equal(isAllowed(p, "https://cdn.example.com/x.png", "settings/../settings/a.json"), false, ".. は照合しない");
   assert.equal(isAllowed(p, "https://cdn.example.com/x.png"), false, "files があるのに設定ファイルが分からなければ許さない");
   assert.equal(isAllowed(p, "https://img.example.com/logo.png"), true);
+  assert.equal(isAllowed(p, "https://img.example.com/logo.png?x=1"), false);
   assert.equal(isAllowed(p, "https://img.example.com/other.png"), false);
   assert.equal(isAllowed({ allowExternal: [] }, "https://x.example.com/"), false);
+  if (process.platform === "win32") assert.equal(isAllowed(p, "https://cdn.example.com/x.png", "Settings/A.json"), true, "Windows は大文字小文字を区別しない");
+});
+
+test("policy: 形を検証する（未知のキー、origin の形、files の .. と絶対パス）", () => {
+  assert.throws(() => parsePolicy("{", "p"), PolicyError);
+  assert.throws(() => parsePolicy(JSON.stringify({ allowExternal: [], extra: 1 }), "p"), /使えるキーは allowExternal/);
+  assert.throws(() => parsePolicy(JSON.stringify({ allowExternal: [{ origin: "https://cdn.example.com/path" }] }), "p"), /https のオリジンだけ/);
+  assert.throws(() => parsePolicy(JSON.stringify({ allowExternal: [{ origin: "http://cdn.example.com" }] }), "p"), /https のオリジンだけ/);
+  assert.throws(() => parsePolicy(JSON.stringify({ allowExternal: [{ url: "https://u:p@cdn.example.com/x" }] }), "p"), /https の完全な URL/);
+  assert.throws(() => parsePolicy(JSON.stringify({ allowExternal: [{ note: "x" }] }), "p"), /origin か url/);
+  assert.throws(() => parsePolicy(JSON.stringify({ allowExternal: [{ origin: "https://cdn.example.com", files: ["../x.json"] }] }), "p"), /相対パス/);
+  assert.throws(() => parsePolicy(JSON.stringify({ allowExternal: [{ origin: "https://cdn.example.com", files: ["C:/x.json"] }] }), "p"), /相対パス/);
+  assert.throws(() => parsePolicy(JSON.stringify({ allowExternal: [{ origin: "https://cdn.example.com", bogus: 1 }] }), "p"), /使えるキーは origin/);
+  const ok = parsePolicy(JSON.stringify({ allowExternal: [{ origin: "https://cdn.example.com/", files: [".\\settings\\a.json"], note: "n" }] }), "p");
+  assert.deepEqual(ok.allowExternal, [{ origin: "https://cdn.example.com", files: ["settings/a.json"], note: "n" }]);
+  assert.deepEqual(parsePolicy("{}", "p").allowExternal, []);
+  assert.equal(parsePolicy("{}", "p").allowExternalRefs, undefined);
+});
+
+test("policy: allowExternalRefs は externalRefs: \"allow\"（印刷屋が何も除かない。自己責任）を使ってよい設定ファイルの一覧。パスは正規化して照合、分からなければ許さない", () => {
+  const p = parsePolicy(JSON.stringify({ allowExternal: [], allowExternalRefs: [".\\settings\\a.json", "settings//b.json"] }), "p");
+  assert.deepEqual(p.allowExternalRefs, ["settings/a.json", "settings/b.json"]);
+  assert.equal(isExternalRefsAllowed(p, "settings/a.json"), true);
+  assert.equal(isExternalRefsAllowed(p, ".\\settings\\b.json"), true);
+  assert.equal(isExternalRefsAllowed(p, "settings/c.json"), false);
+  assert.equal(isExternalRefsAllowed(p, undefined), false, "設定ファイルが分からなければ許さない");
+  assert.equal(isExternalRefsAllowed(p, "settings/../settings/a.json"), false, ".. は照合しない");
+  assert.equal(isExternalRefsAllowed({ allowExternal: [] }, "settings/a.json"), false, "一覧が無ければ許さない");
+  if (process.platform === "win32") assert.equal(isExternalRefsAllowed(p, "Settings/A.json"), true);
+  assert.throws(() => parsePolicy(JSON.stringify({ allowExternalRefs: "settings/a.json" }), "p"), /相対パスの配列/);
+  assert.throws(() => parsePolicy(JSON.stringify({ allowExternalRefs: [1] }), "p"), /相対パスの配列/);
+  assert.throws(() => parsePolicy(JSON.stringify({ allowExternalRefs: ["../x.json"] }), "p"), /相対パス/);
+  assert.throws(() => parsePolicy(JSON.stringify({ allowExternalRefs: ["C:/x.json"] }), "p"), /相対パス/);
+  assert.throws(() => parsePolicy(JSON.stringify({ allowExternalRef: [] }), "p"), /使えるキーは allowExternal と allowExternalRefs/);
 });

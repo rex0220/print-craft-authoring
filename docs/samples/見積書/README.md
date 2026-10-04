@@ -11,7 +11,7 @@
 | `preview.html` | `pcraft-authoring preview` の出力（Chrome で開くと帳票の見た目が分かる。画像はダミー） |
 
 ```
-npx pcraft-authoring normalize docs/samples/見積書/settings-source.json --fields docs/samples/見積書/fields.json --out /tmp/見積書.json
+npx pcraft-authoring normalize docs/samples/見積書/settings-source.json --fields docs/samples/見積書/fields.json --out temp/見積書.json
 npx pcraft-authoring preview docs/samples/見積書/settings.json --fields docs/samples/見積書/fields.json --record docs/samples/見積書/record.json --out-dir out
 ```
 

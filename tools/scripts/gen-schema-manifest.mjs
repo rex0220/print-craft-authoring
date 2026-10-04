@@ -64,7 +64,9 @@ const manifest = {
     "pluginInfos[].tagsInfo.pageSize": { runtime: [...api.PAPER_NAMES], screen: [...api.PAGE_SIZES] },
     "pluginInfos[].tagsInfo.orientation": ["p", "l"],
     "pluginInfos[].tagsInfo.dpi": [...api.DPI_OPTIONS],
-    "pluginInfos[].tagsInfo.printMode": [...api.PRINT_MODES]
+    "pluginInfos[].tagsInfo.printMode": [...api.PRINT_MODES],
+    // 外部参照（Ver.6 の共通の設定。API に EXTERNAL_REFS が無い古い zip では固定の値）
+    externalRefs: Array.isArray(api.EXTERNAL_REFS) ? [...api.EXTERNAL_REFS] : ["block", "allow"]
   },
   entries
 };

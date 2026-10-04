@@ -37,7 +37,7 @@ export function diffSettings(beforeEnvelope: Obj, afterEnvelope: Obj, opt: { der
   // 封筒
   for (const k of ["appId", "appName", "PluginVersion"]) if (JSON.stringify(beforeEnvelope[k]) !== JSON.stringify(afterEnvelope[k])) out.push(`封筒 ${k}: ${show(beforeEnvelope[k])} → ${show(afterEnvelope[k])}`);
   // ルートの値
-  scalarDiffs(a, b, ["pluginEnable", "pluginComment", "pluginDescription", "commonCssEnable"], out, "");
+  scalarDiffs(a, b, ["pluginEnable", "pluginComment", "pluginDescription", "commonCssEnable", "externalRefs"], out, "");
   if (JSON.stringify(a.menuInfo) !== JSON.stringify(b.menuInfo)) out.push(`menuInfo: ${show(a.menuInfo)} → ${show(b.menuInfo)}`);
   if (JSON.stringify(a.fontInfo) !== JSON.stringify(b.fontInfo)) out.push(`Web フォント: ${show(a.fontInfo)} → ${show(b.fontInfo)}`);
   if (JSON.stringify(a.guestsInfo) !== JSON.stringify(b.guestsInfo)) out.push(`ゲスト: ${show(a.guestsInfo)} → ${show(b.guestsInfo)}`);
