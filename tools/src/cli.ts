@@ -5,8 +5,8 @@
  *   record --app N --id R [--fields-from <settings.json>] [--guest S] [--env <.env>] [--out <file>]
  *   normalize <settings.json> --fields <fields.json> [--out <file>] [--dry-run] [--check] [--policy <file>] [--json]
  *   diff <before.json> <after.json> [--derived]
- *   preview … 段階 1 の 1-4 で足す
- * 終了コード: 0 = 正常、1 = 検査や照合で不一致・kintone や認証のエラー、2 = 使い方の誤り・未実装
+ *   preview <settings.json> --fields <fields.json> --record <record.json> [--button <名前>] [--out-dir <dir>] [--policy <file>] [--json]
+ * 終了コード: 0 = 正常、1 = 検査や照合で不一致・kintone や認証のエラー、2 = 使い方の誤り
  * 画面に出すのは件数と名前だけで、レコードの値と認証情報は出さない。
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -17,6 +17,7 @@ import { fetchFields, summarizeFields } from "./commands/fields.ts";
 import { fetchRecord, summarizeRecord, usedFieldCodes } from "./commands/record.ts";
 import { loadPolicy, normalizeSettings, readFieldsFile, relativeSettingsPath } from "./commands/normalize.ts";
 import { diffSettings } from "./commands/diff.ts";
+import { runPreview } from "./commands/preview.ts";
 import { loadEngine } from "./engine.ts";
 import { toolsMeta } from "./meta.ts";
 
@@ -34,10 +35,15 @@ const USAGE = `使い方: pcraft-authoring <command> [options]
       --check は入力の派生値と生成した値の差を出す。外部 URL の承認は policy/authoring-policy.json（--policy で場所を指定）。
   diff <before.json> <after.json> [--derived]
       既存設定の変更をインポートする前に人が見る差分（ボタン単位。派生値は --derived で含める）。
-  preview <settings.json> --fields <json> --record <json> [...]  （未実装: 段階 1 の 1-4）
+  preview <settings.json> --fields <fields.json> --record <record.json> [--button <名前>] [--out-dir <dir>] [--policy <file>] [--json]
+      有効なボタンごとに帳票の HTML を out/<ボタン名>.html に書く（sandbox の iframe + CSP。画像はダミー、Web フォントは読まない）。
+      一覧帳票は対象外。式の失敗は赤字で埋めて終了コード 1。
 
-認証は OS の環境変数か .env（KSQL_BASE_URL と、KSQL_TOKEN または KSQL_USERNAME / KSQL_PASSWORD）。kintone には GET しか送らない。
+認証は OS の環境変数か .env（kintone 公式 MCP と同じ KINTONE_BASE_URL と、KINTONE_API_TOKEN または KINTONE_USERNAME / KINTONE_PASSWORD。
+dashboard の KSQL_* も読む）。kintone には GET しか送らない。
 `;
+
+const FLAGS = new Set(["preview", "check", "json", "dry-run", "derived"]);
 
 function option(args: string[], name: string): string | undefined {
   const i = args.indexOf(`--${name}`);
@@ -48,12 +54,12 @@ function flag(args: string[], name: string): boolean {
   return args.includes(`--${name}`);
 }
 
-/** 先頭の「--」で始まらない引数（位置引数） */
+/** 「--」で始まらない引数（位置引数） */
 function positional(args: string[]): string[] {
   const out: string[] = [];
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith("--")) {
-      if (!["preview", "check", "json", "dry-run", "derived"].includes(args[i].slice(2))) i++;
+      if (!FLAGS.has(args[i].slice(2))) i++;
       continue;
     }
     out.push(args[i]);
@@ -76,6 +82,11 @@ class UsageError extends Error {}
 function writeJson(file: string, data: unknown): void {
   mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
   writeFileSync(file, JSON.stringify(data, null, 2) + "\n", "utf8");
+}
+
+function writeText(file: string, text: string): void {
+  mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
+  writeFileSync(file, text, "utf8");
 }
 
 async function version(args: string[]): Promise<number> {
@@ -184,6 +195,50 @@ async function diff(args: string[]): Promise<number> {
   return 0;
 }
 
+async function preview(args: string[]): Promise<number> {
+  const [settingsFile] = positional(args);
+  if (!settingsFile) throw new UsageError("設定 JSON のパスが要る");
+  const fieldsFile = option(args, "fields");
+  const recordFile = option(args, "record");
+  if (!fieldsFile || !recordFile) throw new UsageError("--fields <fields.json> と --record <record.json> が要る（fields / record コマンドの出力）");
+  const meta = await toolsMeta();
+  const engine = await loadEngine();
+  const fieldsData = await readFieldsFile(fieldsFile);
+  const result = await runPreview({
+    settingsText: readFileSync(settingsFile, "utf8"),
+    settingsFile: relativeSettingsPath(settingsFile),
+    fields: fieldsData,
+    recordFile: JSON.parse(readFileSync(recordFile, "utf8")) as unknown,
+    engine,
+    pluginVersion: meta.pluginVersion,
+    policy: loadPolicy({ policyFile: option(args, "policy") }),
+    button: option(args, "button")
+  });
+  const outDir = option(args, "out-dir") ?? "out";
+  const written: string[] = [];
+  if (!result.findings.hasErrors) {
+    for (const r of result.results) {
+      const file = path.join(outDir, r.file);
+      writeText(file, r.html);
+      written.push(file);
+    }
+  }
+  if (flag(args, "json")) {
+    console.log(JSON.stringify({ summary: result.summary, findings: result.findings.items, results: result.results.map((r) => ({ menu: r.menu, file: path.join(outDir, r.file), fileName: r.fileName, pages: r.pages, errors: r.errors })), skipped: result.skipped, written }, null, 2));
+  } else {
+    console.log(`preview: ${settingsFile}（${result.summary}）`);
+    console.log(result.findings.format());
+    for (const r of result.results) {
+      console.log(`${r.menu}: ${r.pages} ページ、ファイル名 ${r.fileName}${r.errors.length ? `、式のエラー ${r.errors.length}` : ""} → ${path.join(outDir, r.file)}`);
+      for (const e of r.errors) console.log(`  ${e}`);
+    }
+    for (const s of result.skipped) console.log(`対象外: ${s}`);
+    if (result.findings.hasErrors) console.error("設定にエラーがあるのでプレビューは書かない（normalize で直す）");
+    else if (written.length) console.log(`出力 ${written.length} 件（レコードの値を含む。コミットしない。Chrome で開く）`);
+  }
+  return result.findings.hasErrors || result.results.some((r) => r.errors.length) ? 1 : 0;
+}
+
 async function main(argv: string[]): Promise<number> {
   const [command, ...args] = argv;
   switch (command) {
@@ -204,8 +259,7 @@ async function main(argv: string[]): Promise<number> {
     case "diff":
       return diff(args);
     case "preview":
-      console.error(`${command}: 未実装（段階 1 の 1-4 で足す。docs/authoring-plan.md 12.5）`);
-      return 2;
+      return preview(args);
     default:
       console.error(`不明なコマンド: ${command}\n${USAGE}`);
       return 2;

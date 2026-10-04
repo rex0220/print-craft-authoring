@@ -17,7 +17,7 @@ Projects/
 
 - `src/cli.ts` … `pcraft-authoring <command>`（version / fields / record / normalize / diff。preview は段階 1 の 1-4）
 - `src/engine.ts` … 計算式エンジン（print-craft の `prod/desktop_js/KintoneFormulaPCraft.min.js`。zip と同じファイル）を Node + happy-dom + スタブで動かす
-- `src/env.ts` / `src/kintone-rest.ts` … `.env`（`KSQL_*`）と GET 専用・許可 API 固定の REST
+- `src/env.ts` / `src/kintone-rest.ts` … `.env`（kintone 公式 MCP と同じ `KINTONE_BASE_URL` / `KINTONE_API_TOKEN` / `KINTONE_USERNAME` / `KINTONE_PASSWORD`。dashboard の `KSQL_*` も読む）と GET 専用・許可 API 固定の REST
 - `src/commands/` … 各コマンド。`src/normalize/` … 派生値の生成、検査（HTML / CSS / policy / 大きさ）、行の差分
 - `src/meta.ts` / `src/paths.ts` … 版の情報と置き場所
 - `scripts/vendor.mjs` … moment 2.24.0 を CDN から `vendor/` に取る（`vendor/moment.json` の SHA-256 と照合）

@@ -1,4 +1,4 @@
-/** kintone REST の読み取り専用クライアント: GET 専用、許可パス固定、認証ヘッダー、エラーの文言に秘密を出さない */
+/** kintone REST の読み取り専用クライアント: GET 専用、許可パス固定、認証ヘッダー、エラーの文言に秘密を出さない。.env の読み方 */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ALLOWED_APIS, NotAllowedError, RestError, apiPathOf, authHeaders, createRestClient } from "../src/kintone-rest.ts";
@@ -13,6 +13,7 @@ const fakeFetch = (status, body) => {
   fn.calls = calls;
   return fn;
 };
+const NO_FILE = "C:/nonexistent/.env";
 
 test("許可した API だけパスになる。他は送信前に止まる", () => {
   assert.equal(apiPathOf("app/form/fields"), "/k/v1/app/form/fields.json");
@@ -58,15 +59,23 @@ test("エラーは HTTP の状態と kintone のコードだけを文言にす�
   );
 });
 
-test(".env の読み方: OS の環境変数が優先、.env は足りない分、引用符を外す", () => {
-  const parsed = parseDotEnv('# comment\nKSQL_BASE_URL="https://a.cybozu.com"\nexport KSQL_TOKEN=\'t1\'\n\nKSQL_USERNAME=u\n');
-  assert.deepEqual(parsed, { KSQL_BASE_URL: "https://a.cybozu.com", KSQL_TOKEN: "t1", KSQL_USERNAME: "u" });
-  const auth = loadAuth({ envFile: "C:/nonexistent/.env", env: { KSQL_BASE_URL: "https://b.cybozu.com/", KSQL_USERNAME: "u", KSQL_PASSWORD: "p" } });
+test(".env の読み方: kintone 公式 MCP と同じ KINTONE_*。OS の環境変数が優先、.env は足りない分、引用符を外す", () => {
+  const parsed = parseDotEnv('# comment\nKINTONE_BASE_URL="https://a.cybozu.com"\nexport KINTONE_API_TOKEN=\'t1\'\n\nKINTONE_USERNAME=u\n');
+  assert.deepEqual(parsed, { KINTONE_BASE_URL: "https://a.cybozu.com", KINTONE_API_TOKEN: "t1", KINTONE_USERNAME: "u" });
+  const auth = loadAuth({ envFile: NO_FILE, env: { KINTONE_BASE_URL: "https://b.cybozu.com/", KINTONE_USERNAME: "u", KINTONE_PASSWORD: "p" } });
   assert.deepEqual(auth, { baseUrl: "https://b.cybozu.com", token: undefined, username: "u", password: "p" });
-  const tokenAuth = loadAuth({ envFile: "C:/nonexistent/.env", env: { KSQL_BASE_URL: "https://b.cybozu.com", KSQL_TOKEN: "t", KSQL_USERNAME: "u", KSQL_PASSWORD: "p" } });
-  assert.equal(tokenAuth.token, "t");
+  const tokenAuth = loadAuth({ envFile: NO_FILE, env: { KINTONE_BASE_URL: "https://b.cybozu.com", KINTONE_API_TOKEN: "t", KINTONE_USERNAME: "u", KINTONE_PASSWORD: "p" } });
+  assert.equal(tokenAuth.token, "t", "tools はトークンを使う（公式 MCP はユーザーを使うので、どちらか 1 つだけ書くのがよい）");
   assert.equal(tokenAuth.username, undefined);
-  assert.throws(() => loadAuth({ envFile: "C:/nonexistent/.env", env: {} }), AuthError);
-  assert.throws(() => loadAuth({ envFile: "C:/nonexistent/.env", env: { KSQL_BASE_URL: "http://plain.example.com", KSQL_TOKEN: "t" } }), AuthError);
-  assert.throws(() => loadAuth({ envFile: "C:/nonexistent/.env", env: { KSQL_BASE_URL: "https://b.cybozu.com", KSQL_USERNAME: "u" } }), AuthError);
+  assert.throws(() => loadAuth({ envFile: NO_FILE, env: {} }), AuthError);
+  assert.throws(() => loadAuth({ envFile: NO_FILE, env: { KINTONE_BASE_URL: "http://plain.example.com", KINTONE_API_TOKEN: "t" } }), AuthError);
+  assert.throws(() => loadAuth({ envFile: NO_FILE, env: { KINTONE_BASE_URL: "https://b.cybozu.com", KINTONE_USERNAME: "u" } }), AuthError);
+});
+
+test(".env の読み方: dashboard の KSQL_* も読む。KINTONE_* があればそちら", () => {
+  const ksql = loadAuth({ envFile: NO_FILE, env: { KSQL_BASE_URL: "https://k.cybozu.com", KSQL_TOKEN: "kt" } });
+  assert.deepEqual(ksql, { baseUrl: "https://k.cybozu.com", token: "kt", username: undefined, password: undefined });
+  const both = loadAuth({ envFile: NO_FILE, env: { KSQL_BASE_URL: "https://k.cybozu.com", KINTONE_BASE_URL: "https://n.cybozu.com", KSQL_TOKEN: "kt", KINTONE_API_TOKEN: "nt" } });
+  assert.equal(both.baseUrl, "https://n.cybozu.com");
+  assert.equal(both.token, "nt");
 });
