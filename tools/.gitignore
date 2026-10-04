@@ -1,0 +1,5 @@
+node_modules/
+dist/
+out/
+# moment は scripts/vendor.mjs が CDN から取る（vendor/moment.json の URL と SHA-256 で照合）
+vendor/*.js

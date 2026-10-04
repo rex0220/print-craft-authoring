@@ -1,0 +1,9 @@
+# 認証情報（KSQL_BASE_URL / KSQL_TOKEN / KSQL_USERNAME / KSQL_PASSWORD）
+.env
+node_modules/
+# record コマンドの出力（個人情報を含む）と preview の出力
+records/
+out/
+# tools の開発用（tools/.gitignore も参照）
+tools/dist/
+tools/vendor/*.js

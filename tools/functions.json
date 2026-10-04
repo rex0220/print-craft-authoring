@@ -1,0 +1,1465 @@
+{
+  "note": "関数の分類の正本（docs/authoring-plan.md 12.4、12.7）。scripts/gen-functions.mjs が lib と文書から既定を作り、見直しは手で行う",
+  "engineSha256": "8a5f78f78f51e04b5daaa435b0e8a8c0ea4d08d388d84d279f0cd1b50a857140",
+  "functions": {
+    "ABS": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ADD_TAGS": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "AND": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "APP_URL": {
+      "category": "",
+      "kind": "general",
+      "node": "kintone-meta",
+      "doc": "qiita"
+    },
+    "ARRAY": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ARRAY_COUNT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ARRAY_DEL": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ARRAY_DIC": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ARRAY_EQUALS": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ARRAY_EVERY": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ARRAY_FIL": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ARRAY_FOR": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ARRAY_GET": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ARRAY_MAP": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ARRAY_SOME": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ARRAY_SORT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ASC": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ATTR": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "AVE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "AVEIF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "BATTR": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "BOOL": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "BOPT": {
+      "category": "未分類",
+      "kind": "general",
+      "node": "unsupported",
+      "doc": "none"
+    },
+    "BROUND": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "BUTTON": {
+      "category": "",
+      "kind": "general",
+      "node": "unsupported",
+      "doc": "qiita"
+    },
+    "CEIL": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "CHOOSE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "CLIPBORD_WRITE": {
+      "category": "未分類",
+      "kind": "general",
+      "node": "unsupported",
+      "doc": "none"
+    },
+    "CONCAT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "CONCATIF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "CONTAINS": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "COUNT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "COUNTA": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "COUNTIF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "COUNTROW": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "CSV_TVAL": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DATE_ADD": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DATE_DIFF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DATE_ENDOF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DATE_FORMAT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DATE_STARTOF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DECODE_URI": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DECODE_URICP": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DIALOG": {
+      "category": "",
+      "kind": "general",
+      "node": "unsupported",
+      "doc": "qiita"
+    },
+    "DIC": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DIC_ASSIGN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DIC_COUNT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DIC_DEL": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DIC_EXISTS": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DIC_ITEM": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DIC_KEYS": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DIC_MAP": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DISTINCT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DQUOTE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DURATION": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DURATION_AS": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DURATION_FORMAT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "DURATION_GET": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ENCODE_URI": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ENCODE_URICP": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ESC_HTML": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "EV_INFO": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "EV_SET": {
+      "category": "",
+      "kind": "general",
+      "node": "unsupported",
+      "doc": "qiita"
+    },
+    "FIELDS_HTML": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "FILE": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "FIND": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "FIRST": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "FIRSTIF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "FISCAL_YEAR": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "FIXED": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "FLOOR": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "FSET": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "FSET_TADD": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "FSIZE": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "FVAL": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "GINFO": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "GUSERS": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "HIRAGANA": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "HTML": {
+      "category": "HTML 関連",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "none"
+    },
+    "HTML_TAGS": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "IF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "IFS": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "IMGSRC": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "IN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "INDEXOF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "INT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "INTERSECT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ISBLANK": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ISNUMBER": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "JIS": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "JOIN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "JSON_P": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "JSON_S": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "KATAKANA": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "LAST": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "LASTIF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "LEFT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "LENGTH": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "LET": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "LOG": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "LOGIN_CODE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "LOGIN_EMAIL": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "LOGIN_INFO": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "LOGIN_NAME": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "LOOKUP_GETID": {
+      "category": "",
+      "kind": "general",
+      "node": "kintone-meta",
+      "doc": "qiita"
+    },
+    "LOWER": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "LTRIM": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "MATCH": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "MAX": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "MAXIF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "MAX_STR": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "MID": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "MIN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "MINIF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "MIN_STR": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "MOD": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "MROUND": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_ACOS": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_ACOSH": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_ASIN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_ASINH": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_ATAN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_ATAN2": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_ATANH": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_COS": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_COSH": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_DEG": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_EXP": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_LN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_LOG": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_NTHROOT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_POW": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_RAD": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_SIN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_SINH": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_TAN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "M_TANH": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "NEWLINE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "NOT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "NOW": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "NVL": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "OINFO": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "OPT": {
+      "category": "HTML 関連",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "none"
+    },
+    "OR": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "OTCSV": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "OTVAL": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "OUSERS": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "PAGE_HTML": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "PI": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "PRODUCT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "PRODUCTIF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "RAND": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "RANDBETWEEN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "RECS_HTML": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "RECS_MAP": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "RECS_SUM": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "RELATED_GETID": {
+      "category": "",
+      "kind": "general",
+      "node": "kintone-meta",
+      "doc": "qiita"
+    },
+    "REPEAT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "REPLACE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "REPLACEALL": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "REPLACERE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "REVERSE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "RIGHT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ROUND": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ROUNDDOWN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ROUNDUP": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ROWID": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "ROWNO": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "RTRIM": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_CUMIPMT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_CUMPRINC": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_EFFECT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_FV": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_IPMT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_IRR": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_MIRR": {
+      "category": "未分類",
+      "kind": "general",
+      "node": "node",
+      "doc": "none"
+    },
+    "R_NOMINAL": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_NPER": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_NPV": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_PMT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_PPMT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_PV": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_RATE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_RRI": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_XIRR": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "R_XNPV": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "SEARCH": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "SEL_CODE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "SEL_NAME": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "SET_CODE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "SHUFFLE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "SLICE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "SPLIT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "SQRT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "STRIP_TAGS": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "STR_COMP": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "STYLE": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "SUBSTR": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "SUBSTRING": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "SUBTABLE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "SUM": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "SUMIF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "SWITCH": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TABLE_DATA": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TABLE_DIC": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TABLE_HTML": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "TABLE_MAP": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TABLE_SORT": {
+      "category": "未分類",
+      "kind": "general",
+      "node": "node",
+      "doc": "none"
+    },
+    "TAG": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "TAGS_HTML": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "TARRAY": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TARRAYIF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TDS": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TDSIF": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TDUPCK": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TEST": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TESTRE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TEXTJOIN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TLTABLE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TODAY": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TPDIC": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TPFILTER": {
+      "category": "未分類",
+      "kind": "general",
+      "node": "node",
+      "doc": "none"
+    },
+    "TPKEY": {
+      "category": "未分類",
+      "kind": "general",
+      "node": "node",
+      "doc": "none"
+    },
+    "TPLABEL": {
+      "category": "未分類",
+      "kind": "general",
+      "node": "node",
+      "doc": "none"
+    },
+    "TPOPT": {
+      "category": "未分類",
+      "kind": "general",
+      "node": "node",
+      "doc": "none"
+    },
+    "TPOUT": {
+      "category": "未分類",
+      "kind": "general",
+      "node": "node",
+      "doc": "none"
+    },
+    "TPSORT": {
+      "category": "未分類",
+      "kind": "general",
+      "node": "node",
+      "doc": "none"
+    },
+    "TPVAL": {
+      "category": "未分類",
+      "kind": "general",
+      "node": "node",
+      "doc": "none"
+    },
+    "TRIM": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TR_AVE": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TR_COUNT": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TR_COUNTA": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TR_MAX": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TR_MIN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "TR_SUM": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "UINFO": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "UNESC_HTML": {
+      "category": "HTML 関連",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "html"
+    },
+    "UPPER": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "URL": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "VTAG": {
+      "category": "",
+      "kind": "print-craft",
+      "node": "dom",
+      "doc": "qiita"
+    },
+    "WHICH": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "XOR": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "YEN": {
+      "category": "",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    }
+  },
+  "removed": []
+}
