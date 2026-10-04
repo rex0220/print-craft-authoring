@@ -44,10 +44,10 @@ export const KNOWN_PLUGIN_RELEASES: Record<string, KnownRelease[]> = {
     },
     {
       engine: "8a5f78f78f51e04b5daaa435b0e8a8c0ea4d08d388d84d279f0cd1b50a857140",
-      api: "6c2e447dc21895c9b578292b567b67f8785965f7f6176da335dc0b3dbceb7c2d",
+      api: "3c029ba0bb2b2c869de9dc074e588cf3e5cae8caac91a83e3da196ef2aeee673",
       bignumber: "eca7c1c71fee589d7b5c58bd3df3f31d56fbd234821ed8c60ec4e2050ec50129",
       momentTimezone: "31b9bea01ffef2e8f311eafdbbcdd944a12194fa216d8f54489e15a7188d47dc",
-      note: "Ver.6（2026-10-04 描画前の掃除 sanitize.ts と共通の設定「外部参照」externalRefs を入れた後。API に sanitizeReportCss / sanitizeReportNodes / isAllowedReportUrl / EXTERNAL_REFS / externalRefsOf を追加。途中の API 9cc7daf8… は配っていないので載せない）"
+      note: "Ver.6（2026-10-04〜05 描画前の掃除 sanitize.ts と共通の設定「外部参照」externalRefs、load.ts の derivedOf（無効な行と空の計算式は formula / usedFields を持たない）を入れた後。API に sanitizeReportCss / sanitizeReportNodes / isAllowedReportUrl / EXTERNAL_REFS / externalRefsOf を追加。途中の API 9cc7daf8… / b22564da… / 6c2e447d… は配っていないので載せない）"
     }
   ]
 };
