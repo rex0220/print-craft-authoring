@@ -3,7 +3,7 @@
   "pluginVersion": "6",
   "apiVersion": 1,
   "schemaRevision": "37d2ddd3907c",
-  "source": "dev: C:\\Users\\rex02\\Projects\\kintone-plugin\\print-craft\\prod",
+  "source": "zip: print-craft-plugin6.zip",
   "limits": {
     "maxDepth": 16,
     "maxArrayItems": 5000,

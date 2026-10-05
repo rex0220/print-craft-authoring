@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fetchFields, summarizeFields } from "../src/commands/fields.ts";
-import { fetchRecord, narrowRecord, summarizeRecord, usedFieldCodes } from "../src/commands/record.ts";
+import { fetchRecord, identifiersOf, missingInRecord, narrowRecord, summarizeRecord, usedFieldCodes } from "../src/commands/record.ts";
 
 const PROPERTIES = {
   宛名: { type: "SINGLE_LINE_TEXT", code: "宛名", label: "宛名" },
@@ -67,6 +67,42 @@ test("usedFieldCodes: usedFields・更新項目・filecode から集める。無
   assert.deepEqual([...usedFieldCodes(settings)].sort(), ["ダミー", "商品名", "宛名", "見積ファイル", "見積明細", "金額"]);
   assert.equal(usedFieldCodes({ pluginInfos: [{ tagsInfo: { fieldsInfo: [{}] } }] }), null);
   assert.equal(usedFieldCodes(null), null);
+});
+
+test("usedFieldCodes: HTML 欄の ${式} と計算式の本文の語も拾う（usedFields は計算式欄だけ。2026-10-06）。文字列の中身は拾わない", () => {
+  assert.deepEqual(identifiersOf('DATE_FORMAT(見積日, "YYYY年M月D日") & 担当者.name'), ["DATE_FORMAT", "見積日", "担当者", "name"]);
+  assert.deepEqual(identifiersOf('REPLACE(ESC_HTML(備考), NEWLINE(), "<br>")'), ["REPLACE", "ESC_HTML", "備考", "NEWLINE"]);
+  // 正規化済み: usedFields に HTML の ${式} の項目が無い（印刷屋の保存形と同じ）
+  const normalized = {
+    pluginInfos: [{ tagsInfo: { filecode: "", fieldsInfo: [
+      { formula: "", usedFields: {} },
+      { formula: '"見積書-" & 見積番号 & ".pdf"', usedFields: { 見積番号: 1 } },
+      { html: '<p>${ESC_HTML(宛名)} 御中</p><p>${FVAL(合計)}</p><p>${DATE_FORMAT(見積日, "YYYY年M月D日")}</p>##table##', formula: 'LET(t, TABLE_HTML(見積明細, 商品名), REPLACE($html, "##table##", t))', usedFields: { 見積明細: 5, 商品名: 2, $html: 1 } }
+    ] } }]
+  };
+  const codes = usedFieldCodes(normalized);
+  for (const c of ["見積番号", "宛名", "合計", "見積日", "見積明細", "商品名"]) assert.ok(codes.has(c), c);
+  assert.ok(!codes.has("YYYY年M月D日"), "文字列の中身は拾わない");
+  assert.ok(!codes.has("$html"));
+  // 正規化の前（usedFields なし、formulaSet だけ）でも計算式の項目を拾う
+  const source = { pluginInfos: [{ tagsInfo: { fieldsInfo: [{ formulaSet: "// 保存先が空のとき\nNOT(見積ファイル)" }] }, calcInfo: { fieldsInfo: [{ state: true, fieldcode: "発行済み", formulaSet: '"済" & 担当者' }] } }] };
+  const s2 = usedFieldCodes(source);
+  for (const c of ["見積ファイル", "発行済み", "担当者"]) assert.ok(s2.has(c), c);
+});
+
+test("missingInRecord: 設定が使う項目のうちレコードに無いもの（fields にある項目だけ。テーブルの子も）", () => {
+  const fields = { properties: {
+    宛名: { type: "SINGLE_LINE_TEXT", code: "宛名", label: "宛名" },
+    合計: { type: "CALC", code: "合計", label: "合計" },
+    見積明細: { type: "SUBTABLE", code: "見積明細", label: "見積明細", fields: { 商品名: { type: "SINGLE_LINE_TEXT", code: "商品名", label: "商品名" }, 金額: { type: "CALC", code: "金額", label: "金額" } } }
+  } };
+  const settings = { pluginInfos: [{ tagsInfo: { fieldsInfo: [{ html: "${ESC_HTML(宛名)} ${FVAL(合計)}", formula: "TABLE_HTML(見積明細, 商品名, 金額)", usedFields: { 見積明細: 3, 商品名: 1, 金額: 1 } }] } }] };
+  const full = { 宛名: { type: "SINGLE_LINE_TEXT", value: "A" }, 合計: { type: "CALC", value: "1" }, 見積明細: { type: "SUBTABLE", value: [{ value: { 商品名: { type: "SINGLE_LINE_TEXT", value: "p" }, 金額: { type: "CALC", value: "1" } } }] } };
+  assert.deepEqual(missingInRecord(settings, fields, full), []);
+  const narrow = { 見積明細: { type: "SUBTABLE", value: [{ value: { 商品名: { type: "SINGLE_LINE_TEXT", value: "p" } } }] } };
+  assert.deepEqual(missingInRecord(settings, fields, narrow), ["宛名", "合計", "見積明細.金額"]);
+  // テーブルの行が 0 なら子は分からないので言わない
+  assert.deepEqual(missingInRecord(settings, fields, { ...full, 見積明細: { type: "SUBTABLE", value: [] } }), []);
 });
 
 test("narrowRecord: 使う項目と $id / $revision だけ。テーブルは子を絞る、テーブル自身を使えば全部", () => {

@@ -4,6 +4,8 @@
  * レコードは個人情報を含むので、--fields-from で設定が使う項目だけ残し、中身は画面とログに出さない（Codex MAJOR 5）。
  */
 import type { RestClient } from "../kintone-rest.ts";
+import type { FieldsFile } from "./fields.ts";
+import { expressionsOf } from "../normalize/html-check.ts";
 
 export type FieldValue = { type: string; value: unknown };
 export type KintoneRecord = Record<string, FieldValue>;
@@ -33,8 +35,21 @@ export interface RecordOptions {
 const ALWAYS = new Set(["$id", "$revision"]);
 
 /**
+ * 式の中で項目コードになりうる語（"…" の文字列の中身と数値を除く）。計算式の文字列は \ を解釈しないので "…" は次の " まで。
+ * 関数名やコメントの語も拾うが、絞るときはレコードにある項目しか残らないので害は無い（多めに拾う。絞りすぎるとプレビューが空欄になる）
+ */
+export function identifiersOf(expr: string): string[] {
+  return expr
+    .replace(/"[^"]*"/g, " ")
+    .split(/[^\p{L}\p{N}_・＿＄￥$]+/u)
+    .filter((t) => t && !/^\d+$/.test(t));
+}
+
+/**
  * 設定 JSON（封筒形式。正規化済みでなくてもよい）から、帳票と更新項目が使う項目コードを集める。
- * usedFields（あれば）、更新項目の fieldcode、filecode。何も見つからなければ null（絞らない）
+ * usedFields（あれば）、HTML 欄の ${式} と計算式の本文の語、更新項目の fieldcode、filecode。何も見つからなければ null（絞らない）。
+ * usedFields は計算式欄だけから作られ、HTML 欄の ${式}（宛名、合計など）を含まない（2026-10-06 のリハーサルで、--fields-from が宛名などを落として
+ * プレビューが空欄になっていたのを見つけた）
  */
 export function usedFieldCodes(settings: unknown): Set<string> | null {
   const codes = new Set<string>();
@@ -43,16 +58,26 @@ export function usedFieldCodes(settings: unknown): Set<string> | null {
   const addKeys = (o: unknown): void => {
     if (o && typeof o === "object") for (const k of Object.keys(o as Record<string, unknown>)) codes.add(k);
   };
+  const addWords = (text: unknown): void => {
+    if (typeof text === "string") for (const w of identifiersOf(text)) codes.add(w);
+  };
+  /** 計算式の本文（正規化済みなら formula、まだなら formulaSet） */
+  const addFormula = (f: Record<string, unknown>): void => addWords(typeof f.formula === "string" && f.formula ? f.formula : f.formulaSet);
   addKeys(s.usedFields);
   for (const row of s.pluginInfos ?? []) {
     const tags = row.tagsInfo as { fieldsInfo?: Array<Record<string, unknown>>; filecode?: string } | undefined;
-    for (const f of tags?.fieldsInfo ?? []) addKeys(f.usedFields);
+    for (const f of tags?.fieldsInfo ?? []) {
+      addKeys(f.usedFields);
+      addFormula(f);
+      if (typeof f.html === "string") for (const e of expressionsOf(f.html)) addWords(e);
+    }
     if (tags?.filecode) codes.add(tags.filecode);
     const calc = row.calcInfo as { fieldsInfo?: Array<Record<string, unknown>>; usedFields?: Record<string, unknown> } | undefined;
     addKeys(calc?.usedFields);
     for (const f of calc?.fieldsInfo ?? []) {
       if (f.state && typeof f.fieldcode === "string" && !f.fieldcode.startsWith("$")) codes.add(f.fieldcode);
       addKeys(f.usedFields);
+      addFormula(f);
     }
   }
   for (const c of [...codes]) if (c.startsWith("$")) codes.delete(c);
@@ -92,6 +117,30 @@ export function narrowRecord(record: KintoneRecord, keep: Set<string>): { record
     }
   }
   return { record: out, kept };
+}
+
+/**
+ * 設定が使う項目のうち、プレビューのレコードに無いもの（fields にある項目だけを見る。テーブルの子は、テーブルが無いか行があって子が無いとき）。
+ * 古い records/ や絞りすぎたレコードで帳票が空欄になるのを preview の警告で知らせる（2026-10-06）
+ */
+export function missingInRecord(settings: unknown, fields: Pick<FieldsFile, "properties">, record: KintoneRecord): string[] {
+  const used = usedFieldCodes(settings);
+  if (!used) return [];
+  const missing: string[] = [];
+  for (const [code, p] of Object.entries(fields.properties ?? {})) {
+    if (p.type === "SUBTABLE") {
+      const table = record[code];
+      const rows = Array.isArray(table?.value) ? (table.value as Array<{ value?: KintoneRecord }>) : null;
+      for (const child of Object.keys(p.fields ?? {})) {
+        if (!used.has(child)) continue;
+        if (!rows || (rows.length > 0 && !rows.some((r) => r.value && child in r.value))) missing.push(`${code}.${child}`);
+      }
+      if (used.has(code) && !table) missing.push(code);
+      continue;
+    }
+    if (used.has(code) && !(code in record)) missing.push(code);
+  }
+  return [...new Set(missing)];
 }
 
 export async function fetchRecord(client: RestClient, opt: RecordOptions): Promise<RecordFile> {

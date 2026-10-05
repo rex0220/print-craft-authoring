@@ -18,13 +18,13 @@ AI が書くのは設定 JSON と要件の整理だけで、kintone には何も
 
 ### 2.1 MCP サーバーの登録（このリポジトリでは設定済み）
 
-`.mcp.json` が kintone 公式 MCP を `node --env-file=.env node_modules/@kintone/mcp-server/dist/index.js` で起動します。認証は `.env`（`KINTONE_BASE_URL` と `KINTONE_API_TOKEN`、または `KINTONE_USERNAME` / `KINTONE_PASSWORD`）。tools も同じ `.env` を読み、加えて `PCRAFT_PLUGIN_ZIP`（印刷屋プラグインの zip）から計算式エンジンと印刷屋の設定画面・帳票のコード（authoring API）を実行時に読みます。tools 自体にはそれらは入っていません。
+`.mcp.json` が kintone 公式 MCP を `node --env-file=.env node_modules/@kintone/mcp-server/dist/index.js` で起動します。認証は `.env` か OS の環境変数（`KINTONE_BASE_URL` と、`KINTONE_USERNAME` / `KINTONE_PASSWORD`、または `KINTONE_API_TOKEN`）。tools も同じ `.env` を読み、加えて `PCRAFT_PLUGIN_ZIP`（印刷屋プラグインの zip）から計算式エンジンと印刷屋の設定画面・帳票のコード（authoring API）を実行時に読みます。tools 自体にはそれらは入っていません。
 
 ### 2.2 read-only を担保する
 
 - `.claude/settings.json` の `deny` に kintone MCP の書き込みツール全部（records の add / update / delete、update-statuses、add-record-comment、form-fields の add / update / delete、update-form-layout、update-general-settings、add-app、deploy-app、space の作成 / 更新）と `kintone-download-file` を並べてあります。`allow` は読み取りツールと、`settings/` `requirements/` `fields/` `records/` `out/` `temp/` への書き込み、`npx pcraft-authoring …` の実行だけです
 - tools の HTTP 層は GET 専用で、呼べる API は `/k/v1/app`、`/k/v1/app/form/fields`、`/k/v1/app/form/layout`、`/k/v1/record`（と preview 版）に固定しています
-- 推奨は**レコード閲覧だけの API トークン**（サーバー側で書き込みができない）。ゲストスペースのアプリは MCP では見えません（tools の `--guest <spaceId>` は使えます）
+- 始めるときはログインユーザー（パスワード認証。2 要素認証なし）で足ります。サーバー側でも書き込めなくするなら、**閲覧権限だけのアカウント**か、**レコード閲覧だけの API トークン**（運用での推奨）を使います。ゲストスペースのアプリは MCP では見えません（tools の `--guest <spaceId>` は使えます）
 
 ### 2.3 疎通確認
 
@@ -113,5 +113,5 @@ requirements/納品書.md の要件で、settings/見積書.json に「納品書
 
 ## 6. 確認済みの環境
 
-- 印刷屋プラグイン Ver.6、tools 6.0.0、kintone 公式 MCP 1.8.2、Node 20 以上（開発は Node 24）
+- 印刷屋プラグイン Ver.6、tools 0.1.0、kintone 公式 MCP 1.8.2、Node 20 以上（開発は Node 24）
 - Windows 11 の Claude Code（VSCode）。macOS でも手順は同じ（`.env` の置き方は README）

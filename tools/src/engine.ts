@@ -7,7 +7,8 @@
  *   - 読む順は印刷屋の manifest と同じ: moment（vendor/）→ moment-timezone → bignumber → KintoneFormulaPCraft → authoring API
  *   - 版と中身の照合（1-10 レビュー BLOCKER 2 / MAJOR 8、再レビュー BLOCKER 1 / MAJOR 3）: zip の manifest の version が対応する版か、
  *     エンジン・API・bignumber・moment-timezone の SHA-256 が既知のリリースの組み合わせ（tuple）と一致するか（**違えば実行せずに止める**。
- *     利用者が .env に PCRAFT_ALLOW_UNKNOWN_PLUGIN=1 を書いたときだけ警告で続く）、API の apiVersion と pluginVersion、tools が使うキーの型、tools の版の先頭（= 印刷屋の版）
+ *     利用者が .env に PCRAFT_ALLOW_UNKNOWN_PLUGIN=1 を書いたときだけ警告で続く）、API の apiVersion と pluginVersion、tools が使うキーの型。
+ *     tools の版は印刷屋の版と独立（2026-10-06 Takashi。以前は tools の版の先頭 = 印刷屋の版を照合していた）。対応は SUPPORTED_PLUGIN_VERSIONS と KNOWN_PLUGIN_RELEASES で決まる
  *   - 開発中に隣の print-craft の prod/ から読む経路は、**ソースから動かしていて（mode dev）かつ PCRAFT_ALLOW_DEV_PLUGIN=1 のときだけ**。
  *     公開ビルド（mode build）では zip 以外から読まない（再レビュー BLOCKER 1: 利用者の node_modules に置いたファイルを実行しない）
  * zip の中のコードはこのプロセス（Node を起動した OS ユーザーと同じ権限）で動く。sandbox ではない。
@@ -158,8 +159,6 @@ export async function loadEngine(opt: LoadEngineOptions = {}): Promise<Engine> {
     throw new PluginZipError(`印刷屋プラグインの版 ${src.pluginVersion || "不明"}（${src.from}）には対応していない。tools が対応する版: ${SUPPORTED_PLUGIN_VERSIONS.join(", ")}`);
   }
   if (!src.api) throw new PluginZipError(`印刷屋の zip に ${API_ENTRY} が無い（Ver.6 以降の zip が要る）: ${src.from}`);
-  const toolsMajor = meta.toolsVersion.split(".")[0];
-  if (toolsMajor !== src.pluginVersion) throw new PluginZipError(`tools ${meta.toolsVersion} は印刷屋 Ver.${toolsMajor} 用。zip は版 ${src.pluginVersion}（${src.from}）。tools を印刷屋の版に合わせる`);
   const unknown = unknownParts(src);
   const engineKnown = unknown.length === 0;
   if (!engineKnown) {

@@ -1,6 +1,6 @@
 {
   "name": "print-craft-authoring",
-  "version": "6.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "印刷屋プラグイン（rex0220 Print craft）の設定 JSON を AI（Claude Code + kintone MCP + pcraft-authoring tools）で作成・管理するテンプレート",
   "engines": {
@@ -11,6 +11,6 @@
   },
   "dependencies": {
     "@kintone/mcp-server": "1.8.2",
-    "@rex0220/print-craft-authoring-tools": "6.0.0"
+    "@rex0220/print-craft-authoring-tools": "0.1.0"
   }
 }

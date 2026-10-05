@@ -33,7 +33,7 @@ flowchart LR
 
 - Node.js 20 以上
 - VSCode + [Claude Code](https://claude.com/claude-code)（サブスクリプションが必要）
-- kintone の API トークン（対象アプリの**レコード閲覧**権限だけ。推奨）、またはログインユーザー（2 要素認証なし）
+- kintone のログインユーザー（パスワード認証。**2 要素認証なし**のアカウント。閲覧専用のアカウントがあればベスト）。運用では対象アプリの**レコード閲覧**権限だけの API トークンも使えます（下の 3）
 - 印刷屋プラグイン Ver.6 以降が対象アプリに入っていること。**その zip ファイル（`print-craft-plugin6.zip` など、アプリに入れたものと同じ版）を手元に置く**。tools は計算式エンジンと印刷屋のコードをこの zip から読みます（tools 自体には含まれません。無ければ配布元から取り直してください）
 
 ## セットアップ（7 ステップ）
@@ -50,19 +50,22 @@ flowchart LR
    npm ci
    ```
    tools（`pcraft-authoring`）と kintone 公式 MCP サーバー（`@kintone/mcp-server`）が入ります。
-3. **認証情報を置く** — `.env.example` をコピーして `.env` を作り、接続先と認証を書きます:
+3. **認証情報を置く** — `.env.example` をコピーして `.env` を作り、接続先と印刷屋プラグインの zip の場所を書きます（`.env` は必ず作ります。kintone MCP は `.env` を読んで起動します）:
    ```
    KINTONE_BASE_URL=https://<自分の環境>.cybozu.com
-   KINTONE_API_TOKEN=<対象アプリのレコード閲覧だけの API トークン>
+   PCRAFT_PLUGIN_ZIP=C:/Users/you/Downloads/print-craft-plugin6.zip
    ```
-   - API トークンは**アプリ単位**です: アプリの設定 → カスタマイズ/サービス連携 → API トークン → 生成 → アクセス権は**「レコード閲覧」のみ** → 保存 → **アプリを更新**。複数アプリはカンマ区切り（最大 9 個）
-   - 項目定義とレイアウト（`/k/v1/app/form/fields`、`/k/v1/app/form/layout`）はレコード閲覧権限のトークンで読めます
-   - ログインユーザーで認証するなら `KINTONE_USERNAME` / `KINTONE_PASSWORD`（2 要素認証なしのアカウント）。**トークンとユーザーの両方は書かない**（MCP はユーザーを、tools はトークンを使うので食い違います）
-   - OS の環境変数でも指定できます（OS の環境変数が優先。設定後は VSCode を完全に再起動）
-   - 同じ `.env` に印刷屋プラグインの zip の場所を書きます:
-     ```
-     PCRAFT_PLUGIN_ZIP=C:/Users/you/Downloads/print-craft-plugin6.zip
-     ```
+   ログイン名・パスワードは **OS のユーザー環境変数**に置くのがおすすめです（プロジェクト内のファイルに残りません）。Windows ならコマンドプロンプトで:
+   ```
+   setx KINTONE_USERNAME "<ログイン名>"
+   setx KINTONE_PASSWORD "<パスワード>"
+   ```
+   を実行して、**VSCode のウィンドウをすべて閉じて起動し直します**（「Reload Window」では反映されません）。VSCode のターミナルで `$env:KINTONE_USERNAME` と打ち、ログイン名が出れば反映されています
+   - 手早く試すだけなら、`.env` の `KINTONE_USERNAME` / `KINTONE_PASSWORD` の 2 行のコメントを外して書いても動きます（`.env` は git 管理外）。OS の環境変数と両方にあれば OS の環境変数が優先です
+   - 2 要素認証が有効なアカウントは使えません
+   - kSQL Dashboard Pro の authoring で `KSQL_*` を設定していても、kintone 公式 MCP は `KINTONE_*` しか読みません（tools は `KSQL_*` も読みます）
+   - **運用での推奨は、対象アプリのレコード閲覧だけの API トークン**です（サーバー側でも書き込めなくなります）。ユーザーとパスワードの代わりに `KINTONE_API_TOKEN=<トークン>` を書きます。API トークンは**アプリ単位**です: アプリの設定 → カスタマイズ/サービス連携 → API トークン → 生成 → アクセス権は**「レコード閲覧」のみ** → 保存 → **アプリを更新**。複数アプリはカンマ区切り（最大 9 個）。項目定義とレイアウト（`/k/v1/app/form/fields`、`/k/v1/app/form/layout`）はレコード閲覧権限のトークンで読めます
+   - **トークンとユーザーの両方は書かない**（OS の環境変数に残ったものも含めて。MCP はユーザーを、tools はトークンを使うので食い違います）
 4. **VSCode で開いて Claude Code を起動** — 初回に kintone MCP サーバーの使用可否を聞かれるので許可します（登録内容は `.mcp.json`）。以後、kintone の**読み取り**と `settings/` などへの**ファイル保存**は確認なしで進みます（同梱の `.claude/settings.json` で許可済み。kintone への**書き込みツールは拒否**しています）
 5. **疎通確認** — ターミナルで `npx pcraft-authoring version`（tools の版と、zip から読んだ印刷屋の版・計算式エンジンの SHA-256 が出る。zip が読めない・版が合わないとここで止まる）。Claude Code に「kintone-get-apps を実行して」と頼んでアプリ一覧が返れば準備完了です
 6. **作る** — `requirements/` に要件を書くか（例: [requirements/example.md](requirements/example.md)）、そのままチャットで伝えます:
@@ -82,7 +85,7 @@ flowchart LR
 - **構成 2**: 同じドメインで、開発用のアプリと本番のアプリ → `baseUrl` は同じで、`apps` の番号を分ける
 
 1. `environments.example.json` を写して `environments.json` を作り、環境（`baseUrl`、認証のファイル `envFile` = `.env` か `env/<名前>.env`）とアプリの番号（`apps`）を書く。構成 2 なら `envFile` を省いて `.env` を共用してよい
-2. 認証のファイル（例 `env/dev.env`、`env/prod.env`）に `.env` と同じ書き方で `KINTONE_API_TOKEN`（または `KINTONE_USERNAME` / `KINTONE_PASSWORD`）を書く。`KINTONE_BASE_URL` は書かなくてよい（書くなら `environments.json` と同じにする）。**このときは OS の環境変数の `KINTONE_*` は読みません**（開発と本番の取り違えを防ぐため）。`PCRAFT_PLUGIN_ZIP` はルートの `.env` か OS の環境変数のまま
+2. 認証のファイル（例 `env/dev.env`、`env/prod.env`）に `.env` と同じ書き方で `KINTONE_USERNAME` / `KINTONE_PASSWORD`（または `KINTONE_API_TOKEN`）を書く。`KINTONE_BASE_URL` は書かなくてよい（書くなら `environments.json` と同じにする）。**このときは OS の環境変数の `KINTONE_*` は読みません**（開発と本番の取り違えを防ぐため）。`PCRAFT_PLUGIN_ZIP` はルートの `.env` か OS の環境変数のまま
 3. 設定画面でダウンロードしたファイル（`rex0220-print-craft-app<番号>-<日時>.json`）は**名前を変えずに** `inbox/` に置く（ブラウザーのダウンロード先を `inbox/` にしておくと手で移す必要がありません）。`npx pcraft-authoring take` がアプリのフォルダーへ移します
 
 ```
@@ -136,7 +139,7 @@ npm ci
 
 - 自分の `settings/` `requirements/` `fields/` `policy/` と `.env` はそのまま残ります。衝突が出るのは、テンプレート由来のファイル（docs/、README、CLAUDE.md）を自分で編集した場合だけです
 - テンプレート側は `settings/` に README.md 以外、`requirements/` に example.md 以外、`policy/` に README.md と空の `authoring-policy.json` 以外のファイルを追加しません
-- tools の版の先頭は対応する印刷屋プラグインの版（`6.x.y` = Ver.6）。印刷屋を上げたらテンプレートも取り込み、`npx pcraft-authoring version --expect <版>` で確かめます
+- tools の版は印刷屋プラグインの版とは別です。tools が対応する印刷屋の版は `npx pcraft-authoring version` に出ます（「対応する印刷屋の版 6」）。印刷屋を上げたらテンプレートも取り込み、`npx pcraft-authoring version --expect <印刷屋の版>` で確かめます
 
 ## ドキュメント
 
@@ -156,6 +159,7 @@ npm ci
 | 症状 | 確認すること |
 | :--- | :--- |
 | MCP サーバーが起動しない | Node.js 20 以上か（`node -v`）。`npm ci` 済みか。`.env` を作ったか |
+| tools は動くが kintone MCP だけ認証エラー | `KSQL_*` だけを設定していないか（kintone 公式 MCP は `KINTONE_*` だけを読む） |
 | `KINTONE_BASE_URL が無い` | `.env` の場所（リポジトリのルート）と変数名。OS の環境変数を設定したなら VSCode を完全に再起動 |
 | `印刷屋の zip の場所が分からない` / `版 … には対応していない` | `.env` の `PCRAFT_PLUGIN_ZIP` のパス。zip の版（manifest の version）が tools の対応する版（`npx pcraft-authoring version`）と合うか。Ver.5 以前の zip には authoring API が無い |
 | `印刷屋の zip の中身が tools の既知の一覧と違う` | zip を配布元から取り直す。印刷屋の修正版が出て tools がまだ追いついていないなら、tools を更新するか、分かった上で `.env` に `PCRAFT_ALLOW_UNKNOWN_PLUGIN=1` を書く（利用者だけ） |
@@ -163,7 +167,7 @@ npm ci
 | `書き込み先は settings/ か temp/ か kintone/ の下` / `作業フォルダーの中` | tools が書くのは `fields/` `records/` `settings/` `temp/` `out/` `kintone/` の下だけ。`docs/samples/` のファイルは読めるので、`normalize docs/samples/見積書/settings.json --fields docs/samples/見積書/fields.json --dry-run` で確かめるか、`--out temp/見積書.json` か `settings/` にコピーして使う |
 | `iframe の src は利用者の kintone（… 未設定 …）` | 帳票に kintone のグラフの iframe を入れるには `.env` の `KINTONE_BASE_URL` が要る（fields の値では判定しない） |
 | `計算式の文字列の中に // がある` | 印刷屋は計算式の文字列の中でも `//` 以降をコメントとして捨てる。URL は HTML の属性か `##目印##` に置く |
-| `HTTP 401` / `403` | トークンのアプリと権限（レコード閲覧）。トークン生成後に**アプリを更新**したか。ログインユーザーなら 2 要素認証が無効か |
+| `HTTP 401` / `403` | ログイン名とパスワード。2 要素認証が無効なアカウントか。そのユーザーにアプリの閲覧権限があるか。API トークンなら、トークンのアプリと権限（レコード閲覧）、トークン生成後に**アプリを更新**したか |
 | `PluginVersion は tools が対応する 6` | 設定 JSON の `PluginVersion` と tools の版が合っていない。`npx pcraft-authoring version` |
 | `normalize` のエラーが消えない | 文言の末尾の規則名（`html.rule`、`calc.ineligible` など）を AI に伝える。規則名の意味と直し方は [CLAUDE.md](CLAUDE.md) の「normalize の結果」、検査の範囲は [docs/設定ファイル仕様.md](docs/設定ファイル仕様.md) 8 章 |
 | インポートで「設定ファイルの内容が不正です」 | 封筒形式か、`pluginID` が合っているか。`normalize` を通したファイルか |
@@ -175,7 +179,7 @@ npm ci
   ① [CLAUDE.md](CLAUDE.md) で書き込みツールの使用を禁止
   ② `.claude/settings.json` で kintone MCP の書き込みツール（レコード・フォーム・アプリ・スペースの追加 / 更新 / 削除、ファイルのダウンロード）と、帳票の設定に要らない読み取りツール（検索・スペース・レコードのコメント）を**拒否**（1.8.2 の 26 ツールのうち、許可 8・拒否 18）
   ③ tools は GET しか送らず、呼べる API と送信先（`*.cybozu.com` / `*.kintone.com` / `*.cybozu.cn`）を固定（`npm pack` の中身で確かめられます）
-- サーバー側から担保したい場合は、**レコード閲覧だけの API トークン**を使ってください（推奨の構成）
+- ログインユーザーで使うときは、そのユーザーが見られるアプリとレコードを AI も見られます。サーバー側からも担保したい場合は、**閲覧権限だけのアカウント**か、**レコード閲覧だけの API トークン**（運用での推奨）を使ってください
 - 認証情報は `.env`（コミット対象外）のみに置く。AI は `.env` と `policy/` を編集しません。tools が読む `.env` と `policy/authoring-policy.json` と印刷屋の zip の場所はこのフォルダーのものに固定で、AI がオプションで別のファイルを指定することはできません。tools が書くのは `fields/` `records/` `settings/` `temp/` `out/` `kintone/` の下だけです
 - 印刷屋の zip の中身（計算式エンジンなど 4 ファイル）は tools が知っている SHA-256 と一致しなければ**実行せずに止まります**（改変された zip や、tools より新しい修正版の zip）。新しい修正版だと分かっていて続けるときだけ、利用者が `.env` に `PCRAFT_ALLOW_UNKNOWN_PLUGIN=1` を書きます（zip の中のコードはこの PC の権限で動きます。配布元から入手した zip だけを使ってください）
 - 帳票の HTML / CSS / 計算式は、インポートすると印刷屋プラグインが使います。印刷屋 Ver.6 は帳票の HTML / CSS から kintone 以外への読み込み（画像・CSS・iframe・リンク）とスクリプトを**描画の前に除きます**（共通の設定「外部参照」。新しい設定の既定 `externalRefs: "block"`。Ver.5 で保存した設定は「許可」のまま動く）。`normalize` は**許可した要素と属性だけ**を通し（文章・表・画像の要素。インラインの `<svg>` は不可で、図は `<img src="data:image/svg+xml,…">`）、スクリプト、イベント属性、`javascript:` の URL、CSS の `@import` / `expression(` などを**エラーで止め**、「除く」の設定の外部 URL もエラー（帳票に出ない）にします。「許可」（何も除かない。自己責任）の設定と、`externalRefs` の無い既存の設定は、利用者が `policy/authoring-policy.json` の `allowExternalRefs` に書かなければエラーです。「許可」の設定の外部 URL と Google Fonts 以外の Web フォントは**警告**（承認は `allowExternal`。承認した URL は情報として出ます）。計算式が作る HTML は警告だけです。警告は書き戻しを止めないので、**インポート前に差分を人が見る**運用にしてください

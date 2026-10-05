@@ -7,7 +7,7 @@
  */
 import { DEFAULT_CONTEXT_BASE_URL, type Engine } from "../engine.ts";
 import type { FieldsFile } from "./fields.ts";
-import type { KintoneRecord, RecordFile } from "./record.ts";
+import { missingInRecord, type KintoneRecord, type RecordFile } from "./record.ts";
 import { isAllowed, type Policy } from "../normalize/policy.ts";
 import { Findings } from "../normalize/findings.ts";
 import { buildModel } from "../normalize/model.ts";
@@ -63,6 +63,8 @@ export async function runPreview(input: PreviewInput): Promise<PreviewResult> {
   const skipped: string[] = [];
   if (!normalized.body) return { findings, results, skipped, summary: normalized.summary };
   const record = extractRecord(input.recordFile);
+  const missing = missingInRecord(normalized.body, input.fields, record);
+  if (missing.length) findings.warning("preview.record", "レコード", `設定が使う項目がプレビューのレコードに無い: ${missing.slice(0, 10).join(", ")}${missing.length > 10 ? ` 他 ${missing.length - 10}` : ""}（帳票では空になる。record --fields-from <この設定> で取り直す）`);
   const model = buildModel(input.fields, input.engine.api, input.baseUrl);
   // APP_URL などの元になる URL は .env の接続先。無ければ実在しないテナント（fields の値は使わない）
   input.engine.setContext({ baseUrl: model.baseUrl || DEFAULT_CONTEXT_BASE_URL, appId: input.fields.appId });

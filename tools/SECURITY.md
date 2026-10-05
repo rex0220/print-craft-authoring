@@ -4,7 +4,7 @@
 
 - GitHub リポジトリ [rex0220/print-craft-authoring](https://github.com/rex0220/print-craft-authoring) の **Security → Report a vulnerability**（非公開の報告）で知らせてください。公開の Issue には書かないでください
 - 報告には、tools の版（`npx pcraft-authoring version`）、再現する設定 JSON（レコードの値と認証情報を除いたもの）、期待した動きを添えてください
-- 対応するのは tools の最新の 6.x 系です。修正は新しい版として npm と GitHub に出し、`tools/README.md` の履歴に書きます
+- 対応するのは tools の最新の版です。修正は新しい版として npm と GitHub に出し、`tools/README.md` の履歴に書きます
 
 ## 範囲
 
@@ -38,6 +38,6 @@
 - **zip は印刷屋プラグインの配布元から入手したものを使う。** 出所の分からない zip を `PCRAFT_PLUGIN_ZIP` に書かない。`PCRAFT_ALLOW_UNKNOWN_PLUGIN=1` は、tools の既知の一覧より新しい修正版の zip だと分かっているときだけ、理由を理解して書く（その zip のコードがこの PC の権限で動く）
 - `normalize` は HTML / CSS / 計算式の**静的な**検査で、計算式の**実行結果**（レコードの値が HTML として差し込まれること、関数が組み立てる HTML）は見ない。`TABLE_HTML` などの生の HTML を入れる関数、`TAG` / `ATTR` / `STYLE`、ESC_HTML を通さない `${式}` は警告にとどまる。外部への読み込みとスクリプトを止めるのは印刷屋 Ver.6 の描画前の掃除（`externalRefs: "block"`）で、文章や表の崩れは防げない。`"allow"` の設定ではその掃除も無い（利用者の承認と責任）。**インポートする前に `diff` の差分を人が見る**
 - preview の「承認した Web フォントの配信元以外と通信・遷移が起きない」ことは、CSP と sandbox と DOM からの除去の組み合わせで担保している。Chromium を自動で動かして確かめる試験はまだ無い（Chrome の DevTools の Network で確かめられる）
-- kintone への書き込みは、テンプレートの `.claude/settings.json` が kintone MCP の書き込みツール 15 個と読み取り 3 個（検索・スペース・コメント）を拒否し、CLAUDE.md が禁じているが、最終的な担保は **レコード閲覧だけの API トークン**（サーバー側の権限）。設定・権限・API トークンの管理は利用者の責任
+- kintone への書き込みは、テンプレートの `.claude/settings.json` が kintone MCP の書き込みツール 15 個と読み取り 3 個（検索・スペース・コメント）を拒否し、CLAUDE.md が禁じているが、最終的な担保はサーバー側の権限（**レコード閲覧だけの API トークン**か、閲覧権限だけのアカウント）。設定・権限・API トークンの管理は利用者の責任
 - `.env`（認証情報）はコミットしない。設定 JSON にはアプリ番号・項目コード・業務用語が入るので、設定を置くリポジトリは **private** にする。`records/` と `out/` は作業が終わったら消す
 - 依存パッケージ（`happy-dom`、同梱の `moment`）の脆弱性は `npm audit` と新しい版への更新で対応する。第三者のソフトウェアの一覧は `THIRD_PARTY_NOTICES.md`

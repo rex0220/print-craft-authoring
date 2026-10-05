@@ -1,7 +1,7 @@
 # 印刷屋プラグイン — 設定ファイルのオーサリング環境
 
 このリポジトリは、**要件から kintone プラグイン「印刷屋プラグイン（rex0220 Print craft）Ver.6」の設定 JSON を AI が生成・変更する**ための環境です。
-生成した JSON は、利用者がプラグイン設定画面の **ツール → インポート → 保存する** で反映します。帳票は HTML + CSS + 計算式で書きます。
+生成した JSON は、利用者がプラグイン設定画面の **設定をアップロード → 取り込み方を選ぶ → 保存する** で反映します。帳票は HTML + CSS + 計算式で書きます。
 コマンドは `npx pcraft-authoring <command>`（tools。kintone には GET しか送らない）。
 
 ## 読むもの（要るところだけ。全部を順に読まない）
@@ -91,6 +91,7 @@
 | `formula.escape` | 計算式の文字列に `\n` など。`\` は解釈されないので改行にならない。`NEWLINE()` に直す |
 | `formula.rawHtml` | 生の HTML を入れる関数（`TABLE_HTML`、`FVAL` など）。想定どおりなら伝えるだけ |
 | `formula.attr` / `formula.html` | 要素名・属性にレコードの値や式を入れている、計算式の文字列の HTML / CSS の危険な書き方 |
+| `preview.record` | 設定が使う項目がプレビューのレコードに無い（帳票では空になる）。`record --app N --id R --fields-from <この設定>` で取り直す |
 | `external.url` / `external.blocked` | `"allow"` の設定の未承認の外部 URL（承認は利用者が policy の `allowExternal` に書く）/ 計算式の文字列の外部 URL（帳票に入れば除かれる） |
 | その他（`tags.rows`、`tags.pageSize`、`envelope.appId`、`fields.baseUrl`、`html.rule`） | 帳票の行が無い、設定画面の候補に無い用紙、appId が fields と違う、fields の接続先が `.env` と違う、HTML の注意 |
 

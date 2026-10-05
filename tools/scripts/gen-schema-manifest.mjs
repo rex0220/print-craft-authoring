@@ -58,7 +58,8 @@ const manifest = {
   pluginVersion: engine.source.pluginVersion,
   apiVersion: api.apiVersion,
   schemaRevision: schemaRevisionOf(api.CONFIG_SCHEMA),
-  source: `${engine.source.kind}: ${engine.source.from}`,
+  // 公開するファイルなので手元の絶対パスは書かない（2026-10-06）
+  source: `${engine.source.kind}: ${path.basename(engine.source.from)}`,
   limits: api.CONFIG_LIMITS,
   enums: {
     "pluginInfos[].tagsInfo.pageSize": { runtime: [...api.PAPER_NAMES], screen: [...api.PAGE_SIZES] },

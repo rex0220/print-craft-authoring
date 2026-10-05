@@ -1,5 +1,5 @@
 /**
- * 合成 zip（スタブ）で engine.ts の版の照合を試す: tools の版の先頭と印刷屋の版、API の pluginVersion と manifest の版、API の契約（キーと型）。
+ * 合成 zip（スタブ）で engine.ts の版の照合を試す: 対応する印刷屋の版、API の pluginVersion と manifest の版、API の契約（キーと型）。
  * loadEngine は 1 プロセスに 1 回しか読み込まないので、止まる場合だけをこのファイルで試す（成功する読み込みは engine.test.mjs）。
  */
 import { test } from "node:test";

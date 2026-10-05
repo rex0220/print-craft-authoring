@@ -6,7 +6,8 @@ import { loadEngine } from "./helpers.mjs";
 
 test("devMeta: tools の版、対応する印刷屋の版と API の版、commit", () => {
   const m = devMeta();
-  assert.match(m.toolsVersion, /^6\.\d+\.\d+$/);
+  // tools の版は印刷屋の版と独立（2026-10-06）。対応する版は supportedPluginVersions
+  assert.match(m.toolsVersion, /^\d+\.\d+\.\d+$/);
   assert.deepEqual(m.supportedPluginVersions, ["6"]);
   assert.equal(m.supportedApiVersion, 1);
   assert.match(m.commit, /^([0-9a-f]{7,}(\+dirty)?|unknown)$/);

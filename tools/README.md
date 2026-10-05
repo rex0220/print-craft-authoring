@@ -1,6 +1,6 @@
 # print-craft authoring tools（開発メモ）
 
-印刷屋プラグイン（print-craft）の設定 JSON を AI で作る・確かめるための tools。npm パッケージ `@rex0220/print-craft-authoring-tools`（MIT。版は `6.0.x`。先頭が対応する印刷屋プラグインの版）のソース。リポジトリのルートがテンプレート（利用者が "Use this template" で使う側）。計画と決定は print-craft の `docs/authoring-plan.md` 12 章。
+印刷屋プラグイン（print-craft）の設定 JSON を AI で作る・確かめるための tools。npm パッケージ `@rex0220/print-craft-authoring-tools`（MIT。版は印刷屋プラグインの版と独立。対応する印刷屋の版は `src/meta.ts` の `SUPPORTED_PLUGIN_VERSIONS` で、`version` コマンドが出す）のソース。リポジトリのルートがテンプレート（利用者が "Use this template" で使う側）。計画と決定は print-craft の `docs/authoring-plan.md` 12 章。
 
 **tools は印刷屋のコードを含まない。** 計算式エンジン（`desktop_js/KintoneFormulaPCraft.min.js`）と印刷屋の設定画面・帳票のコード + kit（`config_js/print-craft-authoring-api.js`。Ver.6 から zip に同梱。print-craft の `src/authoring/api.ts`）は、利用者の印刷屋 zip（`.env` の `PCRAFT_PLUGIN_ZIP`）から実行のたびにメモリに読む（`src/plugin-zip.ts`、`src/engine.ts`）。zip の中身の SHA-256 が `src/meta.ts` の既知のリリース（4 ファイルの組み合わせ）と違えば実行せずに止まる（fail closed。`SECURITY.md`）。開発中にソースから動かすとき（`node src/cli.ts …`）だけ、環境変数 `PCRAFT_ALLOW_DEV_PLUGIN=1` を置けば隣の print-craft の `prod/` からも読める（この場合は既知でなくても警告で続く。ビルドした `dist/cli.mjs` では読まない）。ビルド（`scripts/build.mjs`）は bundle に印刷屋 / kit のコードが入っていないことを確かめて止まる。
 
@@ -19,7 +19,7 @@ Projects/
 
 - `src/cli.ts` … `pcraft-authoring <command>`（version / fields / record / pull / normalize / preview / diff / buttons。pull は API ラボのプラグインの設定の GET。fields と record の `--summary` は取得済みのファイルの要約で通信しない。record の要約は値を出さない）。読むのは cwd の中、書くのは fields/ records/ settings/ temp/ out/ の下だけ（`src/safe-path.ts`）。`.env` / policy / zip の場所は固定
 - `src/plugin-zip.ts` … 印刷屋の zip（contents.zip の 2 層）を Node の zlib だけで読む。大きさ・entry 数・展開後の上限、CRC-32、名前の一致、重複を検査
-- `src/engine.ts` … zip のエンジンと authoring API を happy-dom + スタブで動かす。版の照合（印刷屋の版、API の版と pluginVersion、tools の版の先頭、4 ファイルの SHA-256、API のキーと型）
+- `src/engine.ts` … zip のエンジンと authoring API を happy-dom + スタブで動かす。版の照合（印刷屋の版、API の版と pluginVersion、4 ファイルの SHA-256、API のキーと型）
 - `src/kintone-url.ts` … 接続先の検証（`*.cybozu.com` / `*.kintone.com` / `*.cybozu.cn`、ユーザー情報・パス・ポート無し）
 - `src/workspace.ts` … 開発と本番（environments.json）、`kintone/<ホスト名>/<番号>-<アプリ名>/` のフォルダー、ダウンロードの名前（`src/commands/take.ts` が inbox から移す）
 - `src/env.ts` / `src/kintone-rest.ts` … `.env`（kintone 公式 MCP と同じ `KINTONE_*` + `PCRAFT_PLUGIN_ZIP` + `PCRAFT_ALLOW_UNKNOWN_PLUGIN`）と GET 専用・許可 API 固定・送信先固定の REST
@@ -48,7 +48,7 @@ npm pack --dry-run  # 公開前に中身を確かめる（dist、vendor、LICENS
 ## 決まり
 
 - 印刷屋の関数は `engine.api`（zip の authoring API）経由で使う。`src/` から print-craft を import するのは **型だけ**（`import type`）。実行コードを import すると build が止まる
-- 印刷屋の `src/authoring/api.ts` の名前や引数を変えるときは `AUTHORING_API_VERSION` を上げ、tools の `SUPPORTED_API_VERSION` と `REQUIRED_API` を合わせる。印刷屋の zip の中身を変えたら `KNOWN_PLUGIN_RELEASES` にリリースの tuple（エンジン・API・bignumber・moment-timezone の 4 つの SHA-256。zip から計算）を足し、版を上げたら `SUPPORTED_PLUGIN_VERSIONS` と tools の版の先頭も上げる
+- 印刷屋の `src/authoring/api.ts` の名前や引数を変えるときは `AUTHORING_API_VERSION` を上げ、tools の `SUPPORTED_API_VERSION` と `REQUIRED_API` を合わせる。印刷屋の zip の中身を変えたら `KNOWN_PLUGIN_RELEASES` にリリースの tuple（エンジン・API・bignumber・moment-timezone の 4 つの SHA-256。zip から計算）を足し、印刷屋の版を上げたら `SUPPORTED_PLUGIN_VERSIONS` に足す（古い版は利用者が残っている間は外さない）。どちらも tools の新しい版として公開する。tools の版は印刷屋の版と独立（semver。2026-10-06 Takashi「B」で 0.1.0 から）
 - kintone への書き込みは行わない。HTTP 層は GET 専用で、送れるパスと送信先を固定する
 - CLI に `.env` / policy / zip の場所を変えるオプションを足さない（AI が書けるファイルを読ませない）。書き込み先を増やすなら `src/safe-path.ts` の `WRITE_ROOTS`
 - `vendor/*.js`、`dist/`、`out/`、`node_modules/` はコミットしない
