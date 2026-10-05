@@ -51,6 +51,16 @@ const IDENT = /^[\p{L}_$][\p{L}\p{N}_$]*$/u;
 const isPlainLiteral = (s: string): boolean => STRING_LITERAL.test(s) && !/[<>&"']/.test(s.slice(1, -1));
 /** REPLACE の置換に使える定数: 記号無し、または <br> */
 const isSafeReplacement = (s: string): boolean => isPlainLiteral(s) || /^"<br\s*\/?>"$/i.test(s);
+/** REPLACE の検索に使える値: 文字列の定数か NEWLINE()（改行は NEWLINE() で書く。"\n" は \ と n の 2 文字） */
+const isSafeSearch = (s: string): boolean => STRING_LITERAL.test(s) || /^NEWLINE\(\s*\)$/.test(s);
+
+/**
+ * 文字列の定数の中の \n / \r / \t（2026-10-05）。実エンジンは " のエスケープ（\"）しか解釈しないので、"\n" は改行でなく \ と n の 2 文字で、
+ * REPLACE(ESC_HTML(備考), "\n", "<br>") は何も置き換えない（試用の納品書で発覚。文書と samples がこの形を勧めていた）。改行は NEWLINE()
+ */
+export function backslashEscapes(formula: string): string[] {
+  return [...new Set([...formula.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[0]).filter((lit) => /\\[nrt]/.test(lit)))];
+}
 
 /** 最上位の区切り文字（, や &）で分ける（文字列と括弧の中は分けない）。括弧や引用符が合わなければ null */
 export function splitTopLevel(s: string, sep = ","): string[] | null {
@@ -181,7 +191,7 @@ function isNumericSafe(arg: string, pp: Record<string, { type: string }>): boole
 
 /**
  * HTML の ${式} が安全な差し込みか（12.3 の html.rawExpression）。式**全体**が次のどれか（& でつないだ項はすべてがこれなら安全）:
- *   ESC_HTML(…)、REPLACE(ESC_HTML(…), "文字列", "<br>" か記号無しの文字列)、数値・日付の項目そのもの、数値・日付の項目（と算術・整える関数の入れ子）を
+ *   ESC_HTML(…)、REPLACE(ESC_HTML(…), NEWLINE() か "文字列", "<br>" か記号無しの文字列)、数値・日付の項目そのもの、数値・日付の項目（と算術・整える関数の入れ子）を
  *   整える関数（FVAL(合計) など。残りの引数は記号無しの文字列や数の定数）、TODAY() / NOW()、数の定数、HTML の記号を含まない文字列の定数
  * それ以外（文字列系の項目、FVAL(文字列項目)、HTML(…)、記号を含む定数）は警告
  */
@@ -196,7 +206,7 @@ export function isSafeExpression(expr: string, pp: Record<string, { type: string
   const call = parseCall(e);
   if (!call) return false;
   if (call.name === "ESC_HTML") return call.args.length >= 1;
-  if (call.name === "REPLACE") return call.args.length === 3 && parseCall(call.args[0])?.name === "ESC_HTML" && STRING_LITERAL.test(call.args[1]) && isSafeReplacement(call.args[2]);
+  if (call.name === "REPLACE") return call.args.length === 3 && parseCall(call.args[0])?.name === "ESC_HTML" && isSafeSearch(call.args[1]) && isSafeReplacement(call.args[2]);
   if (FORMAT_FUNCTIONS.has(call.name)) {
     if (call.name === "TODAY" || call.name === "NOW") return call.args.length === 0;
     if (call.args.length === 0 || !isNumericSafe(call.args[0], pp)) return false;
@@ -227,6 +237,12 @@ function externalFinding(f: Findings, ctx: Ctx, where: string, url: string, via:
     return;
   }
   approvedFinding(f, ctx, where, url, via);
+}
+
+/** 計算式（formulaSet と HTML の ${式}）の文字列の \n などを警告する（formula.escape） */
+function escapeFinding(f: Findings, where: string, formulas: string[]): void {
+  const lits = [...new Set(formulas.flatMap(backslashEscapes))];
+  if (lits.length) f.warning("formula.escape", where, `計算式の文字列は \\ を解釈しない: ${lits.slice(0, 3).join(" ")}（"\\n" は改行でなく \\ と n の 2 文字なので、REPLACE(…, "\\n", "<br>") は何も置き換えない）。改行は NEWLINE()（例 REPLACE(ESC_HTML(備考), NEWLINE(), "<br>")）`);
 }
 
 const HTML_LIKE = /<\s*[a-zA-Z!/]/;
@@ -346,6 +362,7 @@ export async function checkBody(body: Record<string, unknown>, model: Model, f: 
       }
       if (!t.state) continue;
       if (t.formulaSet && commentInsideString(t.formulaSet)) f.error("formula.comment", where, "計算式の文字列の中に // がある（\"https://…\" など）。印刷屋は文字列の中でも // 以降をコメントとして捨てるので式が壊れる。URL は HTML の属性か ##目印## に置く");
+      escapeFinding(f, where, [t.formula || "", ...(t.html ? expressionsOf(t.html) : [])]);
       const formula = t.formula || "";
       if (formula && j >= 2) await checkFormulaHtml(formula, where, f, ctx);
       if (t.html) {
@@ -354,7 +371,7 @@ export async function checkBody(body: Record<string, unknown>, model: Model, f: 
         for (const w of r.warnings) f.warning("html.rule", where, w);
         for (const u of r.externals) externalFinding(f, ctx, where, u.url, u.via);
         const rawExprs = expressionsOf(t.html).filter((e) => !isSafeExpression(e, pp));
-        if (rawExprs.length) f.warning("html.rawExpression", where, `\${式} が文字列をエスケープせずに差し込んでいる: ${rawExprs.slice(0, 5).map((e) => `\${${e}}`).join(" ")}${rawExprs.length > 5 ? ` 他 ${rawExprs.length - 5}` : ""}（文字列の項目は \${ESC_HTML(項目)}、複数行は \${REPLACE(ESC_HTML(項目), "\\n", "<br>")}。数値・日付の項目と FVAL / DATE_FORMAT はそのままでよい）`);
+        if (rawExprs.length) f.warning("html.rawExpression", where, `\${式} が文字列をエスケープせずに差し込んでいる: ${rawExprs.slice(0, 5).map((e) => `\${${e}}`).join(" ")}${rawExprs.length > 5 ? ` 他 ${rawExprs.length - 5}` : ""}（文字列の項目は \${ESC_HTML(項目)}、複数行は \${REPLACE(ESC_HTML(項目), NEWLINE(), "<br>")}。数値・日付の項目と FVAL / DATE_FORMAT はそのままでよい）`);
       }
       if (t.css) {
         const r = checkCss(t.css);
@@ -369,6 +386,7 @@ export async function checkBody(body: Record<string, unknown>, model: Model, f: 
     for (const [j, c] of row.calcInfo.fieldsInfo.entries()) {
       if (!c.state) continue;
       if (c.formulaSet && commentInsideString(c.formulaSet)) f.error("formula.comment", `${label} / 更新項目 ${j + 1} 行目 (${c.fieldcode})`, "計算式の文字列の中に // がある。印刷屋は文字列の中でも // 以降をコメントとして捨てるので式が壊れる");
+      escapeFinding(f, `${label} / 更新項目 ${j + 1} 行目 (${c.fieldcode})`, [c.formula || ""]);
       for (const code of Object.keys(c.usedFields ?? {})) {
         if (code === UOG_MARK) continue;
         if (!fieldExists(model, code)) f.error("field.unknown", `${label} / 更新項目 ${j + 1} 行目 (${c.fieldcode})`, `項目が fields に無い: ${code}`);

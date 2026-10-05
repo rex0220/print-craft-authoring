@@ -1,7 +1,7 @@
 {
   "name": "@rex0220/print-craft-authoring-tools",
   "version": "6.0.0",
-  "description": "rex0220 印刷屋プラグイン（kintone）の設定 JSON を AI で作る・確かめるための tools（fields / record / normalize / preview / diff / version）。計算式エンジンと印刷屋のコードは利用者の印刷屋プラグインの zip から読む",
+  "description": "rex0220 印刷屋プラグイン（kintone）の設定 JSON を AI で作る・確かめるための tools（fields / record / pull / normalize / preview / diff / buttons / version）。計算式エンジンと印刷屋のコードは利用者の印刷屋プラグインの zip から読む",
   "license": "MIT",
   "type": "module",
   "bin": {

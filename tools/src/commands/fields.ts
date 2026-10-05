@@ -65,6 +65,79 @@ export async function fetchFields(client: RestClient, opt: FieldsOptions): Promi
   };
 }
 
+/** レイアウトの順の項目コード（テーブルとグループは自身のコード。テーブルの子は含めない） */
+function layoutOrder(layout: LayoutRow[]): string[] {
+  const out: string[] = [];
+  const walk = (rows: LayoutRow[] | undefined): void => {
+    for (const r of rows ?? []) {
+      if (r.type === "GROUP") {
+        if (r.code) out.push(r.code);
+        walk(r.layout);
+      } else if (r.type === "SUBTABLE") {
+        if (r.code) out.push(r.code);
+      } else {
+        for (const f of r.fields ?? []) if (f.code) out.push(f.code);
+      }
+    }
+  };
+  walk(layout);
+  return out;
+}
+
+const SELECT_TYPES = new Set(["CHECK_BOX", "RADIO_BUTTON", "DROP_DOWN", "MULTI_SELECT"]);
+
+/** 帳票と計算式を書くのに要る属性（書式・単位・選択肢・ルックアップ）。無ければ "" */
+function fieldNotes(p: FieldProperty, inTable: boolean, copyTargets: Set<string>): string {
+  const notes: string[] = [];
+  if (p.type === "CALC" && typeof p.format === "string") notes.push(`書式 ${p.format}`);
+  if (p.type === "SINGLE_LINE_TEXT" && typeof p.expression === "string" && p.expression) notes.push("自動計算");
+  if (p.type === "NUMBER" || p.type === "CALC") {
+    if (p.digit === true) notes.push("桁区切り");
+    if (p.displayScale !== undefined && p.displayScale !== "") notes.push(`小数 ${p.displayScale} 桁`);
+    if (typeof p.unit === "string" && p.unit) notes.push(`単位「${p.unit}」${p.unitPosition === "BEFORE" ? "前" : "後"}`);
+  }
+  if (SELECT_TYPES.has(p.type) && p.options && typeof p.options === "object") {
+    const labels = Object.values(p.options as Record<string, { label: string; index: string }>)
+      .sort((a, b) => Number(a.index) - Number(b.index))
+      .map((o) => o.label);
+    notes.push(`選択肢 ${labels.slice(0, 8).join(" / ")}${labels.length > 8 ? ` 他 ${labels.length - 8}` : ""}`);
+  }
+  const lookup = p.lookup as { relatedApp?: { app?: string }; relatedKeyField?: string } | null | undefined;
+  if (lookup && typeof lookup === "object") notes.push(`ルックアップ（アプリ ${lookup.relatedApp?.app ?? "?"} の ${lookup.relatedKeyField ?? "?"}）`);
+  if (copyTargets.has(p.code)) notes.push("ルックアップのコピー先");
+  if (p.type === "FILE" && !inTable) notes.push("保存先 filecode にできる");
+  return notes.length ? `（${notes.join("、")}）` : "";
+}
+
+/**
+ * fields --summary: 取得済みの fields/<app>.json を 1 項目 1 行で（レイアウトの順。テーブルの子は字下げ。通信しない）。
+ * AI が項目定義の JSON を丸ごと読まずに済むように（2026-10-05、試用の納品書の計測で AI が node -e で同じ要約を作っていた）
+ */
+export function listFields(file: FieldsFile): string {
+  const props = file.properties;
+  const copyTargets = new Set<string>();
+  const collect = (p: FieldProperty): void => {
+    const maps = (p.lookup as { fieldMappings?: Array<{ field?: string }> } | null | undefined)?.fieldMappings;
+    for (const m of maps ?? []) if (m.field) copyTargets.add(m.field);
+    for (const c of Object.values(p.fields ?? {})) collect(c);
+  };
+  for (const p of Object.values(props)) collect(p);
+  const line = (p: FieldProperty, indent: string, inTable: boolean): string => `${indent}${p.code}${p.label && p.label !== p.code ? `「${p.label}」` : ""}  ${p.type}${fieldNotes(p, inTable, copyTargets)}`;
+  const lines: string[] = [];
+  const shown = new Set<string>();
+  for (const code of layoutOrder(file.layout)) {
+    const p = props[code];
+    if (!p || shown.has(code)) continue;
+    shown.add(code);
+    lines.push(line(p, "", false));
+    if (p.type === "SUBTABLE") for (const c of Object.values(p.fields ?? {})) lines.push(line(c, "  ", true));
+  }
+  const rest = Object.values(props).filter((p) => !shown.has(p.code));
+  const header = `アプリ ${file.appId} ${file.appName}（${file.preview ? "preview" : "運用中"}、lang=${file.lang}、取得 ${file.fetchedAt}）項目 ${Object.keys(props).length}。レイアウトの順、テーブルの子は字下げ（TABLE_HTML と計算式で使う。更新項目にはできない）`;
+  const tail = rest.length ? [`レイアウトに無い項目: ${rest.map((p) => `${p.code} ${p.type}`).join(", ")}`] : [];
+  return [header, ...lines, ...tail].join("\n");
+}
+
 /** 画面に出す要約（項目の数と型。値は無い） */
 export function summarizeFields(file: FieldsFile): string {
   const props = Object.values(file.properties);

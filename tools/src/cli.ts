@@ -6,15 +6,17 @@
  *   - .env、policy/authoring-policy.json、印刷屋の zip の場所は固定。オプションで別の場所を指定できない（AI が書けるファイルを読ませない）
  * 終了コード: 0 成功、1 検査のエラー・認証・kintone・zip・入力の誤り、2 使い方の誤り（パスの制限を含む）。
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { AuthError, allowUnknownPlugin, baseUrlFromEnv, describeAuth, loadAuth, pluginZipPath } from "./env.ts";
 import { NotAllowedError, RestError, createRestClient } from "./kintone-rest.ts";
 import { KintoneUrlError } from "./kintone-url.ts";
-import { fetchFields, summarizeFields } from "./commands/fields.ts";
-import { fetchRecord, summarizeRecord, usedFieldCodes } from "./commands/record.ts";
+import { fetchFields, listFields, summarizeFields } from "./commands/fields.ts";
+import { describeRecord, fetchRecord, summarizeRecord, usedFieldCodes, type RecordFile } from "./commands/record.ts";
 import { InputError, loadPolicy, normalizeSettings, readFieldsFile, readJsonLimited, readTextLimited, relativeSettingsPath } from "./commands/normalize.ts";
 import { diffSettings } from "./commands/diff.ts";
+import { ButtonNotFoundError, listButtons } from "./commands/buttons.ts";
+import { defaultPullName, pullSettings } from "./commands/pull.ts";
 import { runPreview } from "./commands/preview.ts";
 import { DEFAULT_CONTEXT_BASE_URL, loadEngine, type Engine } from "./engine.ts";
 import { PluginZipError } from "./plugin-zip.ts";
@@ -29,8 +31,18 @@ const USAGE = `使い方: pcraft-authoring <command> [options]
       zip が読めない、中身が既知と違う、対応しない版、または --expect の版と zip の版が違えば終了コード 1。
   fields --app N [--lang ja] [--preview] [--guest <spaceId>] [--out fields/<file>]
       項目定義とレイアウトとアプリ名を fields/<N>.json に保存（既定は運用中の形。--preview は設定画面と同じ preview の API）。
+  fields --app N --summary
+      取得済みの fields/<N>.json を 1 項目 1 行で（レイアウトの順。型・ラベル・書式・単位・選択肢・ルックアップ）。通信しない。
+  pull --app N [--preview] [--guest <spaceId>] [--out settings/<file>] [--force] [--plugin-id <ID>]
+      アプリに入っている印刷屋の今の設定を取って、設定画面の「設定をダウンロード」と同じ封筒形式で settings/<アプリ名>.json に保存（GET だけ）。
+      kintone の API ラボ「アプリに追加されているプラグインの設定情報を取得する」を有効にした環境だけ。権限は運用中の設定がレコード閲覧＋追加、
+      --preview（動作テスト環境 = 保存して未反映の設定）がアプリ管理。プラグイン ID は印刷屋の zip から。既にあるファイルは --force で上書き。
   record --app N --id R [--fields-from <settings.json>] [--guest <spaceId>] [--out records/<file>]
       レコードを records/<N>-<R>.json に保存。--fields-from で設定が使う項目だけ残す。
+  record --app N --id R --summary
+      取得済みの records/<N>-<R>.json を 1 項目 1 行で。値は出さず形だけ（文字数・行数・数値の桁・テーブルの行数・添付の件数と種類）。通信しない。
+  buttons <settings.json> [--button <名前>]
+      設定のボタン一覧（画面・保存先・用紙・表示条件・ファイル名・帳票の行・更新項目）。--button でそのボタンの HTML / CSS / 計算式（data: の URL は長さだけ）。
   normalize <settings.json> --fields <fields.json> [--out settings/<file>] [--dry-run] [--check] [--json]
       設定画面と同じ手順で派生値を作り直し、検査して、エラーが無ければ書き戻す（既定は同じファイルに上書き。--dry-run は書かない）。
       --check は入力の派生値と生成した値の差を出す。外部 URL の承認は policy/authoring-policy.json（場所は固定。利用者が書く）。
@@ -46,7 +58,7 @@ const USAGE = `使い方: pcraft-authoring <command> [options]
 kintone には GET しか送らない。
 `;
 
-const FLAGS = new Set(["preview", "check", "json", "dry-run", "derived"]);
+const FLAGS = new Set(["preview", "check", "json", "dry-run", "derived", "summary", "force"]);
 
 class UsageError extends Error {}
 
@@ -155,8 +167,19 @@ function client() {
   return { client: createRestClient(auth), authLabel: describeAuth(auth) };
 }
 
+/** 取得済みのファイル（--summary）。無ければ取り方を添えて止める */
+function existingFile(rel: string, howToFetch: string): string {
+  const file = resolveRead(rel);
+  if (!existsSync(file)) throw new InputError(`${rel} が無い。先に npx pcraft-authoring ${howToFetch}`);
+  return file;
+}
+
 async function fields(args: string[]): Promise<number> {
   const app = intOption(args, "app", true) as number;
+  if (flag(args, "summary")) {
+    console.log(listFields(await readFieldsFile(existingFile(path.join("fields", `${app}.json`), `fields --app ${app}`))));
+    return 0;
+  }
   const guestSpaceId = intOption(args, "guest", false);
   const out = resolveWrite(option(args, "out") ?? path.join("fields", `${app}.json`), WRITE_ROOTS.fields);
   const { client: c, authLabel } = client();
@@ -169,6 +192,13 @@ async function fields(args: string[]): Promise<number> {
 async function record(args: string[]): Promise<number> {
   const app = intOption(args, "app", true) as number;
   const id = intOption(args, "id", true) as number;
+  if (flag(args, "summary")) {
+    const file = existingFile(path.join("records", `${app}-${id}.json`), `record --app ${app} --id ${id}`);
+    const data = readJsonLimited(file) as unknown as RecordFile;
+    if (!data.record || typeof data.record !== "object") throw new InputError(`${shown(file)} は record コマンドの出力ではない（record が無い）`);
+    console.log(describeRecord(data));
+    return 0;
+  }
   const guestSpaceId = intOption(args, "guest", false);
   const out = resolveWrite(option(args, "out") ?? path.join("records", `${app}-${id}.json`), WRITE_ROOTS.records);
   const from = option(args, "fields-from");
@@ -239,6 +269,42 @@ async function diff(args: string[]): Promise<number> {
   return 0;
 }
 
+async function pull(args: string[]): Promise<number> {
+  const app = intOption(args, "app", true) as number;
+  const guestSpaceId = intOption(args, "guest", false);
+  const preview = flag(args, "preview");
+  const outArg = option(args, "out");
+  if (args.includes("--out") && !outArg) throw new UsageError("--out には settings/ の下のファイル名を続ける");
+  const engine = await engineFor();
+  const pluginId = option(args, "plugin-id") ?? engine.source.pluginId;
+  if (!pluginId) throw new InputError("プラグイン ID が分からない（印刷屋の zip に PUBKEY が無い）。--plugin-id <ID>（アプリの設定 → プラグインの一覧で確かめる）");
+  const { client: c, authLabel } = client();
+  let result;
+  try {
+    result = await pullSettings(c, engine, { app, preview, guestSpaceId, pluginId });
+  } catch (e) {
+    if (e instanceof RestError && /plugin\/config/.test(e.apiPath ?? "")) {
+      throw new RestError(`${e.message}。確かめること: kintone の API ラボ「アプリに追加されているプラグインの設定情報を取得または更新するREST API」が有効か（cybozu.com 共通管理者がアップデートオプションの「検討中の新機能」で）、権限（運用中: レコード閲覧＋レコード追加 / --preview: アプリ管理）、アプリに印刷屋プラグイン（ID ${pluginId}）が入っているか`, e.status, e.code, e.apiPath);
+    }
+    throw e;
+  }
+  const out = resolveWrite(outArg ?? path.join("settings", defaultPullName(result.appName, app)), WRITE_ROOTS.settings);
+  if (existsSync(out) && !flag(args, "force")) throw new InputError(`${shown(out)} は既にある。上書きするなら --force（上書きの前の内容は git の差分で確かめる）、別の名前なら --out settings/<ファイル>`);
+  writeJson(out, result.envelope);
+  console.log(`pull: アプリ ${app} ${result.appName}（${preview ? "動作テスト環境" : "運用中"}の設定、revision ${result.revision}、保存形式 ${result.format}）を${authLabel}で ${c.baseUrl} から取得 → ${shown(out)}`);
+  console.log(listButtons(result.envelope, { file: shown(out) }));
+  return 0;
+}
+
+async function buttons(args: string[]): Promise<number> {
+  const [settingsArg] = positional(args);
+  if (!settingsArg) throw new UsageError("設定 JSON のパスが要る");
+  const button = option(args, "button");
+  if (args.includes("--button") && !button) throw new UsageError("--button にはボタン名を続ける");
+  console.log(listButtons(readJsonLimited(resolveRead(settingsArg)), { file: settingsArg, button }));
+  return 0;
+}
+
 async function preview(args: string[]): Promise<number> {
   const [settingsArg] = positional(args);
   if (!settingsArg) throw new UsageError("設定 JSON のパスが要る");
@@ -305,6 +371,10 @@ async function main(argv: string[]): Promise<number> {
       return normalize(args);
     case "diff":
       return diff(args);
+    case "buttons":
+      return buttons(args);
+    case "pull":
+      return pull(args);
     case "preview":
       return preview(args);
     default:
@@ -321,7 +391,7 @@ main(process.argv.slice(2)).then(
     if (e instanceof UsageError || e instanceof PathError) {
       console.error(`${e.message}\n${USAGE}`);
       process.exitCode = 2;
-    } else if (e instanceof AuthError || e instanceof RestError || e instanceof NotAllowedError || e instanceof PluginZipError || e instanceof PolicyError || e instanceof InputError || e instanceof KintoneUrlError) {
+    } else if (e instanceof AuthError || e instanceof RestError || e instanceof NotAllowedError || e instanceof PluginZipError || e instanceof PolicyError || e instanceof InputError || e instanceof KintoneUrlError || e instanceof ButtonNotFoundError) {
       console.error(e.message);
       process.exitCode = 1;
     } else {

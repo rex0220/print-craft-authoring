@@ -9,8 +9,11 @@
 import type { KintoneAuth } from "./env.ts";
 import { KintoneUrlError, normalizeKintoneBaseUrl } from "./kintone-url.ts";
 
-/** 許可する API（/k/v1/ と /k/guest/<id>/v1/ の後ろ） */
-export const ALLOWED_APIS = ["app", "app/form/fields", "app/form/layout", "record", "preview/app/form/fields", "preview/app/form/layout"] as const;
+/**
+ * 許可する API（/k/v1/ と /k/guest/<id>/v1/ の後ろ）。app/plugin/config と preview/app/plugin/config は pull が使う（API ラボの
+ * 「アプリに追加されているプラグインの設定情報を取得する」。GET だけ。変更の PUT は呼ばない。Takashi 2026-10-05「tools のみで GET だけ」）
+ */
+export const ALLOWED_APIS = ["app", "app/form/fields", "app/form/layout", "record", "preview/app/form/fields", "preview/app/form/layout", "app/plugin/config", "preview/app/plugin/config"] as const;
 export type AllowedApi = (typeof ALLOWED_APIS)[number];
 
 export class RestError extends Error {

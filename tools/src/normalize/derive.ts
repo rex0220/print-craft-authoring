@@ -133,7 +133,9 @@ export function deriveBody(input: Record<string, unknown>, model: Model, engine:
     pluginComment: String(input.pluginComment ?? ""),
     pluginDescription: String(input.pluginDescription ?? ""),
     commonCssEnable: input.commonCssEnable === undefined ? true : !!input.commonCssEnable,
-    cssInfo: api.normalizeCssRows(input.cssInfo),
+    // 共通 CSS は書いたときだけ出す。印刷屋 Ver.6 のアップロードの一部置換・追加は、ファイルに cssInfo があれば共通 CSS を丸ごと置き換えるかを
+    // 利用者が選ぶ（既定は置き換えない。Takashi 2026-10-05）。既定の 4 行を足しても意味がなく、置き換えを選ぶとアプリの共通 CSS が既定に戻る。無ければ印刷屋は既定の 4 行を使う
+    ...(Array.isArray(input.cssInfo) ? { cssInfo: api.normalizeCssRows(input.cssInfo) } : {}),
     ...(input.fontInfo && typeof input.fontInfo === "object" ? { fontInfo: input.fontInfo } : {}),
     // 外部参照（Ver.6 の共通の設定。設定画面は常に明示して保存する）。キーが無ければ印刷屋は Ver.5 の設定として「許可」で動く（Takashi 2026-10-04）ので
     // "allow" を明示する（checks.ts が利用者の承認を求める）。"block" / "allow" 以外はそのまま残して checks.ts がエラーにする

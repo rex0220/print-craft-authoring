@@ -10,7 +10,7 @@
 
 | 対象 | 報告先 |
 | :--- | :--- |
-| tools（`pcraft-authoring` の fields / record / normalize / preview / diff / version）、テンプレート（CLAUDE.md、`.claude/settings.json`、`.mcp.json`、docs） | このリポジトリ |
+| tools（`pcraft-authoring` の fields / record / pull / normalize / preview / diff / buttons / version）、テンプレート（CLAUDE.md、`.claude/settings.json`、`.mcp.json`、docs） | このリポジトリ |
 | 印刷屋プラグイン本体（zip の中の計算式エンジン、設定画面、帳票の生成） | 印刷屋プラグインの配布元（製品紹介: https://qiita.com/rex0220/items/9be2d9b20a3a1f016c76 ） |
 | kintone 公式 MCP サーバー（`@kintone/mcp-server`） | [kintone/mcp-server](https://github.com/kintone/mcp-server) |
 
@@ -21,11 +21,11 @@
 
 ## tools が守ること
 
-- **kintone には GET しか送らない。** 呼べる API は `app`、`app/form/fields`、`app/form/layout`、`record` と、その preview 版に固定している（ゲストスペースの `/k/guest/<id>/v1/` も同じ一覧）。それ以外のパスやメソッドは送信前に止まる
+- **kintone には GET しか送らない。** 呼べる API は `app`、`app/form/fields`、`app/form/layout`、`record`、`app/plugin/config` と、その preview 版に固定している（ゲストスペースの `/k/guest/<id>/v1/` も同じ一覧）。それ以外のパスやメソッドは送信前に止まる。`app/plugin/config`（`pull`）は kintone の API ラボ「アプリに追加されているプラグインの設定情報を取得する」で、印刷屋のプラグイン ID（zip の公開鍵から）の設定だけを読む。同じ API ラボの設定の変更（PUT）は呼ばない。`pull` は運用中の設定にレコード閲覧＋レコード追加、`--preview` にアプリ管理の権限が要るので、使うときだけその権限のトークン（またはログインユーザー）にする
 - **送信先は kintone のドメインだけ。** `KINTONE_BASE_URL` は `https://<サブドメイン>.cybozu.com` / `.kintone.com` / `.cybozu.cn`（`*.s.cybozu.com` を含む）だけを受け付け、ユーザー情報（`user@`）・ポート・パス・クエリが付いた URL は使わない。URL は `new URL(path, base)` で組み、送信直前にも origin が同じか確かめる
-- **kintone 以外とは通信しない。** `normalize` / `preview` / `diff` / `version` はネットワークを使わない。利用状況の送信（テレメトリ）は無い
+- **kintone 以外とは通信しない。** `normalize` / `preview` / `diff` / `buttons` / `version` と、`fields` / `record` の `--summary` はネットワークを使わない。利用状況の送信（テレメトリ）は無い
 - **認証情報を出力しない。** `.env` または OS の環境変数から読み、API トークン・パスワード・ユーザー名は画面・ファイル・エラーの文言に出さない。エラーの文言は HTTP の状態と kintone のエラーコードと固定のヒントだけ（サーバーの message は出さない）。出すのは接続先の URL と「API トークン / ログインユーザー」の区別だけ
-- **レコードの値を標準出力に出さない。** `record` は項目の数とテーブルの行数だけ表示し、値は `records/<app>-<id>.json` に書く（テンプレートの `.gitignore` でコミット対象外）。`--fields-from` で設定が使う項目だけに絞れる
+- **レコードの値を標準出力に出さない。** `record` は項目の数とテーブルの行数だけ表示し、値は `records/<app>-<id>.json` に書く（テンプレートの `.gitignore` でコミット対象外）。`--fields-from` で設定が使う項目だけに絞れる。`record --summary` も形（文字数・行数・数値の桁・件数・添付の種類）だけで、値・ファイル名・ユーザー名は出さない
 - **印刷屋の zip の中身が既知でなければ実行しない（fail closed）。** 計算式エンジン、authoring API、bignumber、moment-timezone の 4 ファイルの SHA-256 が tools の既知のリリース（`src/meta.ts` の `KNOWN_PLUGIN_RELEASES`。4 つの組み合わせ単位）と一致し、zip の `manifest.json` の版が対応する版で、API の版と印刷屋の版と tools の版が合い、tools が使う API のキーと型がそろっているときだけ実行する。どれか違えば **コードを実行する前に止まる**。zip の読み取りでは、外側と中身の大きさ・entry の数・展開後の大きさの上限、central directory と local header の名前の一致、CRC-32、同名 entry の重複を確かめる（zip bomb と改変の対策）。新しい修正版の zip を使うなど、違いを理解した上で続けるときだけ、**利用者が** `.env` に `PCRAFT_ALLOW_UNKNOWN_PLUGIN=1` を書く（警告を出して続ける。AI は `.env` を書けない）。公開ビルド（npm の `dist/cli.mjs`）が読むのは `PCRAFT_PLUGIN_ZIP` の zip だけで、`node_modules` や隣のフォルダーのファイルは読まない（開発者がソースから動かし、環境変数 `PCRAFT_ALLOW_DEV_PLUGIN=1` を置いたときだけ、隣の print-craft の `prod/` を警告付きで読む）
 - **印刷屋のコードを含まない。** エンジンと API は利用者の zip からメモリへ読むだけで、コピーや書き出しはしない。ビルドは、npm に入る `dist/cli.mjs` に印刷屋 / plugin-config-kit / rexgrid の実行コードが混ざっていないことを検査する
 - **CLI が読む・書く場所を限る。** 読むのは作業フォルダーの中のファイルだけ（`.env` と `node_modules` は読まない）、書くのは `fields/` `records/` `settings/` `temp/` `out/` の下だけ（realpath で判定。junction / symlink で外へは出られない。Windows の予約名は使わない）。`.env`、`policy/authoring-policy.json`、印刷屋の zip の場所（`PCRAFT_PLUGIN_ZIP`）は作業フォルダーのものに固定で、`--env` / `--policy` / `--plugin-zip` のようなオプションは無い。iframe の同一オリジンの判定は `.env` の `KINTONE_BASE_URL` **だけ**を使い、AI が書き換えられる `fields/*.json` の値は使わない（`.env` に接続先が無ければ iframe は使えない）。パスの検査から書き込みまでの間にリンクが差し替えられる競合（TOCTOU）は残るが、AI と同じ OS ユーザーの範囲の話であり、この tools では防がない

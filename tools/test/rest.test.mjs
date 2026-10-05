@@ -22,7 +22,7 @@ test("許可した API だけパスになる。他は送信前に止まる", () 
   assert.throws(() => apiPathOf("records"), NotAllowedError);
   assert.throws(() => apiPathOf("record/comments"), NotAllowedError);
   assert.throws(() => apiPathOf("file"), NotAllowedError);
-  assert.deepEqual([...ALLOWED_APIS], ["app", "app/form/fields", "app/form/layout", "record", "preview/app/form/fields", "preview/app/form/layout"]);
+  assert.deepEqual([...ALLOWED_APIS], ["app", "app/form/fields", "app/form/layout", "record", "preview/app/form/fields", "preview/app/form/layout", "app/plugin/config", "preview/app/plugin/config"]);
 });
 
 test("GET だけ送り、クエリと認証ヘッダーが付く（トークン優先）", async () => {

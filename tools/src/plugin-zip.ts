@@ -140,6 +140,8 @@ export interface PluginSources {
   momentTimezone: string;
   /** 印刷屋の authoring API（Ver.6 以降の zip にある。無ければ undefined） */
   api?: string;
+  /** プラグイン ID（zip の PUBKEY から。開発中のフォルダーと PUBKEY の無い zip は undefined） */
+  pluginId?: string;
   sha256: { engine: string; api?: string; bignumber: string; momentTimezone: string; contents?: string };
 }
 
@@ -151,6 +153,14 @@ export const MANIFEST_ENTRY = "manifest.json";
 
 export function sha256Hex(data: string | Buffer): string {
   return createHash("sha256").update(data).digest("hex");
+}
+
+/**
+ * プラグイン ID（kintone の @kintone/plugin-packer の uuid と同じ: 外側の zip の PUBKEY（公開鍵の DER）の SHA-256 の先頭 32 桁を 0-9a-f → a-p）。
+ * 印刷屋は 5 変種とも同じ鍵で作るので同じ ID（pull がプラグインの設定を取るときの id。2026-10-05）
+ */
+export function pluginIdOf(publicKey: Buffer): string {
+  return sha256Hex(publicKey).slice(0, 32).replace(/[0-9a-f]/g, (c) => "abcdefghijklmnop"["0123456789abcdef".indexOf(c)]);
 }
 
 /** 印刷屋の zip（2 層）から tools が要るものを取り出す */
@@ -187,8 +197,10 @@ export function readPluginZip(file: string): PluginSources {
   const bignumber = need(BIGNUMBER_ENTRY);
   const momentTimezone = need(MOMENT_TZ_ENTRY);
   const api = inner.get(API_ENTRY);
+  const pubkey = outer.get("PUBKEY");
   return {
     from: file,
+    ...(pubkey ? { pluginId: pluginIdOf(pubkey) } : {}),
     manifest,
     pluginVersion: String(manifest.version ?? ""),
     engine: engine.toString("utf8"),

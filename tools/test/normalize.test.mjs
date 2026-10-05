@@ -40,7 +40,9 @@ test("AI が書いた形から派生値を生成する（formula / usedFields / 
   assert.equal(r.output.PluginVersion, "6");
   assert.equal(r.output.appId, 3740);
   assert.equal(r.output.date, "2026-10-04 12:00:00");
-  assert.equal(r.output.cssInfo.length, 4);
+  assert.equal(r.output.cssInfo, undefined, "共通 CSS は書いたときだけ出す（印刷屋は無ければ既定の 4 行。アップロードの一部置換・追加はファイルの cssInfo で共通 CSS を丸ごと置き換える。2026-10-05）");
+  const withCss = await run(aiSettings({ cssInfo: [{ state: true, name: "x", desc: "", css: ".x{}" }] }));
+  assert.deepEqual(withCss.output.cssInfo, [{ id: 1, state: true, name: "x", desc: "", css: ".x{}" }]);
   assert.deepEqual(r.output.guestsInfo, []);
   assert.ok(r.output.menuInfo);
 });
@@ -92,13 +94,28 @@ test("警告と情報: 生の HTML を入れる関数、保存値の大きさ。
 test("警告: 文字列の項目を ESC_HTML なしで差し込むと html.rawExpression（FVAL(文字列) も）", async () => {
   const s = aiSettings();
   const row = s.pluginInfos[0].tagsInfo.fieldsInfo[2];
-  row.html = row.html.replace("${ESC_HTML(宛名)}", "${宛名} ${FVAL(備考)} ${合計金額} ${TODAY()} ${REPLACE(ESC_HTML(備考), \"\\n\", \"<br>\")}");
+  row.html = row.html.replace("${ESC_HTML(宛名)}", "${宛名} ${FVAL(備考)} ${合計金額} ${TODAY()} ${REPLACE(ESC_HTML(備考), NEWLINE(), \"<br>\")}");
   const r = await run(s);
   const w = r.findings.items.find((f) => f.rule === "html.rawExpression");
   assert.ok(w, "警告が出る");
   assert.ok(w.message.includes("${宛名}") && w.message.includes("${FVAL(備考)}"));
   const listed = w.message.split("（文字列の項目は")[0];
   assert.ok(!listed.includes("${合計金額}") && !listed.includes("${TODAY()}") && !listed.includes("${REPLACE(ESC_HTML(備考)"), `数値・TODAY・REPLACE(ESC_HTML) は安全: ${listed}`);
+  assert.ok(w.message.includes('${REPLACE(ESC_HTML(項目), NEWLINE(), "<br>")}'), "複数行の書き方の案内は NEWLINE()");
+});
+
+test('警告: 計算式の文字列の "\\n" は改行でない（実エンジンは \\ を解釈しない）→ formula.escape。改行は NEWLINE()', async () => {
+  assert.ok(!rules(await run(aiSettings()), "warning").includes("formula.escape"), "NEWLINE() の形は警告しない");
+  const s = aiSettings();
+  const row = s.pluginInfos[0].tagsInfo.fieldsInfo[2];
+  row.html = row.html.replace("##備考##", '${REPLACE(ESC_HTML(備考), "\\n", "<br>")}');
+  s.pluginInfos[0].calcInfo.fieldsInfo.push({ state: true, fieldcode: "備考", formulaSet: '"発行済み\\n" & 備考 // "\\t" はコメントなので見ない' });
+  const r = await run(s);
+  const w = r.findings.items.filter((f) => f.rule === "formula.escape");
+  assert.equal(w.length, 2, r.findings.format());
+  assert.ok(w[0].message.includes('"\\n"') && w[0].message.includes("NEWLINE()"));
+  assert.ok(w[1].message.includes('"発行済み\\n"') && !w[1].message.includes('"\\t"'));
+  assert.ok(!r.findings.items.some((f) => f.rule === "html.rawExpression"), "ESC_HTML を通っているのでエスケープの警告は出ない");
 });
 
 test("封筒の誤りは止まる: pluginID、PluginVersion、JSON でない", async () => {

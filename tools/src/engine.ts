@@ -53,6 +53,8 @@ export interface EngineSource {
   apiSha256?: string;
   /** zip の中身（エンジン・API・bignumber・moment-timezone）が既知のリリースの組み合わせと一致するか */
   engineKnown: boolean;
+  /** プラグイン ID（zip の PUBKEY から。pull が使う） */
+  pluginId?: string;
 }
 
 export interface Engine {
@@ -227,7 +229,7 @@ export async function loadEngine(opt: LoadEngineOptions = {}): Promise<Engine> {
     window,
     Ctor,
     api,
-    source: { kind: src.kind, from: src.from, pluginVersion: src.pluginVersion, engineSha256: src.sha256.engine, apiSha256: src.sha256.api, engineKnown },
+    source: { kind: src.kind, from: src.from, pluginVersion: src.pluginVersion, engineSha256: src.sha256.engine, apiSha256: src.sha256.api, engineKnown, ...(src.pluginId ? { pluginId: src.pluginId } : {}) },
     warnings,
     setContext(next) {
       if (next.baseUrl) ctx.baseUrl = next.baseUrl.replace(/\/+$/, "");

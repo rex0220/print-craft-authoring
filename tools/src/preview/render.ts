@@ -177,7 +177,9 @@ export function renderButton(input: RenderInput): RenderedButton {
   const kf = engine.runner(model.ppRun, record);
   const fileName = api.fileNameOf(row, kf as unknown as Parameters<PrintCraftAuthoringApi["fileNameOf"]>[1]);
   const font = api.webFontOf(body.fontInfo);
-  const css = api.buildReportCss(body as Parameters<PrintCraftAuthoringApi["buildReportCss"]>[0], row, paper.scr, font);
+  // 共通 CSS が無い設定は、印刷屋の設定画面が既定の 4 行で保存する（全置換）ので、その形で見せる（一部置換・追加では取り込み先のアプリの共通 CSS が使われる）
+  const cssBody = Array.isArray(body.cssInfo) ? body : { ...body, cssInfo: api.defaultCssRows() };
+  const css = api.buildReportCss(cssBody as Parameters<PrintCraftAuthoringApi["buildReportCss"]>[0], row, paper.scr, font);
   const html = renderRows(api, row, record, kf, errors);
 
   const doc = (engine.window as { document: Document }).document;

@@ -62,7 +62,9 @@ export const REQUIRED_API: Record<string, "function" | "object" | "string" | "nu
   buildMenuRows: "function", normalizeTagsInfo: "function", normalizeCssRows: "function", toSavedRows: "function", computeUsage: "function", computePluginUOG: "function",
   createCheckRecord: "function", createFieldsInfo: "function", isTargetType: "function", stripComments: "function", defaultCssRows: "function", defaultMenuInfo: "function", expandFields: "function",
   buildReportCss: "function", fileNameOf: "function", formulaOf: "function", mountReportHtml: "function", replaceTags: "function", getPaperSize: "function", webFontOf: "function", DUMMY_IMAGE: "string",
-  validate: "function", parseJsonSafely: "function", ValidationError: "function", writeConfig: "function", DEFAULT_LIMITS: "object", ConfigStoreError: "function"
+  validate: "function", parseJsonSafely: "function", ValidationError: "function", writeConfig: "function", DEFAULT_LIMITS: "object", ConfigStoreError: "function",
+  // pull（アプリのプラグインの設定を読んで封筒形式にする。2026-10-05）
+  readConfig: "function", buildExportData: "function"
 };
 
 export interface ToolsMeta {

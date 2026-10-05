@@ -1,6 +1,7 @@
-# AI による印刷屋プラグイン設定オーサリング手順
+# AI による印刷屋プラグイン設定オーサリング手順（利用者向け）
 
-Claude Code（VSCode）と kintone 公式 MCP、tools（`pcraft-authoring`）で、印刷屋プラグイン Ver.6 の設定 JSON を作る・変える手順。AI への常設指示は `CLAUDE.md`、JSON の形式は `設定ファイル仕様.md`、帳票の書き方は `帳票レシピ集.md` と `帳票関数リファレンス.md`。
+Claude Code（VSCode）と kintone 公式 MCP、tools（`pcraft-authoring`）で、印刷屋プラグイン Ver.6 の設定 JSON を作る・変えるときの、利用者がすることの手順です。
+AI の作業手順と規則（読む文書、コマンドの使い方、normalize のエラーの規則名と直し方）は `CLAUDE.md` にあり、このリポジトリを開いた Claude Code が自動で読みます。セットアップは `README.md`。
 
 ## 1. 全体像
 
@@ -9,21 +10,21 @@ Claude Code（VSCode）と kintone 公式 MCP、tools（`pcraft-authoring`）で
 | 利用者 | 要件を書く（アプリ番号、帳票の内容、保存先、見た目）。プレビューと差分を見る。インポートして反映する。外部 URL を承認する |
 | AI（Claude Code） | 項目定義とレコードを確かめ、HTML / CSS / 計算式を組み、封筒形式の JSON を書き、tools で検査・プレビューし、反映手順を伝える |
 | kintone MCP（`@kintone/mcp-server`） | AI の探索（アプリ一覧、アプリ情報、項目定義、レイアウト、レコード）。読み取りだけ許可 |
-| tools（`pcraft-authoring`） | `fields` / `record`（GET で取ってファイルに）、`normalize`（派生値の生成と検査）、`preview`（帳票 HTML）、`diff`（差分） |
+| tools（`pcraft-authoring`） | `fields` / `record`（GET で取ってファイルに）、`normalize`（派生値の生成と検査）、`preview`（帳票 HTML）、`diff`（差分）、`buttons` と `--summary`（要約） |
 
-AI が書くのは設定 JSON と要件の整理だけで、kintone には何も書き込まない。反映は利用者が設定画面でインポートする。
+AI が書くのは設定 JSON と要件の整理だけで、kintone には何も書き込みません。反映は利用者が設定画面でインポートします。
 
 ## 2. 準備
 
 ### 2.1 MCP サーバーの登録（このリポジトリでは設定済み）
 
-`.mcp.json` が kintone 公式 MCP を `node --env-file=.env node_modules/@kintone/mcp-server/dist/index.js` で起動する。認証は `.env`（`KINTONE_BASE_URL` と `KINTONE_API_TOKEN`、または `KINTONE_USERNAME` / `KINTONE_PASSWORD`）。tools も同じ `.env` を読み、加えて `PCRAFT_PLUGIN_ZIP`（印刷屋プラグインの zip）から計算式エンジンと印刷屋の設定画面・帳票のコード（authoring API）を実行時に読む。tools 自体にはそれらは入っていない。
+`.mcp.json` が kintone 公式 MCP を `node --env-file=.env node_modules/@kintone/mcp-server/dist/index.js` で起動します。認証は `.env`（`KINTONE_BASE_URL` と `KINTONE_API_TOKEN`、または `KINTONE_USERNAME` / `KINTONE_PASSWORD`）。tools も同じ `.env` を読み、加えて `PCRAFT_PLUGIN_ZIP`（印刷屋プラグインの zip）から計算式エンジンと印刷屋の設定画面・帳票のコード（authoring API）を実行時に読みます。tools 自体にはそれらは入っていません。
 
 ### 2.2 read-only を担保する
 
-- `.claude/settings.json` の `deny` に kintone MCP の書き込みツール全部（records の add / update / delete、update-statuses、add-record-comment、form-fields の add / update / delete、update-form-layout、update-general-settings、add-app、deploy-app、space の作成 / 更新）と `kintone-download-file` を並べてある。`allow` は読み取りツールと、`settings/` `requirements/` `fields/` `records/` `out/` への書き込み、`npx pcraft-authoring …` の実行だけ
-- tools の HTTP 層は GET 専用で、呼べる API は `/k/v1/app`、`/k/v1/app/form/fields`、`/k/v1/app/form/layout`、`/k/v1/record`（と preview 版）に固定
-- 推奨は**レコード閲覧だけの API トークン**（サーバー側で書き込みができない）。ゲストスペースのアプリは MCP では見えない（tools の `--guest <spaceId>` は使える）
+- `.claude/settings.json` の `deny` に kintone MCP の書き込みツール全部（records の add / update / delete、update-statuses、add-record-comment、form-fields の add / update / delete、update-form-layout、update-general-settings、add-app、deploy-app、space の作成 / 更新）と `kintone-download-file` を並べてあります。`allow` は読み取りツールと、`settings/` `requirements/` `fields/` `records/` `out/` `temp/` への書き込み、`npx pcraft-authoring …` の実行だけです
+- tools の HTTP 層は GET 専用で、呼べる API は `/k/v1/app`、`/k/v1/app/form/fields`、`/k/v1/app/form/layout`、`/k/v1/record`（と preview 版）に固定しています
+- 推奨は**レコード閲覧だけの API トークン**（サーバー側で書き込みができない）。ゲストスペースのアプリは MCP では見えません（tools の `--guest <spaceId>` は使えます）
 
 ### 2.3 疎通確認
 
@@ -31,52 +32,42 @@ AI が書くのは設定 JSON と要件の整理だけで、kintone には何も
 npx pcraft-authoring version
 ```
 
-tools の版と、zip から読んだ印刷屋の版（6）・authoring API の版・計算式エンジンの SHA-256（既知）が出れば OK。Claude Code に「kintone-get-apps を実行して」→ アプリ一覧が返れば MCP も OK。
+tools の版と、zip から読んだ印刷屋の版（6）・authoring API の版・計算式エンジンの SHA-256（既知）が出れば OK です。Claude Code に「kintone-get-apps を実行して」→ アプリ一覧が返れば MCP も OK です。
 
-## 3. 作業手順（AI に指示する流れ）
+## 3. 利用者がすること
 
-### ステップ 1 — 対象アプリと項目を確定する
+### 新しい帳票
 
-- アプリは**番号**で指定する（URL `/k/番号/`）。名前だけのときは `kintone-get-apps` で探し、同名・類似名があれば利用者に確認する
-- `npx pcraft-authoring fields --app N` → `fields/N.json`。項目コード・型・テーブルの子・レイアウト・アプリ名が入る。帳票と計算式には**コード**を書く（ラベルではない）
-- 要件がラベルで書かれていたら、どのコードに対応させたかを利用者に示す。「合計」と「合計金額」のように似たラベルがあれば推測しない
-- 添付ファイル項目（保存先）、テーブル（明細）、ユーザー選択（担当者）などの型を確かめる
+1. 要件を `requirements/` に書くか（例: `requirements/example.md`）、チャットで伝える。**アプリ番号**、保存先の添付ファイル項目、用紙と向き、ボタンを押したときの動き（プレビュー / 確認してから作成 / すぐに作成）を書くと早い
+2. AI が項目のコードの対応（要件のラベル → フィールドコード）を示したら確かめる。似た項目の選び方を聞かれたら答える
+3. AI が `out/<ボタン名>.html` を作ったら Chrome で開いて見た目を確かめる（近似。画像はダミー。Web フォントは承認済みの配信元だけ読む）。プレビュー用のレコードは、明細が複数行、備考に改行、添付あり、が揃うものがよい
+4. AI が伝える**警告**を読む（生の HTML を入れる関数、外部 URL など）
+5. 反映: アプリの設定 → プラグイン → 印刷屋プラグインの設定 → 設定をアップロード → `settings/` のファイル → 取り込み方を選ぶ → 保存する → 運用環境に反映 → 詳細画面でボタンを押して PDF を確かめる。保存先があれば添付ファイル項目に PDF が入る
+   - 取り込み方（印刷屋 Ver.6）: 印刷屋の設定がまだ無いアプリは「全置換」。既存の設定があるアプリにボタンを足すなら「追加」（同じ名前があれば「名前 (2)」）、既存のボタンを差し替えるなら「一部置換」（ボタンごとに置き換え先を選ぶ）。一部置換と追加では、外部参照・Web フォント・メニュー・NOTE・説明・ゲストは今の設定のまま。ファイルに共通 CSS があるときは、共通 CSS を丸ごと置き換えるかをチェックで選ぶ（既定は置き換えない）
+   - 取り込んだボタンにこのアプリで使えない設定（無い項目など）があると、保存のときにエラーになり保存されない
 
-### ステップ 2 — レコードを見る
+一覧帳票（`list: true`）は 1 レコードのプレビューでは確かめられないので、印刷屋の一覧画面で見てください。
 
-- `kintone-get-records` で数件を見て、日付の形、数値の桁と単位、テーブルの行数、添付ファイルの有無、複数行の改行を確かめる
-- プレビュー用に代表的な 1 件を選ぶ（明細が複数行、備考に改行、添付あり、が揃うものがよい）。設定を書いた後に `npx pcraft-authoring record --app N --id R --fields-from settings/<ファイル>.json` で取る（使う項目だけ残る）
+### 既存の設定の変更
 
-### ステップ 3 — 帳票を組む
+ボタンを足すだけなら、新しい帳票と同じく新しいファイルを作ってもらい、アップロードの「追加」で取り込めます（エクスポートは要りません）。既存のボタンを直すときは:
 
-- `帳票レシピ集.md` の既定の形: **HTML テンプレート + `${ESC_HTML(項目)}` + テーブルは `TABLE_HTML`** を `LET(table, TABLE_HTML(…), REPLACE($html, "##table##", table))` で差し込む
-- CSS は共通 CSS（既定の 4 行 `table` / `card` / `comm` / `invoice`）の class を使い、帳票の CSS には差分だけ書く
-- 金額は `${FVAL(項目)}`（桁区切りと単位）、日付は `${DATE_FORMAT(項目, "YYYY年M月D日")}`、複数行は `${REPLACE(ESC_HTML(項目), "\n", "<br>")}`（`FVAL` でもよいが生の HTML）
-- 1 ページは `<div class="rex0220-pcraft-page">…</div>`。A4 縦 96 dpi は 794 × 1123 px で、内側の余白は上下 40px・左 60px・右 40px。はみ出た部分は切れるので、テーブルが長いときは `TABLE_HTML` の `pagination`
-- 社印などの画像は小さな SVG（data URL）か、添付ファイルの `#{&f(fileKey)}`。外部の URL は `externalRefs: "block"`（新しい設定の既定）では帳票に出ない（`normalize` がエラー）。使うなら利用者が `externalRefs` を `"allow"` にして `policy/` で承認する
+1. 設定画面で **設定をダウンロード** した JSON を `settings/` に置き、変えたいことを伝える。kintone の API ラボで「アプリに追加されているプラグインの設定情報を取得または更新するREST API」を有効にしている環境では、`npx pcraft-authoring pull --app N` で今の設定を取れる（GET だけ。運用中の設定はレコード閲覧＋追加、`--preview` で保存して未反映の設定はアプリ管理の権限が要る。API ラボは開発を検討中の API なので、仕様が変わったり無くなったりすることがある）
+2. AI が見せる `diff` の差分（HTML / CSS / 計算式）を確かめる
+3. 上と同じ手順でアップロードして反映する（ファイル全体なら「全置換」、直したボタンだけなら「一部置換」）
 
-### ステップ 4 — 設定 JSON を組み立てて検査する
+### 利用者だけが書くもの
 
-- `設定ファイル仕様.md` に従い封筒形式で `settings/<アプリ名>-<帳票名>.json` に保存する。書くのは「AI」の列のキーだけ
-- `npx pcraft-authoring normalize settings/<ファイル>.json --fields fields/N.json` → エラー 0 にする。エラーの規則名: `envelope.*`（封筒）、`schema`、`tags.*`（列挙・保存先・行の並び）、`calc.ineligible`（更新できない項目）、`formula.syntax`（計算式）、`field.unknown`（無い項目）、`html.rule` / `css.rule`（危険な書き方）、`external.blocked`（`"block"` の設定の HTML / CSS の外部 URL。帳票に出ない）、`externalRefs.*`（外部参照。`"allow"` とキーが無い設定は利用者の承認が無ければエラー、不正な値）、`size`（256 KB）
-- **警告は消さずに利用者に伝える**: `html.rawExpression`（`${式}` が ESC_HTML を通していない）、`formula.rawHtml`（生の HTML を入れる関数）、`formula.attr`（要素名・属性にレコードの値や式）、`formula.html`（計算式の文字列の HTML / CSS の危険な書き方）、`external.url`（`"allow"` の設定の外部 URL と Web フォント。承認は利用者が `policy/` に書く）、`external.blocked`（計算式の文字列の外部 URL。除かれる）
-- `--check` は、エクスポートした設定を戻すときに派生値が一致することの確認。`--dry-run` は書き戻さない
+- `policy/authoring-policy.json`: 外部参照を「許可」（`externalRefs: "allow"`）にする設定ファイル（`allowExternalRefs`）と、外部 URL の承認（`allowExternal`）。AI は書きません。書き方は `policy/README.md`
+- `.env`: 接続先と認証、印刷屋の zip の場所
 
-### ステップ 5 — プレビューと反映
+### tools の要約コマンド（利用者も使えます）
 
-- `npx pcraft-authoring preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json` → `out/<ボタン名>.html`。利用者が Chrome で開く。帳票は sandbox の iframe の中で、画像はダミー（近似）。Web フォントは配信元が承認済み（Google Fonts は既定、他は `policy/authoring-policy.json` の `allowExternal`）のときだけ読む。preview の外部通信はこれだけ
-- 式のエラーは帳票に赤字で入り、終了コードが 1 になる。直してやり直す
-- 一覧帳票（`list: true`）は 1 レコードでは確認できない。印刷屋で見る
-- 反映: アプリの設定 → プラグイン → 印刷屋プラグインの設定 → ツール → インポート → 保存する → 運用環境に反映 → 詳細画面でボタンを押す。保存先があれば添付ファイル項目に PDF が入る
+- `npx pcraft-authoring buttons settings/<ファイル>.json` — 設定のボタン一覧。`--button <名前>` でそのボタンの HTML / CSS / 計算式
+- `npx pcraft-authoring fields --app N --summary` — 取得済みの項目定義を 1 項目 1 行で
+- `npx pcraft-authoring record --app N --id R --summary` — 取得済みのレコードの形（値は出しません）
 
-### 既存設定の変更
-
-1. 利用者が設定画面で **ツール → エクスポート** した JSON を `settings/` に置く
-2. `npx pcraft-authoring normalize <ファイル> --fields fields/N.json --check --dry-run` で「入力の派生値と生成した値は一致」を確かめる（一致しなければ fields が古い）
-3. 設定本体だけを編集し、`normalize` を通す
-4. `npx pcraft-authoring diff <前> <後>` の差分を利用者に見せ、よければ反映を案内する
-
-## 4. AI への指示テンプレート
+## 4. AI への指示の例
 
 新規:
 ```
@@ -93,6 +84,11 @@ tools の版と、zip から読んだ印刷屋の版（6）・authoring API の�
 settings/見積書-見積書.json の見積書に、右上の自社情報の下に住所「〇〇県〇〇市…」と電話「TEL: 00-0000-0000」を足して。
 ```
 
+ボタンの追加:
+```
+requirements/納品書.md の要件で、settings/見積書.json に「納品書」のボタンを追加して。normalize と preview まで
+```
+
 一覧帳票:
 ```
 アプリ 381（案件管理）の一覧画面に、表示中のレコードを表にした「案件一覧」ボタン（A4 横）を作って。顧客名・部署名・案件名・確度・プラン費用・オプション費用・合計費用。費用の合計欄も。
@@ -102,7 +98,7 @@ settings/見積書-見積書.json の見積書に、右上の自社情報の下�
 
 - `settings/` は固定名で上書き。コミットメッセージに何を変えたかを書く
 - `fields/` はコミットしてよい（項目定義。アプリの構造が入るので private）。`records/` と `out/` はコミットしない
-- 設定画面で直した設定は、エクスポートして `settings/` に戻し `normalize --check` で確かめてからコミット（git が正）
+- 設定画面で直した設定は、エクスポートして `settings/` に戻し `npx pcraft-authoring normalize <ファイル> --fields fields/N.json --check --dry-run` で派生値が一致することを確かめてからコミット（git が正）
 - `policy/authoring-policy.json` は利用者が編集してコミット
 
 ## 6. 確認済みの環境

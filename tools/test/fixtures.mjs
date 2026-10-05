@@ -76,7 +76,7 @@ export const QIITA_FORMULA = `LET(
   ),
   html,$html,
   html,REPLACE(html, "##table##", table),
-  html,REPLACE(html, "##備考##", REPLACE(ESC_HTML(備考), "\\n", "<br>")), // 複数行
+  html,REPLACE(html, "##備考##", REPLACE(ESC_HTML(備考), NEWLINE(), "<br>")), // 複数行
   html
 )`;
 
