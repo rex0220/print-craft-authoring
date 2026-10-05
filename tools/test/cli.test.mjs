@@ -52,11 +52,18 @@ test("version: zip が読めなければ 1 で理由を出す。--plugin-zip / -
   const r = run(["version"], { env: { PCRAFT_PLUGIN_ZIP: path.join(path.dirname(CLI), "no-such-plugin.zip") } });
   assert.equal(r.status, 1);
   assert.match(r.stderr, /印刷屋の zip/);
-  for (const opt of ["--plugin-zip", "--env", "--policy"]) {
+  for (const opt of ["--plugin-zip", "--policy"]) {
     const x = run(["version", opt, "x"]);
     assert.equal(x.status, 2, opt);
     assert.match(x.stderr, /は使えない/);
   }
+  // --env は 2026-10-05 から environments.json の環境の名前（場所は指定できない。environments.json が無ければ使えない）
+  const e1 = run(["version", "--env", "x"]);
+  assert.equal(e1.status, 2);
+  assert.match(e1.stderr, /--env は作業フォルダーに environments\.json があるときだけ使える/);
+  const e2 = run(["version", "--env", "../.env"]);
+  assert.equal(e2.status, 2);
+  assert.match(e2.stderr, /ファイルの場所は指定できない/);
 });
 
 test("normalize / preview: 読むのは作業フォルダーの中、書くのは settings/ temp/ out/ の下だけ", () => {
@@ -80,7 +87,7 @@ test("normalize / preview: 読むのは作業フォルダーの中、書くの�
     // docs/ の下には書き戻せない（--dry-run なら読める）
     const r3 = run(["normalize", "docs/b.json", "--fields", "fields/3740.json"], { cwd: work });
     assert.equal(r3.status, 2, r3.stderr);
-    assert.match(r3.stderr, /書き込み先は settings\/ か temp\/ の下/);
+    assert.match(r3.stderr, /書き込み先は settings\/ か temp\/ か kintone\/ の下/);
     const r4 = run(["normalize", "docs/b.json", "--fields", "fields/3740.json", "--dry-run"], { cwd: work });
     assert.equal(r4.status, 0, r4.stderr + r4.stdout);
     // --out で policy/ や .env には書けない

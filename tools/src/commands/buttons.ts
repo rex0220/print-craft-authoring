@@ -5,6 +5,8 @@
  * 既存の設定（数十 KB。社印の data URL を含む）を AI が丸ごと読まずに済むように（2026-10-05、試用の納品書の計測で AI が node -e で同じ一覧を作っていた）
  */
 
+import { createHash } from "node:crypto";
+
 interface TagRowLike {
   state?: boolean;
   desc?: string;
@@ -44,8 +46,9 @@ const oneLine = (s: string, max = 160): string => {
 const chars = (s: string | undefined): number => [...(s ?? "")].length;
 
 /** data: の URL を先頭と長さだけにする（社印の SVG などで数 KB〜数十 KB になる） */
-export function shortenDataUrls(s: string): string {
-  return s.replace(/data:[^"'\s)<>]{120,}/g, (m) => `${m.slice(0, 40)}…（data URL ${m.length.toLocaleString()} 文字）`);
+export function shortenDataUrls(s: string, opt: { hash?: boolean } = {}): string {
+  // hash: diff で前後の data URL が同じ長さでも違えば見分けられるよう、中身の SHA-256 の先頭 8 桁を添える（2026-10-05）
+  return s.replace(/data:[^"'\s)<>]{120,}/g, (m) => `${m.slice(0, 40)}…（data URL ${m.length.toLocaleString()} 文字${opt.hash ? `、sha256 ${createHash("sha256").update(m).digest("hex").slice(0, 8)}` : ""}）`);
 }
 
 /**

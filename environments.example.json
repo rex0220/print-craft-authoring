@@ -1,0 +1,10 @@
+{
+  "default": "dev",
+  "environments": {
+    "dev": { "baseUrl": "https://dev-example.cybozu.com", "envFile": "env/dev.env" },
+    "prod": { "baseUrl": "https://example.cybozu.com", "envFile": "env/prod.env" }
+  },
+  "apps": [
+    { "name": "見積書", "dev": 101, "prod": 3740 }
+  ]
+}

@@ -6,6 +6,7 @@
  */
 import { bodyOf } from "../normalize/derive.ts";
 import { lineDiff, formatDiff } from "../normalize/line-diff.ts";
+import { shortenDataUrls } from "./buttons.ts";
 
 type Obj = Record<string, unknown>;
 const DERIVED = new Set(["formula", "usedFields", "id", "views", "pluginUOG"]);
@@ -124,7 +125,10 @@ export function diffSettings(beforeEnvelope: Obj, afterEnvelope: Obj, opt: { der
   }
   if (opt.derived) scalarDiffs(a, b, ["usedFields", "pluginUOG"], out, "派生 ");
   const derivedNote = opt.derived ? "" : "（派生値 formula / usedFields / id / views / pluginUOG は除く。--derived で含める）";
-  return out.length ? `${out.join("\n")}\n${derivedNote}`.trim() : `差分なし${derivedNote}`;
+  // 社印などの data: の URL（数千文字）は先頭と長さと SHA-256 の先頭だけにする（AI が読む量を減らす。2026-10-05 試用で気づいた）
+  const body = shortenDataUrls(out.join("\n"), { hash: true });
+  const dataNote = body.includes("…（data URL ") ? "（data: の URL は先頭・長さ・sha256 の先頭だけ）" : "";
+  return out.length ? `${body}\n${derivedNote}${dataNote}`.trim() : `差分なし${derivedNote}`;
 }
 
 export const DERIVED_KEYS = DERIVED;

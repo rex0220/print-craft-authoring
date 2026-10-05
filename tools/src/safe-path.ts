@@ -11,12 +11,13 @@ import path from "node:path";
 
 export class PathError extends Error {}
 
-/** 書き込みを許す場所（cwd からの相対） */
+/** 書き込みを許す場所（cwd からの相対）。kintone/ は environments.json があるときのアプリのフォルダー（workspace.ts） */
 export const WRITE_ROOTS = {
-  fields: ["fields"],
-  records: ["records"],
-  settings: ["settings", "temp"],
-  out: ["out"]
+  fields: ["fields", "kintone"],
+  records: ["records", "kintone"],
+  settings: ["settings", "temp", "kintone"],
+  out: ["out", "kintone"],
+  kintone: ["kintone"]
 } as const;
 
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;

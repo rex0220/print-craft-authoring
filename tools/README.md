@@ -21,6 +21,7 @@ Projects/
 - `src/plugin-zip.ts` … 印刷屋の zip（contents.zip の 2 層）を Node の zlib だけで読む。大きさ・entry 数・展開後の上限、CRC-32、名前の一致、重複を検査
 - `src/engine.ts` … zip のエンジンと authoring API を happy-dom + スタブで動かす。版の照合（印刷屋の版、API の版と pluginVersion、tools の版の先頭、4 ファイルの SHA-256、API のキーと型）
 - `src/kintone-url.ts` … 接続先の検証（`*.cybozu.com` / `*.kintone.com` / `*.cybozu.cn`、ユーザー情報・パス・ポート無し）
+- `src/workspace.ts` … 開発と本番（environments.json）、`kintone/<ホスト名>/<番号>-<アプリ名>/` のフォルダー、ダウンロードの名前（`src/commands/take.ts` が inbox から移す）
 - `src/env.ts` / `src/kintone-rest.ts` … `.env`（kintone 公式 MCP と同じ `KINTONE_*` + `PCRAFT_PLUGIN_ZIP` + `PCRAFT_ALLOW_UNKNOWN_PLUGIN`）と GET 専用・許可 API 固定・送信先固定の REST
 - `src/commands/` … 各コマンド。`src/normalize/` … 派生値の生成、検査（HTML / CSS の allowlist、policy、大きさ）、行の差分。`src/preview/` … 帳票 HTML（sandbox + CSP + DOM の無害化）
 - `src/meta.ts` … tools の版、対応する印刷屋の版と API の版、既知の zip の中身の SHA-256（`KNOWN_PLUGIN_HASHES`）、API の契約（`REQUIRED_API`）

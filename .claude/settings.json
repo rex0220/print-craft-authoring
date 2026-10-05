@@ -18,7 +18,9 @@
       "Write(temp/**)",
       "Edit(settings/**)",
       "Edit(requirements/**)",
-      "Edit(temp/**)"
+      "Edit(temp/**)",
+      "Write(kintone/**)",
+      "Edit(kintone/**)"
     ],
     "deny": [
       "mcp__kintone__kintone-add-records",
@@ -42,7 +44,11 @@
       "Write(policy/**)",
       "Edit(policy/**)",
       "Write(.env)",
-      "Edit(.env)"
+      "Edit(.env)",
+      "Write(environments.json)",
+      "Edit(environments.json)",
+      "Write(env/**)",
+      "Edit(env/**)"
     ]
   }
 }

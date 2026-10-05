@@ -11,6 +11,27 @@ test("lineDiff / formatDiff", () => {
   assert.equal(formatDiff(d, 0), "  …\n- b\n+ B\n  …\n+ e");
 });
 
+test("diffSettings: data: の URL は先頭・長さ・sha256 の先頭だけ（社印で数千文字。2026-10-05）。同じ長さでも中身が違えば見分けられる", () => {
+  const seal = (c) => `data:image/svg+xml;base64,${c.repeat(3000)}`;
+  const withSeal = (src, before = "") => {
+    const s = aiSettings();
+    const row = s.pluginInfos[0].tagsInfo.fieldsInfo[2];
+    row.html = row.html.replace(/<img class="pcraft-inv-seal"[^>]*src="data:[^"]+">/, (img) => `${before}${img.replace(/src="data:[^"]+"/, `src="${src}"`)}`);
+    return s;
+  };
+  // 社印は変えずに、社印のすぐ上に 1 行足す（試用で TEL を足したときと同じ）: 前後の行に出る社印は短くなる
+  const out1 = diffSettings(withSeal(seal("A")), withSeal(seal("A"), "<p>TEL</p>\n      "));
+  assert.match(out1, /^\+\s+<p>TEL<\/p>$/m);
+  assert.ok(!out1.includes("A".repeat(100)), "data URL をそのまま出さない");
+  assert.match(out1, /…（data URL 3,026 文字、sha256 [0-9a-f]{8}）/);
+  assert.ok(out1.includes("（data: の URL は先頭・長さ・sha256 の先頭だけ）"));
+  // 社印の中身だけが変わる（長さは同じ）: - と + の行が sha256 で見分けられる
+  const out2 = diffSettings(withSeal(seal("A")), withSeal(seal("B")));
+  const hashes = [...out2.matchAll(/sha256 ([0-9a-f]{8})/g)].map((m) => m[1]);
+  assert.equal(new Set(hashes).size, 2, out2);
+  assert.equal(diffSettings(withSeal(seal("A")), withSeal(seal("A"))), "差分なし（派生値 formula / usedFields / id / views / pluginUOG は除く。--derived で含める）");
+});
+
 test("diffSettings: 変わったボタンの項目・行・更新項目だけ。派生値は --derived", () => {
   const a = aiSettings();
   const b = aiSettings();

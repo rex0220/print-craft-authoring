@@ -27,6 +27,18 @@
 | `npx pcraft-authoring buttons settings/<ファイル>.json` | ボタン一覧（出す画面、保存先、用紙、押したとき、表示条件、ファイル名、帳票の行、更新項目） |
 | `npx pcraft-authoring buttons settings/<ファイル>.json --button <名前>` | そのボタンの HTML / CSS / 計算式と更新項目（data: の URL は先頭と長さだけ） |
 
+## 開発と本番（作業フォルダーに environments.json があるとき）
+
+`environments.json`（利用者が書く。AI は書かない）に環境（開発 / 本番。ドメインが違っても、同じドメインでアプリが違ってもよい）とアプリの番号がある。このときは次のとおり（無ければこの節は使わない）。
+
+- コマンドは `--env <環境>`（省略は既定の環境）と `--app <番号か apps の名前>`。保存先は `kintone/<ホスト名>/<番号>-<アプリ名>/` に決まる（`--out` は使わない）
+- アプリのフォルダー: `fields.json`、`records/<番号>.json`、`out/`、設定のダウンロード / pull（`rex0220-print-craft-app<番号>-<日時>.json`。名前はそのまま。一番新しいものが今の設定）、直したもの（`…-edit.json`）、新しい帳票（その他の `*.json`。1 ファイル 1 帳票）
+- 利用者が `inbox/` に置いたダウンロードは `take` でアプリのフォルダーへ移す。中身は `files --app <アプリ>` と `buttons --app <アプリ>` で見る
+- **ダウンロード / pull のファイルは書き換えない**。直すときは `edit --app <アプリ>` で `-edit.json` に写し、それを直す（normalize もこちらに）。差分は `diff <ダウンロード> <-edit.json>`
+- アプリのフォルダーの中のファイルなら、`normalize` の `--fields` は要らない（同じフォルダーの `fields.json`）。`preview` は `--record 3` で `records/3.json`
+- 作るのも直すのも開発の環境のアプリ。本番へは、利用者が開発で確かめた同じファイルを本番の設定画面でアップロードする（「追加」か「一部置換」。アプリが違うという注意は出るが取り込める。項目が合わなければ保存のときに止まる）。本番のフォルダーは、本番の今の設定を見る（pull / ダウンロード）ためだけに使う
+- **一覧 ID はアプリごとに違う**ので、開発で作るボタンの `viewsCsv` は空（詳細画面とすべての一覧）か `"-"`（詳細画面だけ）にする。特定の一覧に出したいボタンは、本番にアップロードした後に本番の設定画面で一覧を選ぶよう、反映方法を伝えるときに添える
+
 ## 新しい設定を作る
 
 要件は `requirements/` のファイル、またはチャットで受け取る。
@@ -120,4 +132,4 @@
 - `records/` と `out/` はレコードの値を含む。コミットしない（`.gitignore` 済み）。作業が終わったら消してよい
 - 認証情報（`.env`）をファイルやチャットに書かない。`policy/` と `.env` を AI が編集しない
 - tools は `.env` の `PCRAFT_PLUGIN_ZIP`（印刷屋プラグインの zip）から計算式エンジンと印刷屋のコードを読む。「印刷屋の zip の場所が分からない」「版 … には対応していない」「zip の中身が tools の既知の一覧と違う」と出たら、利用者に zip の場所と版（アプリに入れたものと同じ。配布元から入手したもの）を確かめてもらう。`PCRAFT_ALLOW_UNKNOWN_PLUGIN` を AI が書いたり勧めたりしない
-- tools が読むファイルは作業フォルダーの中、書く先は `fields/` `records/` `settings/` `temp/` `out/` の下だけ。`docs/samples/` は読める（`normalize … --dry-run` / `--check`、`--out temp/<名前>.json`、`preview`、`buttons`）が書き戻せないので、元にするときは `settings/` にコピーするか `--out` で `settings/` か `temp/` に出す
+- tools が読むファイルは作業フォルダーの中、書く先は `fields/` `records/` `settings/` `temp/` `out/` `kintone/` の下だけ。`docs/samples/` は読める（`normalize … --dry-run` / `--check`、`--out temp/<名前>.json`、`preview`、`buttons`）が書き戻せないので、元にするときは `settings/` にコピーするか `--out` で `settings/` か `temp/` に出す

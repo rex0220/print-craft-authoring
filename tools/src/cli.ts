@@ -8,7 +8,9 @@
  */
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { AuthError, allowUnknownPlugin, baseUrlFromEnv, describeAuth, loadAuth, pluginZipPath } from "./env.ts";
+import { AuthError, allowUnknownPlugin, baseUrlFromEnv, describeAuth, loadAuth, loadAuthForEnv, pluginZipPath } from "./env.ts";
+import { appDirFor, appFolderOfFile, editNameOf, envsOfHost, findAppDir, INBOX, isEnvName, listAppFolder, loadWorkspace, pickEnv, resolveApp, SNAPSHOT_RE, snapshotNameOf, WorkspaceError, type EnvironmentDef, type Workspace } from "./workspace.ts";
+import { takeInbox } from "./commands/take.ts";
 import { NotAllowedError, RestError, createRestClient } from "./kintone-rest.ts";
 import { KintoneUrlError } from "./kintone-url.ts";
 import { fetchFields, listFields, summarizeFields } from "./commands/fields.ts";
@@ -52,7 +54,22 @@ const USAGE = `使い方: pcraft-authoring <command> [options]
       有効なボタンごとに帳票の HTML を out/<ボタン名>.html に書く（sandbox の iframe + CSP。画像はダミー。Web フォントは配信元が承認済みのときだけ読む）。
       一覧帳票は対象外。式の失敗は赤字で埋めて終了コード 1。
 
-読むファイルは作業フォルダーの中、書き込み先は fields/ records/ settings/ temp/ out/ の下だけ。
+環境とアプリのフォルダー（作業フォルダーに environments.json があるとき。構成 1 = 開発と本番でドメインが違う、構成 2 = 同じドメインで開発用と本番のアプリ）:
+  全部のコマンドに --env <環境の名前>（省略は environments.json の default）。--app は番号か apps の名前。
+  保存先は kintone/<ホスト名>/<番号>-<アプリ名>/（fields.json、records/<番号>.json、out/、設定のダウンロードと pull は
+  rex0220-print-craft-app<番号>-<日時>.json の名前のまま）。認証はその環境の envFile だけ（OS の KINTONE_* は読まない）。
+  normalize / preview にアプリのフォルダーの中のファイルを渡すと --fields は同じフォルダーの fields.json、preview --record 3 は records/3.json。
+  ダウンロード / pull のファイルは書き換えない（edit で -edit.json に写して直す）。
+  take [--env <名前>]
+      inbox/ に置いた設定のダウンロードを、封筒の appId と environments.json の apps からアプリのフォルダーへ名前のまま移す。
+  edit --app <アプリ> | edit <ダウンロードのファイル>
+      一番新しい（または指定した）ダウンロード / pull を <名前>-edit.json に写す（既にあればそのまま）。直すのはこちら。
+  files --app <アプリ>
+      アプリのフォルダーのファイル（今の設定 = 一番新しいダウンロード / pull、-edit.json、新しい帳票、records、out）。
+  buttons --app <アプリ>
+      今の設定（一番新しいダウンロード / pull）のボタン一覧。
+
+読むファイルは作業フォルダーの中、書き込み先は fields/ records/ settings/ temp/ out/ kintone/ の下だけ。
 .env（作業フォルダーのもの）: KINTONE_BASE_URL（*.cybozu.com / *.kintone.com / *.cybozu.cn）と、KINTONE_API_TOKEN または KINTONE_USERNAME / KINTONE_PASSWORD
 （kintone 公式 MCP と同じ）、PCRAFT_PLUGIN_ZIP=<印刷屋プラグインの zip のパス>（計算式エンジンと印刷屋のコードをここから読む）。
 kintone には GET しか送らない。
@@ -93,9 +110,12 @@ function intOption(args: string[], name: string, required: boolean): number | un
   return Number(v);
 }
 
-/** 使えないオプション（1-10 レビュー BLOCKER 5 で外した）を渡されたら理由を出して止める */
+/**
+ * 使えないオプション（1-10 レビュー BLOCKER 5 で外した）を渡されたら理由を出して止める。
+ * --env は 2026-10-05 から environments.json の環境の名前（場所ではない。context で検証）
+ */
 function rejectRemovedOptions(args: string[]): void {
-  for (const name of ["env", "policy", "plugin-zip"]) {
+  for (const name of ["policy", "plugin-zip"]) {
     if (args.includes(`--${name}`)) throw new UsageError(`--${name} は使えない。.env と policy/authoring-policy.json と PCRAFT_PLUGIN_ZIP は作業フォルダーのものに固定（AI が書けるファイルを読ませないため）`);
   }
 }
@@ -162,45 +182,111 @@ async function version(args: string[]): Promise<number> {
   return info.ok ? 0 : 1;
 }
 
-function client() {
-  const auth = loadAuth();
+/** environments.json（workspace.ts）があればその環境（--env か default）。無ければ今までの形（.env 1 つ、settings/ fields/ records/ out/） */
+interface Ctx {
+  ws: Workspace | null;
+  env?: EnvironmentDef;
+}
+
+function context(args: string[]): Ctx {
+  const ws = loadWorkspace();
+  const name = option(args, "env");
+  if (args.includes("--env")) {
+    if (!name || !isEnvName(name)) throw new UsageError("--env には environments.json の環境の名前を続ける（ファイルの場所は指定できない）");
+    if (!ws) throw new UsageError("--env は作業フォルダーに environments.json があるときだけ使える");
+  }
+  return ws ? { ws, env: pickEnv(ws, name) } : { ws: null };
+}
+
+function client(ctx?: Ctx) {
+  const auth = ctx?.ws && ctx.env ? loadAuthForEnv(ctx.env) : loadAuth();
   return { client: createRestClient(auth), authLabel: describeAuth(auth) };
+}
+
+/** 環境が既定でなければ、案内の文言に --env を添える */
+const envFlag = (ctx: Ctx): string => (ctx.ws && ctx.env && ctx.env.name !== ctx.ws.defaultEnv ? ` --env ${ctx.env.name}` : "");
+
+/** --app の値。environments.json があれば番号か apps の名前、無ければ番号 */
+function appOf(args: string[], ctx: Ctx): number {
+  if (!ctx.ws || !ctx.env) return intOption(args, "app", true) as number;
+  const v = option(args, "app");
+  if (!v) throw new UsageError("--app <番号か、environments.json の apps の名前> が要る");
+  return resolveApp(ctx.ws, ctx.env, v).appId;
+}
+
+/** environments.json のとき: 今あるアプリのフォルダー（無ければ fields で作るよう案内して止める） */
+function existingAppDir(ctx: Ctx, appId: number): string {
+  const dir = findAppDir(process.cwd(), ctx.env!, appId);
+  if (!dir) throw new InputError(`アプリ ${appId} のフォルダー（kintone/${ctx.env!.host}/${appId}-…）が無い。先に npx pcraft-authoring fields --app ${appId}${envFlag(ctx)}`);
+  return dir;
+}
+
+function noOutInWorkspace(args: string[], ctx: Ctx): void {
+  if (ctx.ws && args.includes("--out")) throw new UsageError("environments.json があるときは --out を使わない（保存先はアプリのフォルダー kintone/<ホスト名>/<番号>-<アプリ名>/）");
 }
 
 /** 取得済みのファイル（--summary）。無ければ取り方を添えて止める */
 function existingFile(rel: string, howToFetch: string): string {
   const file = resolveRead(rel);
-  if (!existsSync(file)) throw new InputError(`${rel} が無い。先に npx pcraft-authoring ${howToFetch}`);
+  if (!existsSync(file)) throw new InputError(`${shown(file)} が無い。先に npx pcraft-authoring ${howToFetch}`);
   return file;
 }
 
+/** 設定のファイルの置き場所がアプリのフォルダーなら、同じフォルダーの fields.json / records/<番号>.json / out/ を既定にする */
+function folderDefaults(settingsFile: string): { dir: string; host: string; appId: number } | null {
+  return loadWorkspace() ? appFolderOfFile(process.cwd(), settingsFile) : null;
+}
+
+/** --fields（無ければ、アプリのフォルダーの中のファイルなら同じフォルダーの fields.json） */
+function fieldsFileOf(args: string[], folder: { dir: string; appId: number } | null): string {
+  const arg = option(args, "fields");
+  if (arg) return resolveRead(arg);
+  if (!folder) throw new UsageError("--fields <fields.json> が要る（fields コマンドの出力。kintone/<ホスト名>/<番号>-…/ の中のファイルなら同じフォルダーの fields.json を使う）");
+  return existingFile(path.join(folder.dir, "fields.json"), `fields --app ${folder.appId}`);
+}
+
+/** iframe の同一オリジンの判定に使う接続先。environments.json があればフォルダーのホストの環境の baseUrl（フォルダー名は AI が作れるので、それ自体は信用しない） */
+function trustedBaseUrl(folder: { host: string } | null): string | undefined {
+  const ws = loadWorkspace();
+  if (ws && folder) return envsOfHost(ws, folder.host)[0]?.baseUrl;
+  return baseUrlFromEnv();
+}
+
 async function fields(args: string[]): Promise<number> {
-  const app = intOption(args, "app", true) as number;
+  const ctx = context(args);
+  const app = appOf(args, ctx);
+  noOutInWorkspace(args, ctx);
   if (flag(args, "summary")) {
-    console.log(listFields(await readFieldsFile(existingFile(path.join("fields", `${app}.json`), `fields --app ${app}`))));
+    const rel = ctx.ws ? path.join(existingAppDir(ctx, app), "fields.json") : path.join("fields", `${app}.json`);
+    console.log(listFields(await readFieldsFile(existingFile(rel, `fields --app ${app}${envFlag(ctx)}`))));
     return 0;
   }
   const guestSpaceId = intOption(args, "guest", false);
-  const out = resolveWrite(option(args, "out") ?? path.join("fields", `${app}.json`), WRITE_ROOTS.fields);
-  const { client: c, authLabel } = client();
+  const { client: c, authLabel } = client(ctx);
   const file = await fetchFields(c, { app, lang: option(args, "lang"), preview: flag(args, "preview"), guestSpaceId });
+  const out = ctx.ws
+    ? resolveWrite(path.join(appDirFor(process.cwd(), ctx.env!, app, file.appName), "fields.json"), WRITE_ROOTS.kintone)
+    : resolveWrite(option(args, "out") ?? path.join("fields", `${app}.json`), WRITE_ROOTS.fields);
   writeJson(out, file);
   console.log(`${summarizeFields(file)}\n${authLabel}で ${c.baseUrl} から取得 → ${shown(out)}`);
   return 0;
 }
 
 async function record(args: string[]): Promise<number> {
-  const app = intOption(args, "app", true) as number;
+  const ctx = context(args);
+  const app = appOf(args, ctx);
   const id = intOption(args, "id", true) as number;
+  noOutInWorkspace(args, ctx);
+  const defaultRel = (): string => (ctx.ws ? path.join(existingAppDir(ctx, app), "records", `${id}.json`) : path.join("records", `${app}-${id}.json`));
   if (flag(args, "summary")) {
-    const file = existingFile(path.join("records", `${app}-${id}.json`), `record --app ${app} --id ${id}`);
+    const file = existingFile(defaultRel(), `record --app ${app} --id ${id}${envFlag(ctx)}`);
     const data = readJsonLimited(file) as unknown as RecordFile;
     if (!data.record || typeof data.record !== "object") throw new InputError(`${shown(file)} は record コマンドの出力ではない（record が無い）`);
     console.log(describeRecord(data));
     return 0;
   }
   const guestSpaceId = intOption(args, "guest", false);
-  const out = resolveWrite(option(args, "out") ?? path.join("records", `${app}-${id}.json`), WRITE_ROOTS.records);
+  const out = resolveWrite(option(args, "out") ?? defaultRel(), WRITE_ROOTS.records);
   const from = option(args, "fields-from");
   let keep: Set<string> | undefined;
   if (from) {
@@ -209,7 +295,7 @@ async function record(args: string[]): Promise<number> {
     if (!codes) console.log(`${from} に使う項目の情報が無いので絞らない（normalize した設定なら usedFields から絞れる）`);
     else keep = codes;
   }
-  const { client: c, authLabel } = client();
+  const { client: c, authLabel } = client(ctx);
   const file = await fetchRecord(c, { app, id, guestSpaceId, keep });
   writeJson(out, file);
   console.log(`${summarizeRecord(file)}\n${authLabel}で ${c.baseUrl} から取得 → ${shown(out)}（個人情報を含む。コミットしない）`);
@@ -219,14 +305,17 @@ async function record(args: string[]): Promise<number> {
 async function normalize(args: string[]): Promise<number> {
   const [settingsArg] = positional(args);
   if (!settingsArg) throw new UsageError("設定 JSON のパスが要る");
-  const fieldsArg = option(args, "fields");
-  if (!fieldsArg) throw new UsageError("--fields <fields.json> が要る（fields コマンドの出力）");
   const settingsFile = resolveRead(settingsArg);
-  const fieldsFile = resolveRead(fieldsArg);
+  const folder = folderDefaults(settingsFile);
+  const fieldsFile = fieldsFileOf(args, folder);
   const write = !flag(args, "dry-run");
+  // ダウンロードと pull のファイルは書き換えない（Takashi 2026-10-05「直したものを別の名前」）。edit で -edit.json に写して直す
+  if (write && folder && !option(args, "out") && SNAPSHOT_RE.test(path.basename(settingsFile))) {
+    throw new UsageError(`ダウンロード / pull のファイルは書き換えない。npx pcraft-authoring edit ${shown(settingsFile)} で -edit.json に写してから直す（検査だけなら --dry-run）`);
+  }
   const out = write ? resolveWrite(option(args, "out") ?? settingsFile, WRITE_ROOTS.settings) : undefined;
   const fieldsData = await readFieldsFile(fieldsFile);
-  const baseUrl = baseUrlFromEnv();
+  const baseUrl = trustedBaseUrl(folder);
   const engine = await engineFor();
   engine.setContext({ baseUrl: baseUrl ?? DEFAULT_CONTEXT_BASE_URL, appId: fieldsData.appId });
   const result = await normalizeSettings({
@@ -270,7 +359,9 @@ async function diff(args: string[]): Promise<number> {
 }
 
 async function pull(args: string[]): Promise<number> {
-  const app = intOption(args, "app", true) as number;
+  const ctx = context(args);
+  const app = appOf(args, ctx);
+  noOutInWorkspace(args, ctx);
   const guestSpaceId = intOption(args, "guest", false);
   const preview = flag(args, "preview");
   const outArg = option(args, "out");
@@ -278,7 +369,7 @@ async function pull(args: string[]): Promise<number> {
   const engine = await engineFor();
   const pluginId = option(args, "plugin-id") ?? engine.source.pluginId;
   if (!pluginId) throw new InputError("プラグイン ID が分からない（印刷屋の zip に PUBKEY が無い）。--plugin-id <ID>（アプリの設定 → プラグインの一覧で確かめる）");
-  const { client: c, authLabel } = client();
+  const { client: c, authLabel } = client(ctx);
   let result;
   try {
     result = await pullSettings(c, engine, { app, preview, guestSpaceId, pluginId });
@@ -288,7 +379,10 @@ async function pull(args: string[]): Promise<number> {
     }
     throw e;
   }
-  const out = resolveWrite(outArg ?? path.join("settings", defaultPullName(result.appName, app)), WRITE_ROOTS.settings);
+  // environments.json があるときは、アプリのフォルダーにダウンロードと同じ名前（rex0220-print-craft-app<番号>-<日時>.json）で置く
+  const out = ctx.ws
+    ? resolveWrite(path.join(appDirFor(process.cwd(), ctx.env!, app, result.appName), snapshotNameOf(app)), WRITE_ROOTS.kintone)
+    : resolveWrite(outArg ?? path.join("settings", defaultPullName(result.appName, app)), WRITE_ROOTS.settings);
   if (existsSync(out) && !flag(args, "force")) throw new InputError(`${shown(out)} は既にある。上書きするなら --force（上書きの前の内容は git の差分で確かめる）、別の名前なら --out settings/<ファイル>`);
   writeJson(out, result.envelope);
   console.log(`pull: アプリ ${app} ${result.appName}（${preview ? "動作テスト環境" : "運用中"}の設定、revision ${result.revision}、保存形式 ${result.format}）を${authLabel}で ${c.baseUrl} から取得 → ${shown(out)}`);
@@ -297,7 +391,16 @@ async function pull(args: string[]): Promise<number> {
 }
 
 async function buttons(args: string[]): Promise<number> {
-  const [settingsArg] = positional(args);
+  let [settingsArg] = positional(args);
+  if (!settingsArg && args.includes("--app")) {
+    // environments.json のとき: --app のフォルダーの一番新しいダウンロード / pull（今の設定）
+    const ctx = context(args);
+    if (!ctx.ws) throw new UsageError("buttons --app は environments.json があるときだけ。今までの形では buttons <設定 JSON>");
+    const app = appOf(args, ctx);
+    const list = listAppFolder(existingAppDir(ctx, app));
+    if (!list.snapshots.length) throw new InputError(`${shown(list.dir)} にダウンロード / pull のファイルが無い（設定画面でダウンロードして inbox/ に置き take、または pull --app ${app}${envFlag(ctx)}）`);
+    settingsArg = shown(path.join(list.dir, list.snapshots[0]));
+  }
   if (!settingsArg) throw new UsageError("設定 JSON のパスが要る");
   const button = option(args, "button");
   if (args.includes("--button") && !button) throw new UsageError("--button にはボタン名を続ける");
@@ -305,16 +408,70 @@ async function buttons(args: string[]): Promise<number> {
   return 0;
 }
 
+async function take(args: string[]): Promise<number> {
+  const ctx = context(args);
+  if (!ctx.ws) throw new UsageError("take は environments.json があるときだけ使える（inbox/ のダウンロードをアプリのフォルダーへ移す）");
+  const r = takeInbox(process.cwd(), ctx.ws, args.includes("--env") ? ctx.env!.name : undefined);
+  for (const m of r.moved) console.log(`${m.file} → ${m.to}${m.same ? "（同じものが既にあったので inbox から消した）" : ""}`);
+  for (const s of r.skipped) console.error(`移さない: ${s.file}（${s.reason}）`);
+  if (!r.moved.length && !r.skipped.length) console.log(`${INBOX}/ に設定のファイルが無い`);
+  return r.skipped.length ? 1 : 0;
+}
+
+async function edit(args: string[]): Promise<number> {
+  const ctx = context(args);
+  if (!ctx.ws) throw new UsageError("edit は environments.json があるときだけ使える（今までの形では settings/ のファイルをそのまま直す）");
+  let [src] = positional(args);
+  if (!src) {
+    const app = appOf(args, ctx);
+    const list = listAppFolder(existingAppDir(ctx, app));
+    if (!list.snapshots.length) throw new InputError(`${shown(list.dir)} にダウンロード / pull のファイルが無い`);
+    src = path.join(list.dir, list.snapshots[0]);
+  }
+  const file = resolveRead(src);
+  if (!SNAPSHOT_RE.test(path.basename(file)) || !appFolderOfFile(process.cwd(), file)) throw new UsageError(`edit に渡すのはアプリのフォルダーのダウンロード / pull のファイル（rex0220-print-craft-app<番号>-<日時>.json）: ${src}`);
+  const dest = resolveWrite(editNameOf(file), WRITE_ROOTS.kintone);
+  if (existsSync(dest)) {
+    console.log(`既にある（続けて直す）: ${shown(dest)}`);
+  } else {
+    writeText(dest, readTextLimited(file));
+    console.log(`${shown(file)} → ${shown(dest)}（ここを直す。ダウンロードのファイルは書き換えない）`);
+  }
+  console.log(`次: 直したら npx pcraft-authoring normalize ${shown(dest)} → diff ${shown(file)} ${shown(dest)}`);
+  return 0;
+}
+
+async function files(args: string[]): Promise<number> {
+  const ctx = context(args);
+  if (!ctx.ws) throw new UsageError("files は environments.json があるときだけ使える");
+  const app = appOf(args, ctx);
+  const l = listAppFolder(existingAppDir(ctx, app));
+  const lines = [
+    `${shown(l.dir)}（環境 ${ctx.env!.name}、${ctx.env!.baseUrl}）`,
+    `fields.json: ${l.hasFields ? "あり" : `無い（npx pcraft-authoring fields --app ${app}${envFlag(ctx)}）`}`,
+    `ダウンロード / pull（新しい順。先頭が今の設定）: ${l.snapshots.length ? "" : "無い"}`,
+    ...l.snapshots.map((n, i) => `  ${n}${i === 0 ? "  ← 今の設定" : ""}`),
+    `直したもの（-edit.json）: ${l.edits.length ? "" : "無い"}`,
+    ...l.edits.map((n) => `  ${n}`),
+    `その他の設定（新しい帳票など）: ${l.reports.length ? "" : "無い"}`,
+    ...l.reports.map((n) => `  ${n}`),
+    `records/: ${l.records.length ? l.records.join(", ") : "無い"}　out/: ${l.outs} 件`
+  ];
+  console.log(lines.join("\n"));
+  return 0;
+}
+
 async function preview(args: string[]): Promise<number> {
   const [settingsArg] = positional(args);
   if (!settingsArg) throw new UsageError("設定 JSON のパスが要る");
-  const fieldsArg = option(args, "fields");
-  const recordArg = option(args, "record");
-  if (!fieldsArg || !recordArg) throw new UsageError("--fields <fields.json> と --record <record.json> が要る（fields / record コマンドの出力）");
   const settingsFile = resolveRead(settingsArg);
-  const fieldsFile = resolveRead(fieldsArg);
-  const recordFile = resolveRead(recordArg);
-  const outDir = resolveWriteDir(option(args, "out-dir") ?? "out", WRITE_ROOTS.out);
+  const folder = folderDefaults(settingsFile);
+  const fieldsFile = fieldsFileOf(args, folder);
+  const recordArg = option(args, "record");
+  if (!recordArg) throw new UsageError("--record <record.json> が要る（record コマンドの出力。アプリのフォルダーの中のファイルならレコード番号だけでよい: --record 3）");
+  // アプリのフォルダーの中のファイルなら --record 3 は同じフォルダーの records/3.json
+  const recordFile = folder && /^\d+$/.test(recordArg) ? existingFile(path.join(folder.dir, "records", `${recordArg}.json`), `record --app ${folder.appId} --id ${recordArg}`) : resolveRead(recordArg);
+  const outDir = resolveWriteDir(option(args, "out-dir") ?? (folder ? path.join(folder.dir, "out") : "out"), WRITE_ROOTS.out);
   const fieldsData = await readFieldsFile(fieldsFile);
   const engine = await engineFor();
   const result = await runPreview({
@@ -325,7 +482,7 @@ async function preview(args: string[]): Promise<number> {
     engine,
     policy: loadPolicy(),
     button: option(args, "button"),
-    baseUrl: baseUrlFromEnv()
+    baseUrl: trustedBaseUrl(folder)
   });
   const written: string[] = [];
   if (!result.findings.hasErrors) {
@@ -354,6 +511,8 @@ async function preview(args: string[]): Promise<number> {
 async function main(argv: string[]): Promise<number> {
   const [command, ...args] = argv;
   rejectRemovedOptions(args);
+  // --env はどのコマンドでも検証する（環境を使わないコマンドで黙って無視しない）
+  if (args.includes("--env")) context(args);
   switch (command) {
     case undefined:
     case "help":
@@ -375,6 +534,12 @@ async function main(argv: string[]): Promise<number> {
       return buttons(args);
     case "pull":
       return pull(args);
+    case "take":
+      return take(args);
+    case "edit":
+      return edit(args);
+    case "files":
+      return files(args);
     case "preview":
       return preview(args);
     default:
@@ -391,7 +556,7 @@ main(process.argv.slice(2)).then(
     if (e instanceof UsageError || e instanceof PathError) {
       console.error(`${e.message}\n${USAGE}`);
       process.exitCode = 2;
-    } else if (e instanceof AuthError || e instanceof RestError || e instanceof NotAllowedError || e instanceof PluginZipError || e instanceof PolicyError || e instanceof InputError || e instanceof KintoneUrlError || e instanceof ButtonNotFoundError) {
+    } else if (e instanceof AuthError || e instanceof RestError || e instanceof NotAllowedError || e instanceof PluginZipError || e instanceof PolicyError || e instanceof InputError || e instanceof KintoneUrlError || e instanceof ButtonNotFoundError || e instanceof WorkspaceError) {
       console.error(e.message);
       process.exitCode = 1;
     } else {

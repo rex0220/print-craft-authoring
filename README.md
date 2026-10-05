@@ -74,6 +74,27 @@ flowchart LR
    - 保存先の添付ファイル項目、用紙、向き、ボタンを押したときの動き（プレビュー / 確認 / すぐに作成）を伝えると早いです
 7. **反映する** — アプリの設定 → プラグイン → 印刷屋プラグインの設定 → **設定をアップロード** → `settings/` のファイルを選ぶ → **取り込み方**（全置換 / 一部置換 / 追加）を選ぶ → **保存する** → アプリの設定を**運用環境に反映** → 詳細画面でボタンを押して PDF を確かめる。既存の設定があるアプリにボタンを足すときは「追加」、差し替えるときは「一部置換」（どちらも外部参照・Web フォント・メニューなどは今の設定のまま）。ファイルの検証に失敗した場合、既存の設定は変わりません
 
+## 開発と本番を分ける（任意。environments.json）
+
+開発用の環境やアプリがあるときは、作業フォルダーのルートに `environments.json` を置くと、tools がドメインとアプリ番号でフォルダーを分けます（無ければ下の `settings/` などの形のまま）。
+
+- **構成 1**: 開発は開発環境のドメイン、本番は本番のドメイン → 環境ごとに `baseUrl` と認証のファイルを分ける
+- **構成 2**: 同じドメインで、開発用のアプリと本番のアプリ → `baseUrl` は同じで、`apps` の番号を分ける
+
+1. `environments.example.json` を写して `environments.json` を作り、環境（`baseUrl`、認証のファイル `envFile` = `.env` か `env/<名前>.env`）とアプリの番号（`apps`）を書く。構成 2 なら `envFile` を省いて `.env` を共用してよい
+2. 認証のファイル（例 `env/dev.env`、`env/prod.env`）に `.env` と同じ書き方で `KINTONE_API_TOKEN`（または `KINTONE_USERNAME` / `KINTONE_PASSWORD`）を書く。`KINTONE_BASE_URL` は書かなくてよい（書くなら `environments.json` と同じにする）。**このときは OS の環境変数の `KINTONE_*` は読みません**（開発と本番の取り違えを防ぐため）。`PCRAFT_PLUGIN_ZIP` はルートの `.env` か OS の環境変数のまま
+3. 設定画面でダウンロードしたファイル（`rex0220-print-craft-app<番号>-<日時>.json`）は**名前を変えずに** `inbox/` に置く（ブラウザーのダウンロード先を `inbox/` にしておくと手で移す必要がありません）。`npx pcraft-authoring take` がアプリのフォルダーへ移します
+
+```
+kintone/
+  dev-example.cybozu.com/101-見積書/        fields.json、records/、out/、ダウンロード / pull（名前のまま）、…-edit.json（直したもの）
+  example.cybozu.com/3740-見積書/
+```
+
+4. 作るのも直すのも開発の環境のアプリ。開発のアプリにアップロードして確かめたら、**同じファイルを本番のアプリの設定画面でアップロード**します（取り込み方は「追加」か「一部置換」。「別のアプリの設定です」の注意が出ますが取り込めます。項目が合わなければ保存のときに止まります）。**一覧 ID はアプリごとに違う**ので、特定の一覧に出すボタンは本番の設定画面で一覧を選び直してください（開発では「出す画面」を空か詳細画面だけにしておきます）
+
+コマンドは `--env <環境>` で環境を選び（省略は `default`）、`--app` には番号のほか `apps` の名前も書けます。kintone 公式 MCP（AI の探索）は開発の環境だけに向けておけば足ります（本番の今の設定は `pull --env prod` かダウンロードで見られます）。`environments.json` と `env/` は AI が書けないようにしてあります（`.claude/settings.json`）。
+
 ## 設定ファイルの管理ルール（settings/）
 
 - **固定名で上書き保存**し、履歴は git の diff で追う（日時付きファイル名を増やさない）
@@ -92,6 +113,9 @@ flowchart LR
 | `npx pcraft-authoring preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json` | ボタンごとの帳票 HTML を `out/` に |
 | `npx pcraft-authoring diff <前.json> <後.json>` | 既存設定の変更の差分 |
 | `npx pcraft-authoring pull --app N [--preview]` | アプリに入っている印刷屋の今の設定を取って、設定画面の「設定をダウンロード」と同じ形で `settings/<アプリ名>.json` に保存（GET だけ）。kintone の API ラボの API を使うので、cybozu.com 共通管理者がアップデートオプションの「検討中の新機能」で「アプリに追加されているプラグインの設定情報を取得または更新するREST API」を有効にした環境だけ。権限は運用中の設定がレコード閲覧＋追加、`--preview`（保存して未反映の設定）がアプリ管理。既にあるファイルは `--force` で上書き |
+| `npx pcraft-authoring take [--env <環境>]` | `inbox/` の設定のダウンロードを、アプリのフォルダーへ名前のまま移す（environments.json があるとき） |
+| `npx pcraft-authoring edit --app <アプリ>` | 今の設定（一番新しいダウンロード / pull）を `…-edit.json` に写す。直すのはこちら（environments.json があるとき） |
+| `npx pcraft-authoring files --app <アプリ>` | アプリのフォルダーのファイル（今の設定、直したもの、新しい帳票、records、out）（environments.json があるとき） |
 | `npx pcraft-authoring buttons settings/<ファイル>.json [--button <名前>]` | 設定のボタン一覧（出す画面、保存先、用紙、表示条件、ファイル名、帳票の行、更新項目）。`--button` でそのボタンの HTML / CSS / 計算式 |
 | `npx pcraft-authoring fields --app N --summary` | 取得済みの `fields/N.json` を 1 項目 1 行で（通信しない） |
 | `npx pcraft-authoring record --app N --id R --summary` | 取得済みの `records/N-R.json` の形（文字数・行数・桁・件数。値は出さない。通信しない） |
@@ -136,7 +160,7 @@ npm ci
 | `印刷屋の zip の場所が分からない` / `版 … には対応していない` | `.env` の `PCRAFT_PLUGIN_ZIP` のパス。zip の版（manifest の version）が tools の対応する版（`npx pcraft-authoring version`）と合うか。Ver.5 以前の zip には authoring API が無い |
 | `印刷屋の zip の中身が tools の既知の一覧と違う` | zip を配布元から取り直す。印刷屋の修正版が出て tools がまだ追いついていないなら、tools を更新するか、分かった上で `.env` に `PCRAFT_ALLOW_UNKNOWN_PLUGIN=1` を書く（利用者だけ） |
 | `KINTONE_BASE_URL が不正` / `kintone のドメインではない` | `https://<サブドメイン>.cybozu.com` の形だけ（`.kintone.com` / `.cybozu.cn` も可）。パス・ポート・`@` を付けない |
-| `書き込み先は settings/ か temp/ の下` / `作業フォルダーの中` | tools が書くのは `fields/` `records/` `settings/` `temp/` `out/` の下だけ。`docs/samples/` のファイルは読めるので、`normalize docs/samples/見積書/settings.json --fields docs/samples/見積書/fields.json --dry-run` で確かめるか、`--out temp/見積書.json` か `settings/` にコピーして使う |
+| `書き込み先は settings/ か temp/ か kintone/ の下` / `作業フォルダーの中` | tools が書くのは `fields/` `records/` `settings/` `temp/` `out/` `kintone/` の下だけ。`docs/samples/` のファイルは読めるので、`normalize docs/samples/見積書/settings.json --fields docs/samples/見積書/fields.json --dry-run` で確かめるか、`--out temp/見積書.json` か `settings/` にコピーして使う |
 | `iframe の src は利用者の kintone（… 未設定 …）` | 帳票に kintone のグラフの iframe を入れるには `.env` の `KINTONE_BASE_URL` が要る（fields の値では判定しない） |
 | `計算式の文字列の中に // がある` | 印刷屋は計算式の文字列の中でも `//` 以降をコメントとして捨てる。URL は HTML の属性か `##目印##` に置く |
 | `HTTP 401` / `403` | トークンのアプリと権限（レコード閲覧）。トークン生成後に**アプリを更新**したか。ログインユーザーなら 2 要素認証が無効か |
@@ -152,7 +176,7 @@ npm ci
   ② `.claude/settings.json` で kintone MCP の書き込みツール（レコード・フォーム・アプリ・スペースの追加 / 更新 / 削除、ファイルのダウンロード）と、帳票の設定に要らない読み取りツール（検索・スペース・レコードのコメント）を**拒否**（1.8.2 の 26 ツールのうち、許可 8・拒否 18）
   ③ tools は GET しか送らず、呼べる API と送信先（`*.cybozu.com` / `*.kintone.com` / `*.cybozu.cn`）を固定（`npm pack` の中身で確かめられます）
 - サーバー側から担保したい場合は、**レコード閲覧だけの API トークン**を使ってください（推奨の構成）
-- 認証情報は `.env`（コミット対象外）のみに置く。AI は `.env` と `policy/` を編集しません。tools が読む `.env` と `policy/authoring-policy.json` と印刷屋の zip の場所はこのフォルダーのものに固定で、AI がオプションで別のファイルを指定することはできません。tools が書くのは `fields/` `records/` `settings/` `temp/` `out/` の下だけです
+- 認証情報は `.env`（コミット対象外）のみに置く。AI は `.env` と `policy/` を編集しません。tools が読む `.env` と `policy/authoring-policy.json` と印刷屋の zip の場所はこのフォルダーのものに固定で、AI がオプションで別のファイルを指定することはできません。tools が書くのは `fields/` `records/` `settings/` `temp/` `out/` `kintone/` の下だけです
 - 印刷屋の zip の中身（計算式エンジンなど 4 ファイル）は tools が知っている SHA-256 と一致しなければ**実行せずに止まります**（改変された zip や、tools より新しい修正版の zip）。新しい修正版だと分かっていて続けるときだけ、利用者が `.env` に `PCRAFT_ALLOW_UNKNOWN_PLUGIN=1` を書きます（zip の中のコードはこの PC の権限で動きます。配布元から入手した zip だけを使ってください）
 - 帳票の HTML / CSS / 計算式は、インポートすると印刷屋プラグインが使います。印刷屋 Ver.6 は帳票の HTML / CSS から kintone 以外への読み込み（画像・CSS・iframe・リンク）とスクリプトを**描画の前に除きます**（共通の設定「外部参照」。新しい設定の既定 `externalRefs: "block"`。Ver.5 で保存した設定は「許可」のまま動く）。`normalize` は**許可した要素と属性だけ**を通し（文章・表・画像の要素。インラインの `<svg>` は不可で、図は `<img src="data:image/svg+xml,…">`）、スクリプト、イベント属性、`javascript:` の URL、CSS の `@import` / `expression(` などを**エラーで止め**、「除く」の設定の外部 URL もエラー（帳票に出ない）にします。「許可」（何も除かない。自己責任）の設定と、`externalRefs` の無い既存の設定は、利用者が `policy/authoring-policy.json` の `allowExternalRefs` に書かなければエラーです。「許可」の設定の外部 URL と Google Fonts 以外の Web フォントは**警告**（承認は `allowExternal`。承認した URL は情報として出ます）。計算式が作る HTML は警告だけです。警告は書き戻しを止めないので、**インポート前に差分を人が見る**運用にしてください
 - `records/` と `out/` にはレコードの値が入ります。作業が終わったら消し、リポジトリは private に

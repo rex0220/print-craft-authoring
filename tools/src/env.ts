@@ -95,6 +95,36 @@ export function loadAuth(opt: LoadAuthOptions = {}): KintoneAuth {
   return { baseUrl, token, username: token ? undefined : username, password: token ? undefined : password };
 }
 
+/**
+ * environments.json の環境の認証（workspace.ts。2026-10-05）。接続先は environments.json の baseUrl、認証はその環境の envFile（.env か env/<名前>.env。
+ * 場所は environments.json の値だけで、CLI から指定できない）だけから読む。OS の KINTONE_* / KSQL_* は読まない（開発と本番の取り違えを防ぐ。
+ * OS に本番の KINTONE_BASE_URL があっても開発の環境で使わない）。envFile に KINTONE_BASE_URL があり environments.json と違えば止まる
+ */
+export function loadAuthForEnv(env: { name: string; baseUrl: string; envFile: string }, cwd = process.cwd()): KintoneAuth {
+  const file = path.join(cwd, env.envFile);
+  if (!existsSync(file)) throw new AuthError(`環境「${env.name}」の認証のファイルが無い: ${env.envFile}（${env.envFile === ".env" ? ".env.example を写して作る" : "env/ に作る。.env と同じ書き方"}）`);
+  const vars = parseDotEnv(readFileSync(file, "utf8"));
+  const pick = (names: readonly string[]): string | undefined => {
+    for (const n of names) if (vars[n] && vars[n].trim()) return vars[n].trim();
+    return undefined;
+  };
+  const fileBase = pick(NAMES.baseUrl);
+  if (fileBase) {
+    let normalized = "";
+    try {
+      normalized = normalizeKintoneBaseUrl(fileBase);
+    } catch {
+      normalized = "";
+    }
+    if (normalized !== env.baseUrl) throw new AuthError(`${env.envFile} の KINTONE_BASE_URL が environments.json の環境「${env.name}」の baseUrl（${env.baseUrl}）と違う。取り違えを防ぐため止める（どちらかを直す）`);
+  }
+  const token = pick(NAMES.token);
+  const username = pick(NAMES.username);
+  const password = pick(NAMES.password);
+  if (!token && !(username && password)) throw new AuthError(`${env.envFile} に KINTONE_API_TOKEN か、KINTONE_USERNAME と KINTONE_PASSWORD の両方が要る（環境「${env.name}」。OS の環境変数は読まない）`);
+  return { baseUrl: env.baseUrl, token, username: token ? undefined : username, password: token ? undefined : password };
+}
+
 /** 印刷屋の zip の場所（OS の環境変数か .env の PCRAFT_PLUGIN_ZIP。無ければ undefined = 開発中の print-craft を探す） */
 export function pluginZipPath(opt: LoadAuthOptions = {}): string | undefined {
   const v = picker(opt)(NAMES.pluginZip);
