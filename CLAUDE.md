@@ -22,7 +22,7 @@
 4. **帳票を組む** — [docs/帳票レシピ集.md](docs/帳票レシピ集.md) の既定の形: **HTML テンプレート + `${ESC_HTML(項目)}` + テーブルは `TABLE_HTML`**。CSS は共通 CSS（既定の 4 行）の差分だけ書く。社印などの画像は `<img src="data:image/svg+xml,…">`（data URL の SVG）か添付ファイルの `#{&f(fileKey)}`
 5. **設定 JSON を組み立てる** — [docs/設定ファイル仕様.md](docs/設定ファイル仕様.md) に従い、**封筒形式**で `settings/<アプリ名>-<帳票名>.json` に保存する。`pluginID` は `"rex0220 Print craft plugin"`、`PluginVersion` は `"6"`。`filecode`（保存先の添付ファイル項目）、`pageSize`、`orientation`、`dpi`、`printMode` を明示する。派生値（`formula` / `usedFields` / `id` / `views` / `pluginUOG`、更新項目のメタデータ）は書かない
 6. **正規化と検査** — `npx pcraft-authoring normalize settings/<ファイル>.json --fields fields/N.json`。エラーが 0 になるまで直す。**警告は消さずに利用者に伝える**（生の HTML を入れる関数、外部 URL など）。保存値の大きさ（256 KB）も出る
-7. **プレビュー** — `npx pcraft-authoring preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json` → `out/<ボタン名>.html`。利用者に Chrome で開いてもらい、印刷屋のプレビューと比べる（近似。画像はダミー、Web フォントは読まない）
+7. **プレビュー** — `npx pcraft-authoring preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json` → `out/<ボタン名>.html`。利用者に Chrome で開いてもらい、印刷屋のプレビューと比べる（近似。画像はダミー。Web フォントは配信元が承認済み（Google Fonts は既定、他は利用者が `policy/` に書く）のときだけ読む）
 8. **反映方法と確認ポイントを利用者に伝える** — アプリの設定 → プラグイン → 印刷屋プラグインの設定 → ツール → インポート → **保存する** → **運用環境に反映** → 詳細画面でボタンを押して PDF を確かめる
 
 既存設定の変更は、利用者がエクスポートした JSON（封筒形式）を受け取り、まず `normalize --check` で派生値が一致することを確かめてから設定本体だけを編集し、`normalize` の後に `npx pcraft-authoring diff <前> <後>` の差分を利用者に見せてから反映を案内する。**同じファイルへの上書き**（新規ファイルを増やさない。履歴は git）。

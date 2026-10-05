@@ -64,7 +64,7 @@ tools の版と、zip から読んだ印刷屋の版（6）・authoring API の�
 
 ### ステップ 5 — プレビューと反映
 
-- `npx pcraft-authoring preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json` → `out/<ボタン名>.html`。利用者が Chrome で開く。帳票は sandbox の iframe の中で、画像はダミー、Web フォントは読まない（近似）
+- `npx pcraft-authoring preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json` → `out/<ボタン名>.html`。利用者が Chrome で開く。帳票は sandbox の iframe の中で、画像はダミー（近似）。Web フォントは配信元が承認済み（Google Fonts は既定、他は `policy/authoring-policy.json` の `allowExternal`）のときだけ読む。preview の外部通信はこれだけ
 - 式のエラーは帳票に赤字で入り、終了コードが 1 になる。直してやり直す
 - 一覧帳票（`list: true`）は 1 レコードでは確認できない。印刷屋で見る
 - 反映: アプリの設定 → プラグイン → 印刷屋プラグインの設定 → ツール → インポート → 保存する → 運用環境に反映 → 詳細画面でボタンを押す。保存先があれば添付ファイル項目に PDF が入る

@@ -69,7 +69,7 @@ flowchart LR
    ```
    アプリ 3740（見積書）に、A4 縦の見積書を作って見積ファイルに保存するボタンを作って
    ```
-   AI が `fields/<app>.json` を取り、帳票を組み、`npx pcraft-authoring normalize` で検査して `settings/` に設定 JSON（封筒形式）を保存し、`npx pcraft-authoring preview` で `out/<ボタン名>.html` を作ります。**Chrome で開いて見た目を確かめてください**（近似。画像はダミー、Web フォントは読みません）
+   AI が `fields/<app>.json` を取り、帳票を組み、`npx pcraft-authoring normalize` で検査して `settings/` に設定 JSON（封筒形式）を保存し、`npx pcraft-authoring preview` で `out/<ボタン名>.html` を作ります。**Chrome で開いて見た目を確かめてください**（近似。画像はダミー。Web フォントは配信元が承認済みのときだけ読みます。Google Fonts は既定で承認、他は `policy/authoring-policy.json` に書きます）
    - **アプリはできるだけ番号で指定**してください（番号はアプリの URL `/k/番号/` に出ています）
    - 保存先の添付ファイル項目、用紙、向き、ボタンを押したときの動き（プレビュー / 確認 / すぐに作成）を伝えると早いです
 7. **反映する** — アプリの設定 → プラグイン → 印刷屋プラグインの設定 → **ツール → インポート** → `settings/` のファイルを選ぶ → **保存する** → アプリの設定を**運用環境に反映** → 詳細画面でボタンを押して PDF を確かめる。検証に失敗した場合、既存の設定は変わりません
@@ -139,7 +139,7 @@ npm ci
 | `PluginVersion は tools が対応する 6` | 設定 JSON の `PluginVersion` と tools の版が合っていない。`npx pcraft-authoring version` |
 | `normalize` のエラーが消えない | 文言の規則名（`html.rule`、`calc.ineligible` など）を AI に伝える。[docs/設定ファイル仕様.md](docs/設定ファイル仕様.md) 8 章 |
 | インポートで「設定ファイルの内容が不正です」 | 封筒形式か、`pluginID` が合っているか。`normalize` を通したファイルか |
-| プレビューと実際の PDF が違う | プレビューは近似（画像はダミー、Web フォントは OS の書体）。PDF は印刷屋で確かめる |
+| プレビューと実際の PDF が違う | プレビューは近似（画像はダミー。Web フォントは承認済みの配信元だけ読み、未承認なら OS の書体）。PDF は印刷屋で確かめる |
 
 ## セキュリティ
 

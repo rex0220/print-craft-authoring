@@ -47,6 +47,7 @@ test("見積書のプレビュー: 1 ページ、sandbox の iframe、CSP、テ�
   assert.ok(b.inner.includes("pcraft-inv-item-"), "TABLE_HTML の pref");
   assert.ok(!b.inner.includes("##table##"));
   assert.ok(b.inner.includes("rex0220-print-craft-page-css"), "印刷屋と同じページの基本 CSS");
+  assert.ok(b.inner.includes("font-size: 16px; line-height: 1.5;"), "kintone の body と同じ文字の設定（line-height が無いと BIZ UD などで行が詰まる）");
   assert.ok(b.inner.includes("width: 794px"), "A4 96 dpi の幅");
   assert.match(r.summary, /プレビュー 1 件/);
 });
@@ -110,6 +111,39 @@ test("preview の文書は閉じている: CSS の </style> で抜けられな�
   assert.ok(inner.includes(">link</a>") && inner.includes("in</a>"), "リンクの文字は残る");
   assert.ok(!PREVIEW_CSP.includes("blob:"));
   assert.match(PREVIEW_CSP, /img-src data:;/);
+});
+
+test("Web フォント: 承認済み（Google Fonts は既定）なら帳票の文書に <link> と CSP の配信元、未承認なら読まない（OS の書体）、policy で承認すれば読む", async () => {
+  const google = aiSettings({ fontInfo: { enabled: true, preset: "biz-udpmincho", family: "BIZ UDPMincho", cssUrl: "https://fonts.googleapis.com/css2?family=BIZ+UDPMincho:wght@400;700&display=swap" } });
+  const r = await run(google);
+  assert.ok(!r.findings.hasErrors, r.findings.format());
+  const b = r.results[0];
+  assert.equal(b.webFont, "https://fonts.googleapis.com/css2?family=BIZ+UDPMincho:wght@400;700&display=swap");
+  assert.ok(b.inner.includes('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPMincho:wght@400;700&amp;display=swap">'), "帳票の文書に <link>");
+  assert.ok(b.inner.includes("style-src 'unsafe-inline' https://fonts.googleapis.com; font-src data: https://fonts.googleapis.com https://fonts.gstatic.com;"), "CSP に CSS とフォント本体の配信元");
+  assert.ok(b.inner.includes('"BIZ UDPMincho"'), "ページの CSS に font-family");
+  assert.ok(b.html.includes("承認済み") && b.html.includes("BIZ UDPMincho"), "ヘッダーの注記");
+  assert.ok(!b.inner.includes("connect-src 'self'") && b.inner.includes("connect-src 'none'"), "通信の許可はフォントだけ");
+  // 未承認の配信元 → 読まない（normalize は警告 external.url。preview は止まらない）
+  const other = aiSettings({ fontInfo: { enabled: true, preset: "custom", family: "My Font", cssUrl: "https://fonts.example.com/my.css" } });
+  const r2 = await run(other);
+  assert.ok(!r2.findings.hasErrors, r2.findings.format());
+  assert.ok(r2.findings.items.some((f) => f.rule === "external.url"));
+  const b2 = r2.results[0];
+  assert.equal(b2.webFont, null);
+  assert.ok(!b2.inner.includes("<link"), "未承認は <link> を入れない");
+  assert.ok(b2.inner.includes(`content="${PREVIEW_CSP}"`), "CSP は基本のまま");
+  assert.ok(b2.html.includes("未承認"), "ヘッダーの注記");
+  // policy で承認 → 読む（その他の配信元は CSS とフォント本体に同じ origin）
+  const r3 = await run(other, { policy: { allowExternal: [{ origin: "https://fonts.example.com" }] } });
+  const b3 = r3.results[0];
+  assert.equal(b3.webFont, "https://fonts.example.com/my.css");
+  assert.ok(b3.inner.includes('<link rel="stylesheet" href="https://fonts.example.com/my.css">'));
+  assert.ok(b3.inner.includes("style-src 'unsafe-inline' https://fonts.example.com; font-src data: https://fonts.example.com;"));
+  // Web フォント無し → <link> も配信元も無し
+  const none = await run(aiSettings());
+  assert.equal(none.results[0].webFont, null);
+  assert.ok(!none.results[0].inner.includes("<link") && none.results[0].html.includes("Web フォントは使いません"));
 });
 
 test("extractRecord: record コマンドの出力、API の応答、レコードそのもの", () => {

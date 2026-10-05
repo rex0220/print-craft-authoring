@@ -13,15 +13,15 @@ iframe { display: block; margin: 12px auto; border: 0; background: #f7f7f7; }
 <header>
 <h1>見積書</h1>
 <p>ファイル名: 見積書-A-20260224-001.pdf / 用紙: A4 縦 96 dpi / ページ: 1</p>
-<p>これは近似のプレビューです。添付ファイルの画像と QR はダミー、Web フォントは読みません（OS の書体で代替）。PDF の見た目は印刷屋プラグインで確かめてください。帳票は sandbox の iframe の中で、スクリプト・通信・フォーム・遷移は動きません。</p>
+<p>これは近似のプレビューです。添付ファイルの画像と QR はダミーです。Web フォントは使いません。 PDF の見た目は印刷屋プラグインで確かめてください。帳票は sandbox の iframe の中に置き、スクリプトと外部への通信（承認した Web フォントの配信元を除く）は CSP と sandbox で止め、リンクと埋め込みの要素は外してあります（文字だけ残る）。</p>
 
 </header>
 <iframe sandbox="" title="見積書" width="834" height="1203" srcdoc="&lt;!doctype html&gt;
 &lt;html lang=&quot;ja&quot;&gt;&lt;head&gt;&lt;meta charset=&quot;utf-8&quot;&gt;
-&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#39;none&#39;; img-src data: blob:; style-src &#39;unsafe-inline&#39;; font-src data:; connect-src &#39;none&#39;; frame-src &#39;none&#39;; object-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#39;none&#39;; img-src data:; style-src &#39;unsafe-inline&#39;; font-src data:; connect-src &#39;none&#39;; frame-src &#39;none&#39;; object-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;&quot;&gt;
 &lt;title&gt;見積書&lt;/title&gt;
 &lt;style&gt;body { margin: 0; background: #f7f7f7; }
-.xp-rex0220-print-craft-overlay-pages { display: block; width: fit-content; font-size: 16px; font-family: &quot;メイリオ&quot;, Meiryo, &quot;Hiragino Kaku Gothic ProN&quot;, &quot;ヒラギノ角ゴ ProN W3&quot;, &quot;ＭＳ Ｐゴシック&quot;, &quot;Lucida Grande&quot;, &quot;Lucida Sans Unicode&quot;, Arial, Verdana, sans-serif; -webkit-text-size-adjust: 100%; }
+.xp-rex0220-print-craft-overlay-pages { display: block; width: fit-content; font-size: 16px; line-height: 1.5; font-family: &quot;メイリオ&quot;, Meiryo, &quot;Hiragino Kaku Gothic ProN&quot;, &quot;ヒラギノ角ゴ ProN W3&quot;, &quot;ＭＳ Ｐゴシック&quot;, &quot;Lucida Grande&quot;, &quot;Lucida Sans Unicode&quot;, Arial, Verdana, sans-serif; -webkit-text-size-adjust: 100%; }
 .pcraft-authoring-error { color: #b00020; background: #fde7e9; border: 1px solid #b00020; border-radius: 3px; padding: 0 4px; font-size: 12px; font-family: monospace; }&lt;/style&gt;
 &lt;style class=&quot;xp-rex0220-print-craft-page-style&quot;&gt;/* rex0220-print-craft-page-css */
 .rex0220-pcraft-page {

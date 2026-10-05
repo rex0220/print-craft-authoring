@@ -37,7 +37,7 @@ const USAGE = `使い方: pcraft-authoring <command> [options]
   diff <before.json> <after.json> [--derived]
       既存設定の変更をインポートする前に人が見る差分（ボタン単位。派生値は --derived で含める）。
   preview <settings.json> --fields <fields.json> --record <record.json> [--button <名前>] [--out-dir out/<dir>] [--json]
-      有効なボタンごとに帳票の HTML を out/<ボタン名>.html に書く（sandbox の iframe + CSP。画像はダミー、Web フォントは読まない）。
+      有効なボタンごとに帳票の HTML を out/<ボタン名>.html に書く（sandbox の iframe + CSP。画像はダミー。Web フォントは配信元が承認済みのときだけ読む）。
       一覧帳票は対象外。式の失敗は赤字で埋めて終了コード 1。
 
 読むファイルは作業フォルダーの中、書き込み先は fields/ records/ settings/ temp/ out/ の下だけ。
