@@ -121,6 +121,7 @@
 - 共通 CSS の既定の class: `pcraft-table-*`（表）、`pcraft-card-*`（カード）、`pcraft-inv-*`（見積書・請求書）
 - 置き換えタグ `#{&p}` / `#{&n}`（ページ番号）、`#{&f(fileKey)}`（添付ファイルの画像）、`#{&q(文字列)}`（QR）
 - Web フォント: `fontInfo`（`enabled`、`preset`、`family`、`cssUrl`）。Google Fonts の URL は承認済み。PC・Mac・スマホで同じ字形にしたいときだけ
+  - スマホの詳細画面のボタンは Web フォントが有効なとき（`enabled` が真で、`family` と https の `cssUrl` が正しい）だけ出る。スマホでも使う帳票なら有効にする
 - 「ボタンを押したとき」 `printMode`: `preview`（既定）/ `confirm` / `direct`
 - 多言語のボタン名 `menu_en` / `menu_zh`、説明 `desc_*`
 - 計算式の `//` コメント（`formulaSet` に書ける。tools が除いた `formula` を作る）
