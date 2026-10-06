@@ -18,8 +18,8 @@
       "mcheck": true,
       "list": false,
       "authority": false,
-      "desc": "見積書を PDF にして見積ファイルに保存します",
-      "desc_en": "Create a quotation PDF and save it to the attachment field",
+      "desc": "見積書の PDF を保存します",
+      "desc_en": "Save the quotation PDF",
       "viewsCsv": "",
       "tagsInfo": {
         "fieldsInfo": [

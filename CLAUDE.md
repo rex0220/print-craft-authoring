@@ -43,13 +43,13 @@
 
 要件は `requirements/` のファイル、またはチャットで受け取る。
 
-1. **アプリ番号** — 要件に番号があればそれを使う。名前だけなら kintone MCP の `kintone-get-apps` で探すが、**同名・類似名の候補が複数あれば推測せず、番号（かアプリの URL）を利用者に聞く**
+1. **アプリ番号** — 要件に番号があればそれを使う。名前だけなら kintone MCP の `kintone-get-apps` に `name`（部分一致）と `limit`（10 程度）を付けて探すが（条件なしで一覧を取らない。100 件で 2 万トークンほど）、**同名・類似名の候補が複数あれば推測せず、番号（かアプリの URL）を利用者に聞く**
 2. **項目** — `fields --app N` → `fields --app N --summary`。計算式と HTML には**ラベルでなくフィールドコード**を書く。要件のラベルをどのコードに対応させたかを利用者に示す。似たラベル（「合計」「合計金額」など）は**推測しない**
 3. **レコード** — `kintone-get-records` で数件を見て、プレビュー用に代表の 1 件（明細が複数行、備考に改行、添付あり）を選ぶ。設定を書いた後に `record --app N --id R --fields-from settings/<ファイル>.json` → `record --app N --id R --summary` で形を確かめる
 4. **帳票** — レシピ集 0 章の既定の形: **HTML テンプレート + `${ESC_HTML(項目)}` + テーブルは `TABLE_HTML`**。CSS は共通 CSS の差分だけ書く
 5. **設定 JSON** — 雛形を写して**封筒形式**で `settings/<アプリ名>-<帳票名>.json` に書く（1 ファイルに 1 帳票）。`pluginID` は `"rex0220 Print craft plugin"`、`PluginVersion` は `"6"`、`externalRefs` は `"block"`。`filecode`（保存先。空ならダウンロード）、`pageSize`、`orientation`、`dpi`、`printMode` を明示する。派生値（`formula` / `usedFields` / `id` / `views` / `pluginUOG`、更新項目の `type` などのメタデータ）は書かない。`cssInfo`（共通 CSS）は共通 CSS を変えるときだけ書く（書くと、アップロードの一部置換・追加でアプリの共通 CSS を丸ごと置き換えるかを利用者が選ぶ。既定は置き換えない。帳票の CSS は行の `css` に書く）
 6. **normalize** — `normalize settings/<ファイル>.json --fields fields/N.json`。エラーを 0 にする（下の表）。**警告は消さずに利用者に伝える**
-7. **preview** — `preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json [--button <名前>]` → `out/<ボタン名>.html`。利用者に Chrome で開いてもらい、印刷屋のプレビューと比べてもらう（近似。画像はダミー）
+7. **preview** — `preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json [--button <名前>]` → `out/<ボタン名>.html`。利用者に Chrome で開いてもらい、印刷屋のプレビューと比べてもらう（近似。画像はダミー）。**AI はブラウザーを起動しない（headless のスクリーンショットも撮らない）。帳票の文書を `out/*.html` の iframe から取り出して開かない**（sandbox と CSP が外れる）。ページ数と式のエラーは preview の出力で、置き換わった文字（ページ番号など）は `out/*.html` を Grep で確かめる
 8. **反映方法を伝える** — アプリの設定 → プラグイン → 印刷屋プラグインの設定 → **設定をアップロード** → 取り込み方を選ぶ → **保存する** → **運用環境に反映** → 詳細画面でボタンを押して PDF を確かめる。取り込み方は、印刷屋の設定がまだ無いアプリなら「全置換」、既存の設定があるアプリにボタンを足すなら「追加」（同じ名前があれば「名前 (2)」）、既存のボタンを差し替えるなら「一部置換」（ボタンごとに置き換え先を選ぶ）。一部置換と追加では外部参照・Web フォント・メニューなどはアプリの今の設定のまま。取り込んだボタンは保存のときに印刷屋が検査し、項目が合わなければ保存されない。確かめてほしい点（見た目、改行、ファイル名、保存先）を添える
 
 ## 既存の設定を変える（ボタンの追加・修正）
@@ -125,6 +125,7 @@
   - スマホの詳細画面のボタンは Web フォントが有効なとき（`enabled` が真で、`family` と https の `cssUrl` が正しい）だけ出る。スマホでも使う帳票なら有効にする
 - 「ボタンを押したとき」 `printMode`: `preview`（既定）/ `confirm` / `direct`
 - 多言語のボタン名 `menu_en` / `menu_zh`、説明 `desc_*`
+  - 説明（`desc`）はプレビューの見出しに 24px の太字で出る。**16 文字前後の 1 行**にする（例「ご提案書の PDF を作ります」。英語の `desc_en` は 32 文字前後）。長いと折り返して見出しの右の表示と重なる。帳票の中身の説明は書かない
 - 計算式の `//` コメント（`formulaSet` に書ける。tools が除いた `formula` を作る）
 
 ## このリポジトリのルール
