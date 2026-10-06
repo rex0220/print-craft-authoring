@@ -66,7 +66,8 @@ flowchart LR
    - kSQL Dashboard Pro の authoring で `KSQL_*` を設定していても、kintone 公式 MCP は `KINTONE_*` しか読みません（tools は `KSQL_*` も読みます）
    - **運用での推奨は、対象アプリのレコード閲覧だけの API トークン**です（サーバー側でも書き込めなくなります）。ユーザーとパスワードの代わりに `KINTONE_API_TOKEN=<トークン>` を書きます。API トークンは**アプリ単位**です: アプリの設定 → カスタマイズ/サービス連携 → API トークン → 生成 → アクセス権は**「レコード閲覧」のみ** → 保存 → **アプリを更新**。複数アプリはカンマ区切り（最大 9 個）。項目定義とレイアウト（`/k/v1/app/form/fields`、`/k/v1/app/form/layout`）はレコード閲覧権限のトークンで読めます
    - **トークンとユーザーの両方は書かない**（OS の環境変数に残ったものも含めて。MCP はユーザーを、tools はトークンを使うので食い違います）
-4. **VSCode で開いて Claude Code を起動** — 初回に kintone MCP サーバーの使用可否を聞かれるので許可します（登録内容は `.mcp.json`）。以後、kintone の**読み取り**と `settings/` などへの**ファイル保存**は確認なしで進みます（同梱の `.claude/settings.json` で許可済み。kintone への**書き込みツールは拒否**しています）
+4. **VSCode で開いて Claude Code を起動** — 初回に kintone MCP サーバーの使用可否を聞かれるので許可します（登録内容は `.mcp.json`）。kintone の読み取りや `npx pcraft-authoring` の実行で確認が出たら、**「2 Yes, allow … for this session」**を選ぶと、そのセッションの間は同じ操作で聞かれません。kintone への**書き込みツールは拒否**しています（同梱の `.claude/settings.json`。拒否の規則はいつでも効きます）
+   - 確認を出さないようにするには: 同梱の `.claude/settings.json` の**許可**（kintone の読み取りツール、`npx pcraft-authoring`、`settings/` などへの保存）は、Claude Code でそのフォルダーを**信頼**したときだけ効きます。Windows の VSCode では、VSCode のターミナルで**コマンドプロンプト**（Command Prompt）を開き、`cd /d c:\…\print-craft-settings`（**ドライブ文字は小文字**）→ `claude` → 英語の信頼の確認で**上下キーで Yes に移って** Enter（既定は No）→ `/exit`。その後に始めた VSCode のセッションから効きます。PowerShell から起動すると VSCode と違う形（`C:`）で記録されて効きません（Claude Code 2.1.289 で確認。[anthropics/claude-code#99828](https://github.com/anthropics/claude-code/issues/99828)）
 5. **疎通確認** — ターミナルで `npx pcraft-authoring version`（tools の版と、zip から読んだ印刷屋の版・計算式エンジンの SHA-256 が出る。zip が読めない・版が合わないとここで止まる）。Claude Code に「kintone-get-app でアプリ 3740 を見て」（番号は自分のアプリ）と頼んでアプリ名が返れば準備完了です（`kintone-get-apps` を条件なしで頼むと、アプリの多い環境では 100 件ずつ取って重くなります）
 6. **作る** — `requirements/` に要件を書くか（例: [requirements/example.md](requirements/example.md)）、そのままチャットで伝えます:
    ```
