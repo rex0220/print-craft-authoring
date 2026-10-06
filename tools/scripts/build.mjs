@@ -45,7 +45,7 @@ if (leaked.length) {
 }
 // 作った bundle が起動するか（1-10 の後に、ソースの shebang と banner の shebang が重なって構文エラーになったことがある）
 const smoke = spawnSync(process.execPath, [path.join(root, "dist", "cli.mjs"), "help"], { encoding: "utf8" });
-if (smoke.status !== 0 || !/使い方: pcraft-authoring/.test(smoke.stdout)) {
+if (smoke.status !== 0 || !/使い方: npx @rex0220\/print-craft-authoring-tools/.test(smoke.stdout)) {
   console.error(`dist/cli.mjs が起動しない（exit ${smoke.status}）:\n${smoke.stderr}`);
   process.exit(1);
 }
