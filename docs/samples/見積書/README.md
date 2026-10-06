@@ -11,8 +11,8 @@
 | `preview.html` | `pcraft-authoring preview` の出力（Chrome で開くと帳票の見た目が分かる。画像はダミー） |
 
 ```
-npx pcraft-authoring normalize docs/samples/見積書/settings-source.json --fields docs/samples/見積書/fields.json --out temp/見積書.json
-npx pcraft-authoring preview docs/samples/見積書/settings.json --fields docs/samples/見積書/fields.json --record docs/samples/見積書/record.json --out-dir out
+npx @rex0220/print-craft-authoring-tools normalize docs/samples/見積書/settings-source.json --fields docs/samples/見積書/fields.json --out temp/見積書.json
+npx @rex0220/print-craft-authoring-tools preview docs/samples/見積書/settings.json --fields docs/samples/見積書/fields.json --record docs/samples/見積書/record.json --out-dir out
 ```
 
 要点: 封筒形式、1 行目 `$out` = `NOT(見積ファイル)`、2 行目 `$fname`、3 行目に HTML テンプレート（`${ESC_HTML(宛名)}`、`${FVAL(合計)}`、`##table##`）と `LET(table, TABLE_HTML(…), REPLACE($html, "##table##", table))`、`filecode` に見積ファイル、`printMode: confirm`。社印は data URL の SVG。

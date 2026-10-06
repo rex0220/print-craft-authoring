@@ -135,7 +135,7 @@ test("CLI: fields / record の --summary は取得済みのファイルを読む
     assert.ok(r.stdout.includes("値は出さない") && !r.stdout.includes("□□□□"));
     const missing = run(["record", "--app", "3740", "--id", "9", "--summary"], work);
     assert.equal(missing.status, 1);
-    assert.match(missing.stderr, /records[\\/]3740-9\.json が無い。先に npx pcraft-authoring record --app 3740 --id 9/);
+    assert.match(missing.stderr, /records[\\/]3740-9\.json が無い。先に npx @rex0220\/print-craft-authoring-tools record --app 3740 --id 9/);
     const b = run(["buttons", "settings/a.json"], work);
     assert.equal(b.status, 0, b.stderr);
     assert.match(b.stdout, /1\. 見積書（有効/);

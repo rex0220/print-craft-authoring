@@ -22,14 +22,14 @@ AI が書くのは設定 JSON と要件の整理だけで、kintone には何も
 
 ### 2.2 read-only を担保する
 
-- `.claude/settings.json` の `deny` に kintone MCP の書き込みツール全部（records の add / update / delete、update-statuses、add-record-comment、form-fields の add / update / delete、update-form-layout、update-general-settings、add-app、deploy-app、space の作成 / 更新）と `kintone-download-file` を並べてあります。`allow` は読み取りツールと、`settings/` `requirements/` `fields/` `records/` `out/` `temp/` への書き込み、`npx pcraft-authoring …` の実行だけです
+- `.claude/settings.json` の `deny` に kintone MCP の書き込みツール全部（records の add / update / delete、update-statuses、add-record-comment、form-fields の add / update / delete、update-form-layout、update-general-settings、add-app、deploy-app、space の作成 / 更新）と `kintone-download-file` を並べてあります。`allow` は読み取りツールと、`settings/` `requirements/` `fields/` `records/` `out/` `temp/` への書き込み、`npx @rex0220/print-craft-authoring-tools …` の実行だけです
 - tools の HTTP 層は GET 専用で、呼べる API は `/k/v1/app`、`/k/v1/app/form/fields`、`/k/v1/app/form/layout`、`/k/v1/record`（と preview 版）に固定しています
 - 始めるときはログインユーザー（パスワード認証。2 要素認証なし）で足ります。サーバー側でも書き込めなくするなら、**閲覧権限だけのアカウント**か、**レコード閲覧だけの API トークン**（運用での推奨）を使います。ゲストスペースのアプリは MCP では見えません（tools の `--guest <spaceId>` は使えます）
 
 ### 2.3 疎通確認
 
 ```
-npx pcraft-authoring version
+npx @rex0220/print-craft-authoring-tools version
 ```
 
 tools の版と、zip から読んだ印刷屋の版（6）・authoring API の版・計算式エンジンの SHA-256（既知）が出れば OK です。Claude Code に「kintone-get-app でアプリ 3740 を見て」（番号は自分のアプリ）→ アプリ名が返れば MCP も OK です。
@@ -52,7 +52,7 @@ tools の版と、zip から読んだ印刷屋の版（6）・authoring API の�
 
 ボタンを足すだけなら、新しい帳票と同じく新しいファイルを作ってもらい、アップロードの「追加」で取り込めます（エクスポートは要りません）。既存のボタンを直すときは:
 
-1. 設定画面で **設定をダウンロード** した JSON を `settings/` に置き、変えたいことを伝える。kintone の API ラボで「アプリに追加されているプラグインの設定情報を取得または更新するREST API」を有効にしている環境では、`npx pcraft-authoring pull --app N` で今の設定を取れる（GET だけ。運用中の設定はレコード閲覧＋追加、`--preview` で保存して未反映の設定はアプリ管理の権限が要る。API ラボは開発を検討中の API なので、仕様が変わったり無くなったりすることがある）
+1. 設定画面で **設定をダウンロード** した JSON を `settings/` に置き、変えたいことを伝える。kintone の API ラボで「アプリに追加されているプラグインの設定情報を取得または更新するREST API」を有効にしている環境では、`npx @rex0220/print-craft-authoring-tools pull --app N` で今の設定を取れる（GET だけ。運用中の設定はレコード閲覧＋追加、`--preview` で保存して未反映の設定はアプリ管理の権限が要る。API ラボは開発を検討中の API なので、仕様が変わったり無くなったりすることがある）
 2. AI が見せる `diff` の差分（HTML / CSS / 計算式）を確かめる
 3. 上と同じ手順でアップロードして反映する（ファイル全体なら「全置換」、直したボタンだけなら「一部置換」）
 
@@ -73,9 +73,9 @@ tools の版と、zip から読んだ印刷屋の版（6）・authoring API の�
 
 ### tools の要約コマンド（利用者も使えます）
 
-- `npx pcraft-authoring buttons settings/<ファイル>.json` — 設定のボタン一覧。`--button <名前>` でそのボタンの HTML / CSS / 計算式
-- `npx pcraft-authoring fields --app N --summary` — 取得済みの項目定義を 1 項目 1 行で
-- `npx pcraft-authoring record --app N --id R --summary` — 取得済みのレコードの形（値は出しません）
+- `npx @rex0220/print-craft-authoring-tools buttons settings/<ファイル>.json` — 設定のボタン一覧。`--button <名前>` でそのボタンの HTML / CSS / 計算式
+- `npx @rex0220/print-craft-authoring-tools fields --app N --summary` — 取得済みの項目定義を 1 項目 1 行で
+- `npx @rex0220/print-craft-authoring-tools record --app N --id R --summary` — 取得済みのレコードの形（値は出しません）
 
 ## 4. AI への指示の例
 
@@ -108,7 +108,7 @@ requirements/納品書.md の要件で、settings/APP3740-見積書.json に「�
 
 - `settings/` は固定名で上書き。コミットメッセージに何を変えたかを書く
 - `fields/` はコミットしてよい（項目定義。アプリの構造が入るので private）。`records/` と `out/` はコミットしない
-- 設定画面で直した設定は、エクスポートして `settings/` に戻し `npx pcraft-authoring normalize <ファイル> --fields fields/N.json --check --dry-run` で派生値が一致することを確かめてからコミット（git が正）
+- 設定画面で直した設定は、エクスポートして `settings/` に戻し `npx @rex0220/print-craft-authoring-tools normalize <ファイル> --fields fields/N.json --check --dry-run` で派生値が一致することを確かめてからコミット（git が正）
 - `policy/authoring-policy.json` は利用者が編集してコミット
 
 ## 6. 確認済みの環境

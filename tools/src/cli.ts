@@ -26,7 +26,8 @@ import { PolicyError } from "./normalize/policy.ts";
 import { schemaRevisionOf, toolsMeta } from "./meta.ts";
 import { PathError, WRITE_ROOTS, resolveRead, resolveWrite, resolveWriteDir } from "./safe-path.ts";
 
-const USAGE = `使い方: pcraft-authoring <command> [options]
+const USAGE = `使い方: npx @rex0220/print-craft-authoring-tools <command> [options]
+（短い npx pcraft-authoring は使わない。npm ci の前だと npm の公開レジストリの同じ名前のパッケージを取りに行く）
 
   version [--expect <印刷屋の版>] [--json]
       tools の版と、印刷屋の zip から読んだプラグインの版・authoring API の版・計算式エンジンの SHA-256・設定スキーマの版。
@@ -36,7 +37,7 @@ const USAGE = `使い方: pcraft-authoring <command> [options]
   fields --app N --summary
       取得済みの fields/<N>.json を 1 項目 1 行で（レイアウトの順。型・ラベル・書式・単位・選択肢・ルックアップ）。通信しない。
   pull --app N [--preview] [--guest <spaceId>] [--out settings/<file>] [--force] [--plugin-id <ID>]
-      アプリに入っている印刷屋の今の設定を取って、設定画面の「設定をダウンロード」と同じ封筒形式で settings/<アプリ名>.json に保存（GET だけ）。
+      アプリに入っている印刷屋の今の設定を取って、設定画面の「設定をダウンロード」と同じ封筒形式で settings/APP<N>-<アプリ名>.json に保存（GET だけ）。
       kintone の API ラボ「アプリに追加されているプラグインの設定情報を取得する」を有効にした環境だけ。権限は運用中の設定がレコード閲覧＋追加、
       --preview（動作テスト環境 = 保存して未反映の設定）がアプリ管理。プラグイン ID は印刷屋の zip から。既にあるファイルは --force で上書き。
   record --app N --id R [--fields-from <settings.json>] [--guest <spaceId>] [--out records/<file>]
@@ -217,7 +218,7 @@ function appOf(args: string[], ctx: Ctx): number {
 /** environments.json のとき: 今あるアプリのフォルダー（無ければ fields で作るよう案内して止める） */
 function existingAppDir(ctx: Ctx, appId: number): string {
   const dir = findAppDir(process.cwd(), ctx.env!, appId);
-  if (!dir) throw new InputError(`アプリ ${appId} のフォルダー（kintone/${ctx.env!.host}/${appId}-…）が無い。先に npx pcraft-authoring fields --app ${appId}${envFlag(ctx)}`);
+  if (!dir) throw new InputError(`アプリ ${appId} のフォルダー（kintone/${ctx.env!.host}/${appId}-…）が無い。先に npx @rex0220/print-craft-authoring-tools fields --app ${appId}${envFlag(ctx)}`);
   return dir;
 }
 
@@ -228,7 +229,7 @@ function noOutInWorkspace(args: string[], ctx: Ctx): void {
 /** 取得済みのファイル（--summary）。無ければ取り方を添えて止める */
 function existingFile(rel: string, howToFetch: string): string {
   const file = resolveRead(rel);
-  if (!existsSync(file)) throw new InputError(`${shown(file)} が無い。先に npx pcraft-authoring ${howToFetch}`);
+  if (!existsSync(file)) throw new InputError(`${shown(file)} が無い。先に npx @rex0220/print-craft-authoring-tools ${howToFetch}`);
   return file;
 }
 
@@ -311,7 +312,7 @@ async function normalize(args: string[]): Promise<number> {
   const write = !flag(args, "dry-run");
   // ダウンロードと pull のファイルは書き換えない（Takashi 2026-10-05「直したものを別の名前」）。edit で -edit.json に写して直す
   if (write && folder && !option(args, "out") && SNAPSHOT_RE.test(path.basename(settingsFile))) {
-    throw new UsageError(`ダウンロード / pull のファイルは書き換えない。npx pcraft-authoring edit ${shown(settingsFile)} で -edit.json に写してから直す（検査だけなら --dry-run）`);
+    throw new UsageError(`ダウンロード / pull のファイルは書き換えない。npx @rex0220/print-craft-authoring-tools edit ${shown(settingsFile)} で -edit.json に写してから直す（検査だけなら --dry-run）`);
   }
   const out = write ? resolveWrite(option(args, "out") ?? settingsFile, WRITE_ROOTS.settings) : undefined;
   const fieldsData = await readFieldsFile(fieldsFile);
@@ -437,7 +438,7 @@ async function edit(args: string[]): Promise<number> {
     writeText(dest, readTextLimited(file));
     console.log(`${shown(file)} → ${shown(dest)}（ここを直す。ダウンロードのファイルは書き換えない）`);
   }
-  console.log(`次: 直したら npx pcraft-authoring normalize ${shown(dest)} → diff ${shown(file)} ${shown(dest)}`);
+  console.log(`次: 直したら npx @rex0220/print-craft-authoring-tools normalize ${shown(dest)} → diff ${shown(file)} ${shown(dest)}`);
   return 0;
 }
 
@@ -448,7 +449,7 @@ async function files(args: string[]): Promise<number> {
   const l = listAppFolder(existingAppDir(ctx, app));
   const lines = [
     `${shown(l.dir)}（環境 ${ctx.env!.name}、${ctx.env!.baseUrl}）`,
-    `fields.json: ${l.hasFields ? "あり" : `無い（npx pcraft-authoring fields --app ${app}${envFlag(ctx)}）`}`,
+    `fields.json: ${l.hasFields ? "あり" : `無い（npx @rex0220/print-craft-authoring-tools fields --app ${app}${envFlag(ctx)}）`}`,
     `ダウンロード / pull（新しい順。先頭が今の設定）: ${l.snapshots.length ? "" : "無い"}`,
     ...l.snapshots.map((n, i) => `  ${n}${i === 0 ? "  ← 今の設定" : ""}`),
     `直したもの（-edit.json）: ${l.edits.length ? "" : "無い"}`,

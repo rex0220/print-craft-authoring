@@ -3,7 +3,7 @@
 ## 脆弱性の報告
 
 - GitHub リポジトリ [rex0220/print-craft-authoring](https://github.com/rex0220/print-craft-authoring) の **Security → Report a vulnerability**（非公開の報告）で知らせてください。公開の Issue には書かないでください
-- 報告には、tools の版（`npx pcraft-authoring version`）、再現する設定 JSON（レコードの値と認証情報を除いたもの）、期待した動きを添えてください
+- 報告には、tools の版（`npx @rex0220/print-craft-authoring-tools version`）、再現する設定 JSON（レコードの値と認証情報を除いたもの）、期待した動きを添えてください
 - 対応するのは tools の最新の版です。修正は新しい版として npm と GitHub に出し、`tools/README.md` の履歴に書きます
 
 ## 範囲
@@ -16,7 +16,7 @@
 
 ## 前提（信頼の境界）
 
-- テンプレートでは AI（Claude Code）が `npx pcraft-authoring …` を確認なしに実行でき、`settings/` `fields/` `records/` `out/` `temp/` に書けます。AI は `.env` と `policy/` を書けません（`.claude/settings.json`）。tools はこの前提で、**AI が書けるファイルを認証情報・承認・実行コードとして読まない**ように作ってあります
+- テンプレートでは AI（Claude Code）が `npx @rex0220/print-craft-authoring-tools …` を確認なしに実行でき、`settings/` `fields/` `records/` `out/` `temp/` に書けます。AI は `.env` と `policy/` を書けません（`.claude/settings.json`）。tools はこの前提で、**AI が書けるファイルを認証情報・承認・実行コードとして読まない**ように作ってあります
 - 利用者が置く印刷屋プラグインの zip の中のコード（計算式エンジン、設定画面・帳票のコード）は、tools を動かした **OS ユーザーと同じ権限の Node のプロセスで実行**されます。happy-dom の window は DOM の代用で、セキュリティの境界（sandbox）ではありません
 
 ## tools が守ること

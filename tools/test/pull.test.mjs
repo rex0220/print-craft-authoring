@@ -78,8 +78,8 @@ test("CLI pull: --app が無ければ使い方の誤り（2）", async () => {
   assert.match(r.stderr, /pull --app N/, "使い方に pull がある");
 });
 
-test("pull: 既定の保存先はアプリ名（使えない文字は _、空なら app-<番号>）", () => {
-  assert.equal(defaultPullName("見積書(印刷屋)", 3740), "見積書(印刷屋).json");
-  assert.equal(defaultPullName("見積/請求", 5), "見積_請求.json");
-  assert.equal(defaultPullName("", 5), "app-5.json");
+test("pull: 既定の保存先は APP<番号>-<アプリ名>（使えない文字は _、アプリ名が空なら APP<番号>）", () => {
+  assert.equal(defaultPullName("見積書(印刷屋)", 3740), "APP3740-見積書(印刷屋).json");
+  assert.equal(defaultPullName("見積/請求", 5), "APP5-見積_請求.json");
+  assert.equal(defaultPullName("", 5), "APP5.json");
 });

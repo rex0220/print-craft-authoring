@@ -208,7 +208,7 @@ test("CLI: --env は環境の名前だけ（場所は不可、environments.json 
     assert.match(r3.stderr, /--out を使わない/);
     const r4 = run(["fields", "--app", "見積書", "--summary"], work);
     assert.equal(r4.status, 1);
-    assert.match(r4.stderr, /フォルダー（kintone\/dev-x\.cybozu\.com\/101-…）が無い。先に npx pcraft-authoring fields --app 101/);
+    assert.match(r4.stderr, /フォルダー（kintone\/dev-x\.cybozu\.com\/101-…）が無い。先に npx @rex0220\/print-craft-authoring-tools fields --app 101/);
     for (const cmd of [["take"], ["edit", "--app", "1"], ["files", "--app", "1"]]) {
       const r = run(cmd, legacy);
       assert.equal(r.status, 2, cmd.join(" "));

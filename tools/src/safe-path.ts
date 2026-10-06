@@ -1,6 +1,6 @@
 /**
  * CLI が読む・書くパスを作業フォルダー（cwd）の中の決まった場所に限る（Codex 1-10 レビュー BLOCKER 5）。
- * テンプレートでは AI が `npx pcraft-authoring …` を確認なしに呼べるので、--out などで policy/ や .env を上書きしたり、
+ * テンプレートでは AI が `npx @rex0220/print-craft-authoring-tools …` を確認なしに呼べるので、--out などで policy/ や .env を上書きしたり、
  * 作業フォルダーの外へ書いたり、.env を読んだりできないようにする。
  *   - path.resolve → 存在する最も深い親の realpath（junction / symlink を解く）→ cwd の realpath の中か
  *   - Windows は大文字小文字を区別せずに比べる。UNC や別ドライブは外れる

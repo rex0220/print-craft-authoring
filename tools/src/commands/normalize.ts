@@ -108,7 +108,7 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   // ---- 派生値（検証済みの値から）→ 検査 → 大きさ ----
   const model = buildModel(input.fields, api, input.baseUrl);
   if (input.baseUrl && typeof input.fields.baseUrl === "string" && input.fields.baseUrl && model.fieldsBaseUrl !== input.baseUrl) {
-    f.warning("fields.baseUrl", where, `fields の baseUrl（${input.fields.baseUrl.slice(0, 60)}）が .env の KINTONE_BASE_URL と違う。iframe の判定は .env の接続先で行う。fields を取り直すなら npx pcraft-authoring fields --app ${input.fields.appId}`);
+    f.warning("fields.baseUrl", where, `fields の baseUrl（${input.fields.baseUrl.slice(0, 60)}）が .env の KINTONE_BASE_URL と違う。iframe の判定は .env の接続先で行う。fields を取り直すなら npx @rex0220/print-craft-authoring-tools fields --app ${input.fields.appId}`);
   }
   const body = deriveBody(JSON.parse(JSON.stringify(inputClean)) as Record<string, unknown>, model, input.engine, f);
   const policy = input.policy ?? { allowExternal: [] };

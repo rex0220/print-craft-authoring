@@ -2,7 +2,7 @@
 
 このリポジトリは、**要件から kintone プラグイン「印刷屋プラグイン（rex0220 Print craft）Ver.6」の設定 JSON を AI が生成・変更する**ための環境です。
 生成した JSON は、利用者がプラグイン設定画面の **設定をアップロード → 取り込み方を選ぶ → 保存する** で反映します。帳票は HTML + CSS + 計算式で書きます。
-コマンドは `npx pcraft-authoring <command>`（tools。kintone には GET しか送らない）。
+コマンドは `npx @rex0220/print-craft-authoring-tools <command>`（tools。kintone には GET しか送らない）。短い `npx pcraft-authoring` は使わない（`npm ci` の前だと npm の公開レジストリの同じ名前のパッケージを取りに行く。許可の規則もパッケージ名の形だけ）。`npm ci` をしていない（tools が無い）と分かったら、何かを入れようとせず利用者に `npm ci` を頼む。
 利用者への返答は、途中の経過も含めて利用者の言語で書く（日本語の指示には日本語）。
 tools のコマンドは 1 回に 1 つ実行する（`;`、`&&`、`if (…) { … }` でつながない。つなぐと許可の規則が合わず、毎回確認が出る）。
 
@@ -24,10 +24,10 @@ tools のコマンドは 1 回に 1 つ実行する（`;`、`&&`、`if (…) { �
 
 | コマンド | 出すもの |
 | --- | --- |
-| `npx pcraft-authoring fields --app N --summary` | `fields/N.json` を 1 項目 1 行で（レイアウトの順。型、ラベル、書式・単位、選択肢、ルックアップ、テーブルの子、保存先にできる添付ファイル） |
-| `npx pcraft-authoring record --app N --id R --summary` | `records/N-R.json` の形（文字数・行数・数値の桁・テーブルの行数・添付の件数と種類。値は出さない） |
-| `npx pcraft-authoring buttons settings/<ファイル>.json` | ボタン一覧（出す画面、保存先、用紙、押したとき、表示条件、ファイル名、帳票の行、更新項目） |
-| `npx pcraft-authoring buttons settings/<ファイル>.json --button <名前>` | そのボタンの HTML / CSS / 計算式と更新項目（data: の URL は先頭と長さだけ） |
+| `npx @rex0220/print-craft-authoring-tools fields --app N --summary` | `fields/N.json` を 1 項目 1 行で（レイアウトの順。型、ラベル、書式・単位、選択肢、ルックアップ、テーブルの子、保存先にできる添付ファイル） |
+| `npx @rex0220/print-craft-authoring-tools record --app N --id R --summary` | `records/N-R.json` の形（文字数・行数・数値の桁・テーブルの行数・添付の件数と種類。値は出さない） |
+| `npx @rex0220/print-craft-authoring-tools buttons settings/<ファイル>.json` | ボタン一覧（出す画面、保存先、用紙、押したとき、表示条件、ファイル名、帳票の行、更新項目） |
+| `npx @rex0220/print-craft-authoring-tools buttons settings/<ファイル>.json --button <名前>` | そのボタンの HTML / CSS / 計算式と更新項目（data: の URL は先頭と長さだけ） |
 
 ## 開発と本番（作業フォルダーに environments.json があるとき）
 

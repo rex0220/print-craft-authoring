@@ -48,7 +48,11 @@ export async function pullSettings(client: RestClient, engine: Engine, opt: Pull
   return { envelope, appName: app.name, revision: String(res.revision ?? ""), format };
 }
 
-/** 既定の保存先のファイル名（アプリ名。ファイル名に使えない文字は _。safe-path.ts の safeFileName） */
+/**
+ * 既定の保存先のファイル名 APP<番号>-<アプリ名>.json（ファイル名に使えない文字は _。safe-path.ts の safeFileName）。
+ * テンプレートの settings/ の決まり（APP3740-見積書-ご提案書.json）とそろえる（2026-10-06 Takashi「APP3740- がよいのでは？」）
+ */
 export function defaultPullName(appName: string, appId: number): string {
-  return `${safeFileName(appName, `app-${appId}`)}.json`;
+  const name = safeFileName(appName, "");
+  return name ? `APP${appId}-${name}.json` : `APP${appId}.json`;
 }

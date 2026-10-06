@@ -1,6 +1,6 @@
 {
   "name": "@rex0220/print-craft-authoring-tools",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "rex0220 印刷屋プラグイン（kintone）の設定 JSON を AI で作る・確かめるための tools（fields / record / pull / normalize / preview / diff / buttons / version）。計算式エンジンと印刷屋のコードは利用者の印刷屋プラグインの zip から読む",
   "license": "MIT",
   "type": "module",
@@ -30,7 +30,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/rex0220/print-craft-authoring.git",
+    "url": "git+https://github.com/rex0220/print-craft-authoring.git",
     "directory": "tools"
   },
   "bugs": {
