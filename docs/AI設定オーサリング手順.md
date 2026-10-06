@@ -91,12 +91,12 @@ tools の版と、zip から読んだ印刷屋の版（6）・authoring API の�
 
 変更:
 ```
-settings/見積書-見積書.json の見積書に、右上の自社情報の下に住所「〇〇県〇〇市…」と電話「TEL: 00-0000-0000」を足して。
+settings/APP3740-見積書-見積書.json の見積書に、右上の自社情報の下に住所「〇〇県〇〇市…」と電話「TEL: 00-0000-0000」を足して。
 ```
 
 ボタンの追加:
 ```
-requirements/納品書.md の要件で、settings/見積書.json に「納品書」のボタンを追加して。normalize と preview まで
+requirements/納品書.md の要件で、settings/APP3740-見積書.json に「納品書」のボタンを追加して。normalize と preview まで
 ```
 
 一覧帳票:

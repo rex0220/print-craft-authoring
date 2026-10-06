@@ -128,16 +128,19 @@ kintone には **GET しか送りません**。計算式エンジン（`KintoneF
 
 ## テンプレートの更新を取り込む
 
-印刷屋プラグインの新機能に合わせて、このテンプレートの docs/ と tools の版は更新されます。取り込みたいときは:
+印刷屋プラグインの新機能に合わせて、このテンプレートの docs/ と tools の版は更新されます。取り込むときは、テンプレートのファイルだけを最新に置き換えます:
 
 ```
 git remote add template https://github.com/rex0220/print-craft-authoring.git   # 初回のみ
 git fetch template
-git merge template/main --allow-unrelated-histories
+git checkout template/main -- .claude .mcp.json .env.example .gitignore CLAUDE.md README.md LICENSE environments.example.json package.json package-lock.json docs tools settings/README.md requirements/example.md policy/README.md
 npm ci
+git commit -m "テンプレートの更新を取り込む"
 ```
 
-- 自分の `settings/` `requirements/` `fields/` `policy/` と `.env` はそのまま残ります。衝突が出るのは、テンプレート由来のファイル（docs/、README、CLAUDE.md）を自分で編集した場合だけです
+- 置き換えるのはテンプレートのファイルだけです。自分の `settings/` `requirements/` `fields/` `kintone/` `policy/authoring-policy.json` と `.env` `environments.json` `env/` には触れません
+- テンプレートのファイルを自分で直していた場合、その変更は消えます。Claude Code の許可を足すなら `.claude/settings.local.json`、git で無視するファイルを足すなら `.git/info/exclude` に書いてください。テンプレートで消えたファイルは残るので、気になれば消してください
+- `git merge template/main --allow-unrelated-histories` では取り込まないでください。テンプレートから作ったリポジトリはテンプレートと履歴がつながっていないので、手を入れていないファイルまで衝突し、`-X theirs` で解くと自分の `policy/authoring-policy.json` の承認がテンプレートの空のものに戻ります
 - テンプレート側は `settings/` に README.md 以外、`requirements/` に example.md 以外、`policy/` に README.md と空の `authoring-policy.json` 以外のファイルを追加しません
 - tools の版は印刷屋プラグインの版とは別です。tools が対応する印刷屋の版は `npx pcraft-authoring version` に出ます（「対応する印刷屋の版 6」）。印刷屋を上げたらテンプレートも取り込み、`npx pcraft-authoring version --expect <印刷屋の版>` で確かめます
 
