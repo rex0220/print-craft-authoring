@@ -26,6 +26,7 @@ flowchart LR
     JSON -- "⑤ プラグイン設定で<br>インポート → 保存 → 運用環境に反映" --> APP
 ```
 
+> 使い方の記事（画像つきの手順）: [rex0220 印刷屋プラグイン - AI(Claude Code)に帳票を作らせる](https://qiita.com/rex0220/items/0ce0afc9405bdc39013b)
 > 印刷屋プラグイン本体（Ver.6 以降）は別途入手してください。製品紹介: https://qiita.com/rex0220/items/9be2d9b20a3a1f016c76
 > tools は npm パッケージ `@rex0220/print-craft-authoring-tools`（このリポジトリの `tools/` がソース。利用者がビルドする必要はありません）
 
@@ -172,7 +173,7 @@ git commit -m "テンプレートの更新を取り込む"
 | :--- | :--- |
 | MCP サーバーが起動しない | Node.js 20 以上か（`node -v`）。`npm ci` 済みか。`.env` を作ったか |
 | tools は動くが kintone MCP だけ認証エラー | `KSQL_*` だけを設定していないか（kintone 公式 MCP は `KINTONE_*` だけを読む） |
-| `/mcp` に `kintone` が出ない、AI が kintone のツールが無いと言う | `npm ci` と `.env` の前にセッションを始めた → 始め直す。それでも出ないなら `.claude/settings.local.json` に `"disabledMcpjsonServers": ["kintone"]` がある（`claude` の 2 つ目の確認で使わないほうを選んだ）→ そのファイルを消して始め直す（VSCode の `/mcp` には無効にしたサーバーが出ないので、そこからは戻せない） |
+| `/mcp` に `kintone` が出ない、AI が kintone のツールが無いと言う | `npm ci` と `.env` の前にセッションを始めた → 始め直す。それでも出ないなら `.claude/settings.local.json` に `"disabledMcpjsonServers": ["kintone"]` がある（`claude` の 2 つ目の確認で使わないほうを選んだ）→ そこから `kintone` を消して始め直す（ほかの設定が無ければファイルごと消してよい。VSCode の `/mcp` には無効にしたサーバーが出ないので、そこからは戻せない） |
 | `npx @rex0220/print-craft-authoring-tools` で `Need to install the following packages` と出る | このフォルダーで `npm ci` をしていない（npx が npm から最新の tools を取ってこようとする。テンプレートが固定した版と違うことがある）。`n` で止め、`npm ci` してから実行する |
 | 毎回確認が出る | 手順 4 の補足（フォルダーの信頼）をしていない。するまでは「2 Yes, allow … for this session」を選ぶ |
 | `npm ci` で npm audit の警告（axios、qs） | kintone 公式 MCP（`@kintone/mcp-server`）の依存。2026-10 時点の最新（1.9.4）も同じ依存 |
@@ -200,6 +201,7 @@ git commit -m "テンプレートの更新を取り込む"
 - 印刷屋の zip の中身（計算式エンジンなど 4 ファイル）は tools が知っている SHA-256 と一致しなければ**実行せずに止まります**（改変された zip や、tools より新しい修正版の zip）。新しい修正版だと分かっていて続けるときだけ、利用者が `.env` に `PCRAFT_ALLOW_UNKNOWN_PLUGIN=1` を書きます（zip の中のコードはこの PC の権限で動きます。配布元から入手した zip だけを使ってください）
 - 帳票の HTML / CSS / 計算式は、インポートすると印刷屋プラグインが使います。印刷屋 Ver.6 は帳票の HTML / CSS から kintone 以外への読み込み（画像・CSS・iframe・リンク）とスクリプトを**描画の前に除きます**（共通の設定「外部参照」。新しい設定の既定 `externalRefs: "block"`。Ver.5 で保存した設定は「許可」のまま動く）。`normalize` は**許可した要素と属性だけ**を通し（文章・表・画像の要素。インラインの `<svg>` は不可で、図は `<img src="data:image/svg+xml,…">`）、スクリプト、イベント属性、`javascript:` の URL、CSS の `@import` / `expression(` などを**エラーで止め**、「除く」の設定の外部 URL もエラー（帳票に出ない）にします。「許可」（何も除かない。自己責任）の設定と、`externalRefs` の無い既存の設定は、利用者が `policy/authoring-policy.json` の `allowExternalRefs` に書かなければエラーです。「許可」の設定の外部 URL と Google Fonts 以外の Web フォントは**警告**（承認は `allowExternal`。承認した URL は情報として出ます）。計算式が作る HTML は警告だけです。警告は書き戻しを止めないので、**インポート前に差分を人が見る**運用にしてください
 - `records/` と `out/` にはレコードの値が入ります。作業が終わったら消し、リポジトリは private に
+- AI（Claude Code）が kintone MCP（`kintone-get-records` など）で見た項目定義とレコードの内容は、Claude の処理に使われます（git に入らないことと、AI に渡らないことは別です）。実データを使えない場合は、検証用のアプリとサンプルのデータで試してください
 - 脆弱性の報告先と、tools が守ること・利用者が守ることの一覧は [tools/SECURITY.md](tools/SECURITY.md)
 
 ## ライセンス
