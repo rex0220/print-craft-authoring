@@ -11,6 +11,6 @@
   },
   "dependencies": {
     "@kintone/mcp-server": "1.8.2",
-    "@rex0220/print-craft-authoring-tools": "1.0.0"
+    "@rex0220/print-craft-authoring-tools": "1.1.0"
   }
 }

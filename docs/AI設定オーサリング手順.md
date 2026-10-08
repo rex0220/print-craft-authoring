@@ -114,4 +114,5 @@ requirements/納品書.md の要件で、settings/APP3740-見積書.json に「�
 ## 6. 確認済みの環境
 
 - 印刷屋プラグイン Ver.6、tools 1.0.0、kintone 公式 MCP 1.8.2、Node 20 以上（開発は Node 24）
+- tools 1.1.0: 印刷屋プラグイン Ver.6 と Ver.7 の zip で `version`・`normalize`・`preview` を確認（2026-10-08）
 - Windows 11 の Claude Code（VSCode）。macOS でも手順は同じ（`.env` の置き方は README）
