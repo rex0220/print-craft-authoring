@@ -70,10 +70,18 @@ export function makeZip(entries, corrupt = {}) {
   return Buffer.concat([...locals, cd, eocd]);
 }
 
-/** 印刷屋の zip と同じ 2 層の合成 zip（中身はスタブ。版や entry の有無を変えられる） */
+/**
+ * 印刷屋の公開鍵（本物の zip の PUBKEY。spki の DER。公開鍵なのでテストに置いてよい）。tools は ID だけを見る（1.1.0）ので、
+ * 合成 zip はこれを入れると「印刷屋の zip」として読まれる。SIGNATURE はスタブ（tools は検証しない）
+ */
+export const PRINT_CRAFT_PUBKEY = Buffer.from("MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCCNIFs3e8gQlhFVpHJpE3Tz2loDgMyClEEsLnTSDwGfB8mvRvK5mq1+8ez6iQiWGLT2NxJoMPnSUsnzBY3il7dFYyG1Pp0W/+k1EKkBEFESsHI37eBKSKXaCncb8e8x+TZrax57v24K5NFXMmVsph89dHzWC7Sea0fJsS0IpYIiQIDAQAB", "base64");
+
+/** 印刷屋の zip と同じ 2 層の合成 zip（中身はスタブ。版や entry の有無を変えられる。outerExtra で PUBKEY を差し替え、null で外す） */
 export function makePluginZip(inner, outerExtra = {}) {
   const contents = makeZip(inner);
-  return makeZip({ "contents.zip": contents, PUBKEY: "stub", SIGNATURE: "stub", ...outerExtra });
+  const outer = { "contents.zip": contents, PUBKEY: PRINT_CRAFT_PUBKEY, SIGNATURE: "stub", ...outerExtra };
+  for (const k of Object.keys(outer)) if (outer[k] === null) delete outer[k];
+  return makeZip(outer);
 }
 
 /** 合成 zip の中身の既定（Ver.6 の形。コードはすべてスタブ） */

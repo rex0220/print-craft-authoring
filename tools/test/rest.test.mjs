@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ALLOWED_APIS, NotAllowedError, RestError, apiPathOf, authHeaders, createRestClient } from "../src/kintone-rest.ts";
-import { loadAuth, parseDotEnv, AuthError, allowUnknownPlugin, baseUrlFromEnv, describeAuth } from "../src/env.ts";
+import { loadAuth, parseDotEnv, AuthError, baseUrlFromEnv, describeAuth } from "../src/env.ts";
 import { KintoneUrlError, normalizeKintoneBaseUrl } from "../src/kintone-url.ts";
 
 const fakeFetch = (status, body) => {
@@ -77,14 +77,11 @@ test("送信先は kintone のドメインだけ（ユーザー情報・別ホ�
   assert.equal(describeAuth({ baseUrl: "https://x.cybozu.com", token: "t" }), "API トークン");
 });
 
-test("loadAuth: KINTONE_BASE_URL も kintone のドメインでなければ止まる。PCRAFT_ALLOW_UNKNOWN_PLUGIN は 1 のときだけ真", () => {
+test("loadAuth: KINTONE_BASE_URL も kintone のドメインでなければ止まる", () => {
   assert.throws(() => loadAuth({ envFile: NO_FILE, env: { KINTONE_BASE_URL: "https://tenant.cybozu.com@evil.example", KINTONE_API_TOKEN: "t" } }), /KINTONE_BASE_URL が不正/);
   assert.throws(() => loadAuth({ envFile: NO_FILE, env: { KINTONE_BASE_URL: "https://evil.example", KINTONE_API_TOKEN: "t" } }), /kintone のドメインではない/);
   assert.equal(baseUrlFromEnv({ envFile: NO_FILE, env: {} }), undefined);
   assert.equal(baseUrlFromEnv({ envFile: NO_FILE, env: { KINTONE_BASE_URL: "https://a.cybozu.com/" } }), "https://a.cybozu.com");
-  assert.equal(allowUnknownPlugin({ envFile: NO_FILE, env: {} }), false);
-  assert.equal(allowUnknownPlugin({ envFile: NO_FILE, env: { PCRAFT_ALLOW_UNKNOWN_PLUGIN: "true" } }), false);
-  assert.equal(allowUnknownPlugin({ envFile: NO_FILE, env: { PCRAFT_ALLOW_UNKNOWN_PLUGIN: "1" } }), true);
 });
 
 test(".env の読み方: kintone 公式 MCP と同じ KINTONE_*。OS の環境変数が優先、.env は足りない分、引用符を外す", () => {

@@ -8,7 +8,7 @@
  */
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { AuthError, allowUnknownPlugin, baseUrlFromEnv, describeAuth, loadAuth, loadAuthForEnv, pluginZipPath } from "./env.ts";
+import { AuthError, baseUrlFromEnv, describeAuth, loadAuth, loadAuthForEnv, pluginZipPath } from "./env.ts";
 import { appDirFor, appFolderOfFile, editNameOf, envsOfHost, findAppDir, INBOX, isEnvName, listAppFolder, loadWorkspace, pickEnv, resolveApp, SNAPSHOT_RE, snapshotNameOf, WorkspaceError, type EnvironmentDef, type Workspace } from "./workspace.ts";
 import { takeInbox } from "./commands/take.ts";
 import { NotAllowedError, RestError, createRestClient } from "./kintone-rest.ts";
@@ -23,7 +23,7 @@ import { runPreview } from "./commands/preview.ts";
 import { DEFAULT_CONTEXT_BASE_URL, loadEngine, type Engine } from "./engine.ts";
 import { PluginZipError } from "./plugin-zip.ts";
 import { PolicyError } from "./normalize/policy.ts";
-import { schemaRevisionOf, toolsMeta } from "./meta.ts";
+import { isSupportedPluginVersion, schemaRevisionOf, toolsMeta } from "./meta.ts";
 import { PathError, WRITE_ROOTS, resolveRead, resolveWrite, resolveWriteDir } from "./safe-path.ts";
 
 const USAGE = `使い方: npx @rex0220/print-craft-authoring-tools <command> [options]
@@ -137,7 +137,7 @@ function shown(file: string): string {
 }
 
 async function engineFor(): Promise<Engine> {
-  const engine = await loadEngine({ pluginZip: pluginZipPath(), allowUnknown: allowUnknownPlugin() });
+  const engine = await loadEngine({ pluginZip: pluginZipPath() });
   for (const w of engine.warnings) console.error(`注意: ${w}`);
   return engine;
 }
@@ -156,12 +156,12 @@ async function version(args: string[]): Promise<number> {
   if (expect !== undefined && !expect) throw new UsageError("--expect には印刷屋の版（例: 6）を続ける");
   let expectError: string | undefined;
   if (expect !== undefined && engine) {
-    if (!meta.supportedPluginVersions.includes(expect)) expectError = `--expect ${expect}: tools ${meta.toolsVersion} が対応する印刷屋の版は ${meta.supportedPluginVersions.join(", ")}（tools を更新する）`;
+    if (!isSupportedPluginVersion(expect)) expectError = `--expect ${expect}: tools ${meta.toolsVersion} が扱う印刷屋の版は Ver.${meta.minPluginVersion} 以降`;
     else if (engine.source.pluginVersion !== expect) expectError = `--expect ${expect}: zip の印刷屋の版は ${engine.source.pluginVersion}（${engine.source.from}。アプリに入れた版の zip を PCRAFT_PLUGIN_ZIP に書く）`;
   }
   const info = {
     ...meta,
-    plugin: engine ? { source: engine.source.kind, from: engine.source.from, pluginVersion: engine.source.pluginVersion, apiVersion: engine.api.apiVersion, engineSha256: engine.source.engineSha256, apiSha256: engine.source.apiSha256, engineKnown: engine.source.engineKnown, schemaRevision: schemaRevisionOf(engine.api.CONFIG_SCHEMA) } : null,
+    plugin: engine ? { source: engine.source.kind, from: engine.source.from, pluginVersion: engine.source.pluginVersion, apiVersion: engine.api.apiVersion, engineSha256: engine.source.engineSha256, apiSha256: engine.source.apiSha256, pluginId: engine.source.pluginId ?? null, schemaRevision: schemaRevisionOf(engine.api.CONFIG_SCHEMA) } : null,
     expected: expect,
     ok: !!engine && !expectError,
     error: error ?? expectError
@@ -169,10 +169,11 @@ async function version(args: string[]): Promise<number> {
   if (flag(args, "json")) {
     console.log(JSON.stringify(info, null, 2));
   } else {
-    console.log(`@rex0220/print-craft-authoring-tools ${meta.toolsVersion}${meta.mode === "dev" ? "（開発中）" : ""}（対応する印刷屋の版 ${meta.supportedPluginVersions.join(", ")}、API ${meta.supportedApiVersion}。commit ${meta.commit}${meta.builtAt ? `、ビルド ${meta.builtAt}` : ""}）`);
+    console.log(`@rex0220/print-craft-authoring-tools ${meta.toolsVersion}${meta.mode === "dev" ? "（開発中）" : ""}（扱う印刷屋 Ver.${meta.minPluginVersion} 以降、API ${meta.supportedApiVersions.join(", ")}。commit ${meta.commit}${meta.builtAt ? `、ビルド ${meta.builtAt}` : ""}）`);
     if (engine) {
       console.log(`印刷屋プラグイン: 版 ${engine.source.pluginVersion}、authoring API ${engine.api.apiVersion}（${engine.source.kind === "zip" ? "zip" : "開発中の print-craft"}: ${engine.source.from}）`);
-      console.log(`計算式エンジン: sha256 ${engine.source.engineSha256}${engine.source.engineKnown ? "（zip の中身は既知）" : "（既知の一覧と違う中身を含む）"}`);
+      console.log(`プラグイン ID: ${engine.source.pluginId ?? "（開発中の print-craft。確かめない）"}`);
+      console.log(`計算式エンジン: sha256 ${engine.source.engineSha256}`);
       console.log(`設定スキーマの版: ${schemaRevisionOf(engine.api.CONFIG_SCHEMA)}`);
       if (expectError) console.error(expectError);
       else if (expect !== undefined) console.log(`--expect ${expect}: 一致`);

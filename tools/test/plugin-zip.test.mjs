@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { PLUGIN_ZIP } from "./helpers.mjs";
 import { readPluginZip, unzip, PluginZipError, API_ENTRY } from "../src/plugin-zip.ts";
-import { KNOWN_ENGINE_SHA256 } from "../src/meta.ts";
+import { PRINT_CRAFT_PLUGIN_ID } from "../src/meta.ts";
 
 test("印刷屋の zip から engine / bignumber / moment-timezone / authoring API / manifest が取れる", () => {
   assert.ok(existsSync(PLUGIN_ZIP), `fixture の zip が無い: ${PLUGIN_ZIP}（print-craft で npm run build-prod）`);
@@ -16,7 +16,7 @@ test("印刷屋の zip から engine / bignumber / moment-timezone / authoring A
   assert.ok(s.momentTimezone.length > 100000);
   assert.ok(s.api && s.api.includes("rex0220PrintCraftAuthoring"), "authoring API（Ver.6 で同梱）");
   assert.match(s.sha256.engine, /^[0-9a-f]{64}$/);
-  assert.ok(KNOWN_ENGINE_SHA256["6"].includes(s.sha256.engine), "エンジンの SHA-256 が既知の一覧にある");
+  assert.equal(s.pluginId, PRINT_CRAFT_PLUGIN_ID, "プラグイン ID（PUBKEY から）が印刷屋のもの");
   assert.ok(s.manifest.config.js.includes(API_ENTRY));
 });
 

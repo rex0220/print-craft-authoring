@@ -11,6 +11,7 @@ import path from "node:path";
 import type { Engine } from "../engine.ts";
 import type { FieldsFile } from "./fields.ts";
 import { Findings } from "../normalize/findings.ts";
+import { isSupportedPluginVersion, MIN_PLUGIN_VERSION } from "../meta.ts";
 import { buildModel } from "../normalize/model.ts";
 import { bodyOf, deriveBody, ENVELOPE_KEYS } from "../normalize/derive.ts";
 import { checkBody } from "../normalize/checks.ts";
@@ -85,7 +86,13 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   }
   // ---- 封筒 ----
   if (envelope.pluginID !== api.pluginId) f.error("envelope.pluginID", where, `pluginID は "${api.pluginId}": ${JSON.stringify(envelope.pluginID)}（封筒なしの素の設定は作らない）`);
-  if (String(envelope.PluginVersion ?? "") !== pluginVersion) f.error("envelope.version", where, `PluginVersion は印刷屋の版 ${pluginVersion}（zip の manifest）: ${JSON.stringify(envelope.PluginVersion)}`);
+  // PluginVersion（1.1.0。印刷屋の版を上げても前の版で作った設定をそのまま使えるように）: zip の版と同じか、それより古い印刷屋の版（Ver.6 以上）なら通し、
+  // 書き出す封筒は zip の版にする（印刷屋の取り込みは PluginVersion を見ず、設定の形は zip の CONFIG_SCHEMA で検証する）。
+  // zip より新しい版の設定は、古い zip の検査で新しいキーを落とすので止める
+  const envVersion = String(envelope.PluginVersion ?? "");
+  if (!isSupportedPluginVersion(envVersion)) f.error("envelope.version", where, `PluginVersion は印刷屋の版（Ver.${MIN_PLUGIN_VERSION} 以降、zip は ${pluginVersion}）: ${JSON.stringify(envelope.PluginVersion)}`);
+  else if (Number(envVersion) > Number(pluginVersion)) f.error("envelope.version", where, `PluginVersion ${envVersion} の設定を、それより古い印刷屋の zip（版 ${pluginVersion}）で検査しようとしている。アプリに入れた版の zip を .env の PCRAFT_PLUGIN_ZIP に書く`);
+  else if (envVersion !== pluginVersion) f.info("envelope.version.upgrade", where, `PluginVersion ${envVersion} の設定を印刷屋の版 ${pluginVersion}（zip）で検査し、書き出す封筒は ${pluginVersion} にする`);
   if (envelope.appId !== undefined) {
     if (typeof envelope.appId !== "number" || !Number.isInteger(envelope.appId) || envelope.appId <= 0) f.error("envelope.appId", where, `appId は正の整数（数値）: ${JSON.stringify(envelope.appId)}`);
     else if (envelope.appId !== input.fields.appId) f.warning("envelope.appId", where, `appId ${envelope.appId} が fields のアプリ ${input.fields.appId} と違う`);

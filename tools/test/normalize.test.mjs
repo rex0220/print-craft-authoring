@@ -121,6 +121,11 @@ test('警告: 計算式の文字列の "\\n" は改行でない（実エンジ�
 test("封筒の誤りは止まる: pluginID、PluginVersion、JSON でない", async () => {
   assert.deepEqual(rules(await run(aiSettings({ pluginID: "other" })), "error"), ["envelope.pluginID"]);
   assert.deepEqual(rules(await run(aiSettings({ PluginVersion: "5" })), "error"), ["envelope.version"]);
+  // zip（Ver.6）より新しい版の設定は止める（古い zip の検査で新しいキーを落とすため）。同じ版は情報も出さない
+  const newer = await run(aiSettings({ PluginVersion: "7" }));
+  assert.deepEqual(rules(newer, "error"), ["envelope.version"]);
+  assert.match(newer.findings.items.find((x) => x.rule === "envelope.version").message, /それより古い印刷屋の zip（版 6）/);
+  assert.ok(!rules(await run(aiSettings({ PluginVersion: "6" })), "info").includes("envelope.version.upgrade"));
   const bad = await normalizeSettings({ settingsText: "{", fields: FIELDS_FILE, engine });
   assert.deepEqual(rules(bad, "error"), ["json"]);
   const noEnvelope = await run({ pluginEnable: true, pluginInfos: [] });

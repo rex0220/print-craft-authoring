@@ -49,7 +49,7 @@ tools のコマンドは 1 回に 1 つ実行する（`;`、`&&`、`if (…) { �
 2. **項目** — `fields --app N` → `fields --app N --summary`。計算式と HTML には**ラベルでなくフィールドコード**を書く。要件のラベルをどのコードに対応させたかを利用者に示す。似たラベル（「合計」「合計金額」など）は**推測しない**
 3. **レコード** — `kintone-get-records` で数件を見て、プレビュー用に代表の 1 件（明細が複数行、備考に改行、添付あり）を選ぶ。設定を書いた後に `record --app N --id R --fields-from settings/<ファイル>.json` → `record --app N --id R --summary` で形を確かめる
 4. **帳票** — レシピ集 0 章の既定の形: **HTML テンプレート + `${ESC_HTML(項目)}` + テーブルは `TABLE_HTML`**。CSS は共通 CSS の差分だけ書く
-5. **設定 JSON** — 雛形を写して**封筒形式**で `settings/APP<アプリ番号>-<アプリ名>-<帳票名>.json` に書く（例 `settings/APP3740-見積書-ご提案書.json`。アプリ名は記号を除いた短い名前。1 ファイルに 1 帳票）。`pluginID` は `"rex0220 Print craft plugin"`、`PluginVersion` は `"6"`、`externalRefs` は `"block"`。`filecode`（保存先。空ならダウンロード）、`pageSize`、`orientation`、`dpi`、`printMode` を明示する。派生値（`formula` / `usedFields` / `id` / `views` / `pluginUOG`、更新項目の `type` などのメタデータ）は書かない。`cssInfo`（共通 CSS）は共通 CSS を変えるときだけ書く（書くと、アップロードの一部置換・追加でアプリの共通 CSS を丸ごと置き換えるかを利用者が選ぶ。既定は置き換えない。帳票の CSS は行の `css` に書く）
+5. **設定 JSON** — 雛形を写して**封筒形式**で `settings/APP<アプリ番号>-<アプリ名>-<帳票名>.json` に書く（例 `settings/APP3740-見積書-ご提案書.json`。アプリ名は記号を除いた短い名前。1 ファイルに 1 帳票）。`pluginID` は `"rex0220 Print craft plugin"`、`PluginVersion` は印刷屋の版（`version` が出す zip の版。例 `"7"`）、`externalRefs` は `"block"`。`filecode`（保存先。空ならダウンロード）、`pageSize`、`orientation`、`dpi`、`printMode` を明示する。派生値（`formula` / `usedFields` / `id` / `views` / `pluginUOG`、更新項目の `type` などのメタデータ）は書かない。`cssInfo`（共通 CSS）は共通 CSS を変えるときだけ書く（書くと、アップロードの一部置換・追加でアプリの共通 CSS を丸ごと置き換えるかを利用者が選ぶ。既定は置き換えない。帳票の CSS は行の `css` に書く）
 6. **normalize** — `normalize settings/<ファイル>.json --fields fields/N.json`。エラーを 0 にする（下の表）。**警告は消さずに利用者に伝える**
 7. **preview** — `preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json [--button <名前>]` → `out/<ボタン名>.html`。利用者に Chrome で開いてもらい、印刷屋のプレビューと比べてもらう（近似。画像はダミー）。**AI はブラウザーを起動しない（headless のスクリーンショットも撮らない）。帳票の文書を `out/*.html` の iframe から取り出して開かない**（sandbox と CSP が外れる）。ページ数と式のエラーは preview の出力で、置き換わった文字（ページ番号など）は `out/*.html` を Grep で確かめる
 8. **反映方法を伝える** — アプリの設定 → プラグイン → 印刷屋プラグインの設定 → **設定をアップロード** → 取り込み方を選ぶ → **保存する** → **運用環境に反映** → 詳細画面でボタンを押して PDF を確かめる。取り込み方は、印刷屋の設定がまだ無いアプリなら「全置換」、既存の設定があるアプリにボタンを足すなら「追加」（同じ名前があれば「名前 (2)」）、既存のボタンを差し替えるなら「一部置換」（ボタンごとに置き換え先を選ぶ）。一部置換と追加では外部参照・Web フォント・メニューなどはアプリの今の設定のまま。取り込んだボタンは保存のときに印刷屋が検査し、項目が合わなければ保存されない。確かめてほしい点（見た目、改行、ファイル名、保存先）を添える
@@ -72,7 +72,7 @@ tools のコマンドは 1 回に 1 つ実行する（`;`、`&&`、`if (…) { �
 | エラー | 意味と直し方 |
 | --- | --- |
 | `json` / `schema` | JSON として読めない、型・上限が合わない。設定ファイル仕様のキー表で確かめる |
-| `envelope.pluginID` / `envelope.version` / `envelope.appId` | 封筒の誤り。封筒なしの素の設定は作らない |
+| `envelope.pluginID` / `envelope.version` / `envelope.appId` | 封筒の誤り。封筒なしの素の設定は作らない。`envelope.version` は zip より新しい版の設定か Ver.5 以前（zip より古い版は情報 `envelope.version.upgrade` で通り、封筒は zip の版になる） |
 | `tags.rows` | HTML 設定の行の並び（1 行目 `$out`、2 行目 `$fname`、3 行目以降が帳票）、有効なボタンに HTML 設定が無い |
 | `tags.pageSize` / `tags.orientation` / `tags.dpi` / `tags.printMode` | 列挙に無い値 |
 | `tags.filecode` | 保存先がテーブルの外の添付ファイル項目でない |
@@ -136,5 +136,6 @@ tools のコマンドは 1 回に 1 つ実行する（`;`、`&&`、`if (…) { �
 - **kintone への書き込みは行わない。** kintone MCP の書き込みツールと `kintone-download-file` は使わない（`.claude/settings.json` で拒否してある）。tools も GET しか送らない
 - `records/` と `out/` はレコードの値を含む。コミットしない（`.gitignore` 済み）。作業が終わったら消してよい
 - 認証情報（`.env`）をファイルやチャットに書かない。`policy/` と `.env` を AI が編集しない
-- tools は `.env` の `PCRAFT_PLUGIN_ZIP`（印刷屋プラグインの zip）から計算式エンジンと印刷屋のコードを読む。「印刷屋の zip の場所が分からない」「版 … には対応していない」「zip の中身が tools の既知の一覧と違う」と出たら、利用者に zip の場所と版（アプリに入れたものと同じ。配布元から入手したもの）を確かめてもらう。`PCRAFT_ALLOW_UNKNOWN_PLUGIN` を AI が書いたり勧めたりしない
+- tools は `.env` の `PCRAFT_PLUGIN_ZIP`（印刷屋プラグインの zip）から計算式エンジンと印刷屋のコードを読む。「印刷屋の zip の場所が分からない」「版 … には対応していない」「印刷屋プラグインの zip ではない」と出たら、利用者に zip の場所と版（アプリに入れたものと同じ。配布元から入手したもの）を確かめてもらう。「authoring API の版 … には対応していない」なら利用者に tools の更新を頼む
+- テンプレートの更新（バージョンアップ）を頼まれたら `docs/バージョンアップ手順.md` の 3.1 のとおりに行う（`git merge` はしない。始める前に `git status` で利用者の作業中のものが無いか確かめ、あれば先にコミットするか利用者に聞く。`.env` の zip の入れ替えは利用者に頼む。最後に `version` を見せ、コミットと push の前に利用者に確かめる）
 - tools が読むファイルは作業フォルダーの中、書く先は `fields/` `records/` `settings/` `temp/` `out/` `kintone/` の下だけ。`docs/samples/` は読める（`normalize … --dry-run` / `--check`、`--out temp/<名前>.json`、`preview`、`buttons`）が書き戻せないので、元にするときは `settings/` にコピーするか `--out` で `settings/` か `temp/` に出す

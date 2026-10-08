@@ -1,6 +1,6 @@
 /**
- * 合成 zip（スタブ）で engine.ts の版の照合を試す: 対応する印刷屋の版、API の pluginVersion と manifest の版、API の契約（キーと型）。
- * loadEngine は 1 プロセスに 1 回しか読み込まないので、止まる場合だけをこのファイルで試す（成功する読み込みは engine.test.mjs）。
+ * 合成 zip（スタブ）で engine.ts の照合を試す: プラグイン ID、印刷屋の版、API の pluginVersion と manifest の版、API の版、API の契約（キーと型）。
+ * loadEngine は 1 プロセスに 1 回しか読み込まないので、止まる場合だけをこのファイルで試す（成功する読み込みは engine.test.mjs と engine-v7.test.mjs）。
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -15,7 +15,6 @@ import { devPluginDir } from "../src/paths.ts";
 // OS の環境変数（開発者の PC に入っていることがある）に左右されないようにする
 delete process.env.PCRAFT_PLUGIN_ZIP;
 delete process.env.PCRAFT_ALLOW_DEV_PLUGIN;
-delete process.env.PCRAFT_ALLOW_UNKNOWN_PLUGIN;
 
 const dir = mkdtempSync(path.join(os.tmpdir(), "pcraft-contract-"));
 
@@ -28,44 +27,62 @@ test("zip の指定が無いとき: 公開ビルド（mode build）は隣の pri
     if (devPluginDir()) {
       const s = resolvePluginSources({}, "dev");
       assert.equal(s.kind, "dev");
-      assert.equal(s.pluginVersion, "6");
+      assert.ok(Number(s.pluginVersion) >= 6, `隣の print-craft の prod/ の版: ${s.pluginVersion}`);
     }
   } finally {
     delete process.env.PCRAFT_ALLOW_DEV_PLUGIN;
   }
 });
-const zipFile = (name, inner) => {
+const zipFile = (name, inner, outerExtra) => {
   const p = path.join(dir, name);
-  writeFileSync(p, makePluginZip(inner));
+  writeFileSync(p, makePluginZip(inner, outerExtra));
   return p;
 };
 
-test("対応しない版の zip は止まる（コードを実行しない）", async () => {
-  const p = zipFile("v5.zip", stubInnerEntries({ "manifest.json": JSON.stringify({ version: 5 }) }));
-  await assert.rejects(() => loadEngine({ pluginZip: p, allowUnknown: true }), (e) => e instanceof PluginZipError && /版 5/.test(e.message));
+test("プラグイン ID が印刷屋のものでない zip（別の鍵、PUBKEY が無い）は止まる（コードを実行しない）", async () => {
+  // 実行されたら分かるように、API が globalThis に印を付けるスタブにする
+  const marker = 'globalThis.__pcraftRan = true; window.rex0220PrintCraftAuthoring = { apiVersion: 1, pluginVersion: "6" };';
+  const inner = stubInnerEntries({ "config_js/print-craft-authoring-api.js": marker });
+  const other = zipFile("other-key.zip", inner, { PUBKEY: Buffer.from("not the print-craft key") });
+  await assert.rejects(() => loadEngine({ pluginZip: other }), (e) => e instanceof PluginZipError && /印刷屋プラグインの zip ではない/.test(e.message) && /lcapkanpjdabgphknkabojmcfhonhkhp/.test(e.message));
+  const nokey = zipFile("no-pubkey.zip", inner, { PUBKEY: null });
+  await assert.rejects(() => loadEngine({ pluginZip: nokey }), (e) => e instanceof PluginZipError && /PUBKEY が無い/.test(e.message));
+  assert.equal(globalThis.__pcraftRan, undefined, "zip のコードは実行されていない");
+});
+
+test("対応しない版（5、小数、文字）の zip は止まる（コードを実行しない）", async () => {
+  for (const version of [5, 6.5, "x"]) {
+    const p = zipFile(`v-${version}.zip`, stubInnerEntries({ "manifest.json": JSON.stringify({ version }) }));
+    await assert.rejects(() => loadEngine({ pluginZip: p }), (e) => e instanceof PluginZipError && /には対応していない/.test(e.message) && /Ver\.6 以降/.test(e.message), String(version));
+  }
 });
 
 test("authoring API が無い zip は止まる", async () => {
   const inner = stubInnerEntries();
   delete inner["config_js/print-craft-authoring-api.js"];
   const p = zipFile("noapi.zip", inner);
-  await assert.rejects(() => loadEngine({ pluginZip: p, allowUnknown: true }), /print-craft-authoring-api\.js が無い/);
+  await assert.rejects(() => loadEngine({ pluginZip: p }), /print-craft-authoring-api\.js が無い/);
 });
 
-test("スタブの zip は既知でないので既定では止まる。allowUnknown でも API の契約（キーと型）が合わなければ止まる", async () => {
+test("ID が印刷屋のスタブの zip は読み込まれるが、API の契約（キーと型）が合わなければ止まる", async () => {
   const p = zipFile("stub.zip", stubInnerEntries());
-  await assert.rejects(() => loadEngine({ pluginZip: p }), /既知のリリースと違う/);
-  await assert.rejects(() => loadEngine({ pluginZip: p, allowUnknown: true }), (e) => e instanceof PluginZipError && /tools が使うものが無い、または型が違う/.test(e.message) && /buildMenuRows/.test(e.message));
+  await assert.rejects(() => loadEngine({ pluginZip: p }), (e) => e instanceof PluginZipError && /tools が使うものが無い、または型が違う/.test(e.message) && /buildMenuRows/.test(e.message));
 });
 
 test("API の pluginVersion が manifest の版と違う zip は止まる", async () => {
   const p = zipFile("mismatch.zip", stubInnerEntries({ "config_js/print-craft-authoring-api.js": 'window.rex0220PrintCraftAuthoring = { apiVersion: 1, pluginVersion: "7" };' }));
-  await assert.rejects(() => loadEngine({ pluginZip: p, allowUnknown: true }), /manifest の版 6 と違う/);
+  await assert.rejects(() => loadEngine({ pluginZip: p }), /manifest の版 6 と違う/);
 });
 
-test("API の版が違う zip は止まる", async () => {
-  const p = zipFile("apiver.zip", stubInnerEntries({ "config_js/print-craft-authoring-api.js": 'window.rex0220PrintCraftAuthoring = { apiVersion: 2, pluginVersion: "6" };' }));
-  await assert.rejects(() => loadEngine({ pluginZip: p, allowUnknown: true }), /authoring API の版 2/);
+test("API の版: 1 と 2 は受け付け（契約の検査まで進む）、0 と 3 は止まる", async () => {
+  for (const v of [1, 2]) {
+    const p = zipFile(`api-${v}.zip`, stubInnerEntries({ "config_js/print-craft-authoring-api.js": `window.rex0220PrintCraftAuthoring = { apiVersion: ${v}, pluginVersion: "6" };` }));
+    await assert.rejects(() => loadEngine({ pluginZip: p }), /tools が使うものが無い/, `API ${v} は版の照合を通る`);
+  }
+  for (const v of [0, 3]) {
+    const p = zipFile(`api-${v}.zip`, stubInnerEntries({ "config_js/print-craft-authoring-api.js": `window.rex0220PrintCraftAuthoring = { apiVersion: ${v}, pluginVersion: "6" };` }));
+    await assert.rejects(() => loadEngine({ pluginZip: p }), new RegExp(`authoring API の版 ${v} には対応していない（tools は 1, 2）`));
+  }
 });
 
 test.after(() => rmSync(dir, { recursive: true, force: true }));

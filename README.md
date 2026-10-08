@@ -138,13 +138,16 @@ kintone には **GET しか送りません**。計算式エンジン（`KintoneF
 
 ## テンプレートの更新を取り込む
 
-印刷屋プラグインの新機能に合わせて、このテンプレートの docs/ と tools の版は更新されます。取り込むときは、テンプレートのファイルだけを最新に置き換えます:
+印刷屋プラグインの新機能に合わせて、このテンプレートの docs/ と tools の版は更新されます。**フォルダーを作り直す必要はありません。** 印刷屋プラグインを上げただけなら、ふつうは `.env` の zip を入れ替えるだけです。印刷屋の zip の入れ替え、tools だけを上げる方法、Claude Code に頼む方法、作り直すときに写すもの、つまずいたときは [docs/バージョンアップ手順.md](docs/バージョンアップ手順.md) にあります。
+
+テンプレートのファイルを取り込むときは、テンプレートのファイルだけを最新に置き換えます:
 
 ```
 git remote add template https://github.com/rex0220/print-craft-authoring.git   # 初回のみ
 git fetch template
 git checkout template/main -- .claude .mcp.json .env.example .gitignore CLAUDE.md README.md LICENSE environments.example.json package.json package-lock.json docs tools settings/README.md requirements/example.md policy/README.md
 npm ci
+npx @rex0220/print-craft-authoring-tools version
 git commit -m "テンプレートの更新を取り込む"
 ```
 
@@ -152,7 +155,7 @@ git commit -m "テンプレートの更新を取り込む"
 - テンプレートのファイルを自分で直していた場合、その変更は消えます。Claude Code の許可を足すなら `.claude/settings.local.json`、git で無視するファイルを足すなら `.git/info/exclude` に書いてください。テンプレートで消えたファイルは残るので、気になれば消してください
 - `git merge template/main --allow-unrelated-histories` では取り込まないでください。テンプレートから作ったリポジトリはテンプレートと履歴がつながっていないので、手を入れていないファイルまで衝突し、`-X theirs` で解くと自分の `policy/authoring-policy.json` の承認がテンプレートの空のものに戻ります
 - テンプレート側は `settings/` に README.md 以外、`requirements/` に example.md 以外、`policy/` に README.md と空の `authoring-policy.json` 以外のファイルを追加しません
-- tools の版は印刷屋プラグインの版とは別です。tools が対応する印刷屋の版は `npx @rex0220/print-craft-authoring-tools version` に出ます（「対応する印刷屋の版 6」）。印刷屋を上げたらテンプレートも取り込み、`npx @rex0220/print-craft-authoring-tools version --expect <印刷屋の版>` で確かめます
+- tools の版は印刷屋プラグインの版とは別です。tools が扱う印刷屋の版は `npx @rex0220/print-craft-authoring-tools version` に出ます（tools 1.1.0 は「扱う印刷屋 Ver.6 以降、API 1, 2」）。印刷屋を上げたら `.env` の zip も入れ替え、`npx @rex0220/print-craft-authoring-tools version --expect <印刷屋の版>` で確かめます。「authoring API の版 … には対応していない」と出たら tools を新しい版にします
 
 ## ドキュメント
 
@@ -163,6 +166,7 @@ git commit -m "テンプレートの更新を取り込む"
 | [docs/帳票レシピ集.md](docs/帳票レシピ集.md) | 帳票の書き方（既定の形）とレシピ |
 | [docs/関数一覧.md](docs/関数一覧.md) | 使える計算式の関数 243 個。例は [関数の使い方（計算式プラグインの記事）.md](docs/関数の使い方（計算式プラグインの記事）.md)、詳細は [関数リファレンス（詳細）.md](docs/関数リファレンス（詳細）.md) |
 | [docs/AI設定オーサリング手順.md](docs/AI設定オーサリング手順.md) | 利用者がすること（要件の書き方、プレビューと差分の確かめ方、反映）と、AI への指示の例 |
+| [docs/バージョンアップ手順.md](docs/バージョンアップ手順.md) | 印刷屋プラグイン・tools・テンプレートを新しい版にする手順（作り直さなくてよい） |
 | [docs/samples/](docs/samples/) | 動作確認済みの実例（雛形は各フォルダーの `settings-source.json`） |
 | [CLAUDE.md](CLAUDE.md) | AI への常設指示（作業手順、読む文書、normalize のエラーの規則名と直し方。このリポジトリを開いた Claude Code が自動で読みます） |
 | [policy/README.md](policy/README.md) | 外部 URL の承認（利用者が書く） |
@@ -178,8 +182,8 @@ git commit -m "テンプレートの更新を取り込む"
 | 毎回確認が出る | 手順 4 の補足（フォルダーの信頼）をしていない。するまでは「2 Yes, allow … for this session」を選ぶ |
 | `npm ci` で npm audit の警告（axios、qs） | kintone 公式 MCP（`@kintone/mcp-server`）の依存。2026-10 時点の最新（1.9.4）も同じ依存 |
 | `KINTONE_BASE_URL が無い` | `.env` の場所（リポジトリのルート）と変数名。OS の環境変数を設定したなら VSCode を完全に再起動 |
-| `印刷屋の zip の場所が分からない` / `版 … には対応していない` | `.env` の `PCRAFT_PLUGIN_ZIP` のパス。zip の版（manifest の version）が tools の対応する版（`npx @rex0220/print-craft-authoring-tools version`）と合うか。Ver.5 以前の zip には authoring API が無い |
-| `印刷屋の zip の中身が tools の既知の一覧と違う` | zip を配布元から取り直す。印刷屋の修正版が出て tools がまだ追いついていないなら、tools を更新するか、分かった上で `.env` に `PCRAFT_ALLOW_UNKNOWN_PLUGIN=1` を書く（利用者だけ） |
+| `印刷屋の zip の場所が分からない` / `版 … には対応していない` | `.env` の `PCRAFT_PLUGIN_ZIP` のパス。zip の版（manifest の version）が Ver.6 以上か（Ver.5 以前の zip には authoring API が無い）。`authoring API の版 … には対応していない` なら tools を新しい版にする |
+| `印刷屋プラグインの zip ではない（プラグイン ID …）` | `PCRAFT_PLUGIN_ZIP` が印刷屋の zip か（別のプラグインの zip でないか）。配布元から取り直す |
 | `KINTONE_BASE_URL が不正` / `kintone のドメインではない` | `https://<サブドメイン>.cybozu.com` の形だけ（`.kintone.com` / `.cybozu.cn` も可）。パス・ポート・`@` を付けない |
 | `書き込み先は settings/ か temp/ か kintone/ の下` / `作業フォルダーの中` | tools が書くのは `fields/` `records/` `settings/` `temp/` `out/` `kintone/` の下だけ。`docs/samples/` のファイルは読めるので、`normalize docs/samples/見積書/settings.json --fields docs/samples/見積書/fields.json --dry-run` で確かめるか、`--out temp/見積書.json` か `settings/` にコピーして使う |
 | `iframe の src は利用者の kintone（… 未設定 …）` | 帳票に kintone のグラフの iframe を入れるには `.env` の `KINTONE_BASE_URL` が要る（fields の値では判定しない） |
@@ -198,7 +202,7 @@ git commit -m "テンプレートの更新を取り込む"
   ③ tools は GET しか送らず、呼べる API と送信先（`*.cybozu.com` / `*.kintone.com` / `*.cybozu.cn`）を固定（`npm pack` の中身で確かめられます）
 - ログインユーザーで使うときは、そのユーザーが見られるアプリとレコードを AI も見られます。サーバー側からも担保したい場合は、**閲覧権限だけのアカウント**か、**レコード閲覧だけの API トークン**（運用での推奨）を使ってください
 - 認証情報は `.env`（コミット対象外）のみに置く。AI は `.env` を読まず（`.claude/settings.json` の `Read(.env)` の拒否）、`.env` と `policy/` を編集しません。tools が読む `.env` と `policy/authoring-policy.json` と印刷屋の zip の場所はこのフォルダーのものに固定で、AI がオプションで別のファイルを指定することはできません。tools が書くのは `fields/` `records/` `settings/` `temp/` `out/` `kintone/` の下だけです
-- 印刷屋の zip の中身（計算式エンジンなど 4 ファイル）は tools が知っている SHA-256 と一致しなければ**実行せずに止まります**（改変された zip や、tools より新しい修正版の zip）。新しい修正版だと分かっていて続けるときだけ、利用者が `.env` に `PCRAFT_ALLOW_UNKNOWN_PLUGIN=1` を書きます（zip の中のコードはこの PC の権限で動きます。配布元から入手した zip だけを使ってください）
+- tools は、`PCRAFT_PLUGIN_ZIP` の zip のプラグイン ID（zip の公開鍵から）が印刷屋のものでなければ、中のコードを**実行せずに止まります**。署名は確かめないので、中身を差し替えた zip は見分けられません。zip の中のコードはこの PC の権限で動くので、配布元から入手した zip だけを使ってください
 - 帳票の HTML / CSS / 計算式は、インポートすると印刷屋プラグインが使います。印刷屋 Ver.6 は帳票の HTML / CSS から kintone 以外への読み込み（画像・CSS・iframe・リンク）とスクリプトを**描画の前に除きます**（共通の設定「外部参照」。新しい設定の既定 `externalRefs: "block"`。Ver.5 で保存した設定は「許可」のまま動く）。`normalize` は**許可した要素と属性だけ**を通し（文章・表・画像の要素。インラインの `<svg>` は不可で、図は `<img src="data:image/svg+xml,…">`）、スクリプト、イベント属性、`javascript:` の URL、CSS の `@import` / `expression(` などを**エラーで止め**、「除く」の設定の外部 URL もエラー（帳票に出ない）にします。「許可」（何も除かない。自己責任）の設定と、`externalRefs` の無い既存の設定は、利用者が `policy/authoring-policy.json` の `allowExternalRefs` に書かなければエラーです。「許可」の設定の外部 URL と Google Fonts 以外の Web フォントは**警告**（承認は `allowExternal`。承認した URL は情報として出ます）。計算式が作る HTML は警告だけです。警告は書き戻しを止めないので、**インポート前に差分を人が見る**運用にしてください
 - `records/` と `out/` にはレコードの値が入ります。作業が終わったら消し、リポジトリは private に
 - AI（Claude Code）が kintone MCP（`kintone-get-records` など）で見た項目定義とレコードの内容は、Claude の処理に使われます（git に入らないことと、AI に渡らないことは別です）。実データを使えない場合は、検証用のアプリとサンプルのデータで試してください

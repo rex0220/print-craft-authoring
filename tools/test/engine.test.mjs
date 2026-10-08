@@ -70,11 +70,11 @@ const check = (formulaSet) => {
 };
 const run = (formula) => engine.runner(ppRun, RECORD).dq(formula);
 
-test("利用者の zip から読む: 版 6、API 1、エンジンは既知、関数表が 243 件", () => {
+test("利用者の zip から読む: 版 6、API 1、プラグイン ID は印刷屋、関数表が 243 件", () => {
   assert.equal(engine.source.kind, "zip");
   assert.equal(engine.source.from, PLUGIN_ZIP);
   assert.equal(engine.source.pluginVersion, "6");
-  assert.equal(engine.source.engineKnown, true);
+  assert.equal(engine.source.pluginId, "lcapkanpjdabgphknkabojmcfhonhkhp");
   assert.deepEqual(engine.warnings, []);
   assert.equal(api.apiVersion, 1);
   assert.equal(api.pluginVersion, "6");

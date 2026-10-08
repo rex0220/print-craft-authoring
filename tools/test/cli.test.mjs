@@ -27,7 +27,9 @@ test("version: zip の版・API・エンジンの SHA-256 を出して 0。--exp
   const r = run(["version"]);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /印刷屋プラグイン: 版 6、authoring API 1/);
-  assert.match(r.stdout, /計算式エンジン: sha256 [0-9a-f]{64}（zip の中身は既知）/);
+  assert.match(r.stdout, /プラグイン ID: lcapkanpjdabgphknkabojmcfhonhkhp/);
+  assert.match(r.stdout, /計算式エンジン: sha256 [0-9a-f]{64}/);
+  assert.match(r.stdout, /扱う印刷屋 Ver\.6 以降、API 1, 2/);
   const ok = run(["version", "--expect", "6"]);
   assert.equal(ok.status, 0, ok.stderr);
   assert.match(ok.stdout, /--expect 6: 一致/);
@@ -41,8 +43,11 @@ test("version --expect: zip の版と違えば 1（tools が対応しない版�
   assert.equal(j.ok, false);
   assert.equal(j.expected, "5");
   assert.equal(j.plugin.pluginVersion, "6");
-  assert.equal(j.plugin.engineKnown, true);
-  assert.match(j.error, /--expect 5/);
+  assert.equal(j.plugin.pluginId, "lcapkanpjdabgphknkabojmcfhonhkhp");
+  assert.match(j.error, /--expect 5: tools .* が扱う印刷屋の版は Ver\.6 以降/);
+  const v7 = JSON.parse(run(["version", "--json", "--expect", "7"]).stdout);
+  assert.equal(v7.ok, false, "tools は Ver.7 を扱えるが、zip（Ver.6）の版と違う");
+  assert.match(v7.error, /zip の印刷屋の版は 6/);
   const same = JSON.parse(run(["version", "--json", "--expect", "6"]).stdout);
   assert.equal(same.ok, true);
   assert.equal(same.error, undefined);

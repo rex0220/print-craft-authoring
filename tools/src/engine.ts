@@ -5,10 +5,10 @@
  *   - happy-dom の window / document をグローバルに置く（ESC_HTML などが document を使う。API の bundle は window にグローバルを置く）
  *   - kintone / cybozu / rex0220_users_info3 は副作用の無いスタブ。kintone.api は呼ばない（reject）。kintone.api.url は setContext の URL から組む
  *   - 読む順は印刷屋の manifest と同じ: moment（vendor/）→ moment-timezone → bignumber → KintoneFormulaPCraft → authoring API
- *   - 版と中身の照合（1-10 レビュー BLOCKER 2 / MAJOR 8、再レビュー BLOCKER 1 / MAJOR 3）: zip の manifest の version が対応する版か、
- *     エンジン・API・bignumber・moment-timezone の SHA-256 が既知のリリースの組み合わせ（tuple）と一致するか（**違えば実行せずに止める**。
- *     利用者が .env に PCRAFT_ALLOW_UNKNOWN_PLUGIN=1 を書いたときだけ警告で続く）、API の apiVersion と pluginVersion、tools が使うキーの型。
- *     tools の版は印刷屋の版と独立（2026-10-06 Takashi。以前は tools の版の先頭 = 印刷屋の版を照合していた）。対応は SUPPORTED_PLUGIN_VERSIONS と KNOWN_PLUGIN_RELEASES で決まる
+ *   - 読み込んでよいかの照合（1.1.0。Takashi 2026-10-08「pluginid のチェックのみで OK」、docs/authoring-plan.md 12.18）: 外側の zip の PUBKEY から出る
+ *     プラグイン ID が印刷屋のもの（meta.ts の PRINT_CRAFT_PLUGIN_ID）でなければ**実行せずに止める**。SIGNATURE は検証しない（本物の zip の PUBKEY を写した zip も通る）。
+ *     manifest の version が Ver.6 以上の整数か、authoring API があるか。実行した後に API の apiVersion（SUPPORTED_API_VERSIONS）と pluginVersion、tools が使うキーの型。
+ *     1.0.0 までは 4 ファイルの SHA-256 を既知のリリースの組と照合していた（1-10 レビュー BLOCKER 2）。tools の版は印刷屋の版と独立（2026-10-06 Takashi）
  *   - 開発中に隣の print-craft の prod/ から読む経路は、**ソースから動かしていて（mode dev）かつ PCRAFT_ALLOW_DEV_PLUGIN=1 のときだけ**。
  *     公開ビルド（mode build）では zip 以外から読まない（再レビュー BLOCKER 1: 利用者の node_modules に置いたファイルを実行しない）
  * zip の中のコードはこのプロセス（Node を起動した OS ユーザーと同じ権限）で動く。sandbox ではない。
@@ -20,7 +20,7 @@ import vm from "node:vm";
 import type { PrintCraftAuthoringApi } from "print-craft/src/authoring/api.ts";
 import { devPluginDir, MOMENT_FILE } from "./paths.ts";
 import { API_ENTRY, BIGNUMBER_ENTRY, ENGINE_ENTRY, MANIFEST_ENTRY, MOMENT_TZ_ENTRY, PluginZipError, readPluginZip, sha256Hex, type PluginSources } from "./plugin-zip.ts";
-import { KNOWN_PLUGIN_RELEASES, REQUIRED_API, SUPPORTED_API_VERSION, SUPPORTED_PLUGIN_VERSIONS, toolsMeta, type KnownRelease } from "./meta.ts";
+import { isSupportedPluginVersion, MIN_PLUGIN_VERSION, PRINT_CRAFT_PLUGIN_ID, REQUIRED_API, SUPPORTED_API_VERSIONS, toolsMeta } from "./meta.ts";
 
 /** 計算式のインスタンス（print-craft の config/libs.ts の KintoneFormula と同じ形） */
 export interface FormulaInstance {
@@ -52,9 +52,7 @@ export interface EngineSource {
   pluginVersion: string;
   engineSha256: string;
   apiSha256?: string;
-  /** zip の中身（エンジン・API・bignumber・moment-timezone）が既知のリリースの組み合わせと一致するか */
-  engineKnown: boolean;
-  /** プラグイン ID（zip の PUBKEY から。pull が使う） */
+  /** プラグイン ID（zip の PUBKEY から。印刷屋のものでなければ読み込まない。pull が使う。開発中の print-craft から読んだときは無い） */
   pluginId?: string;
 }
 
@@ -77,8 +75,6 @@ export interface Engine {
 export interface LoadEngineOptions {
   /** 印刷屋の zip。省略時は環境変数 PCRAFT_PLUGIN_ZIP */
   pluginZip?: string;
-  /** 既知でない中身の zip でも警告で続ける（.env の PCRAFT_ALLOW_UNKNOWN_PLUGIN=1。利用者だけが書ける） */
-  allowUnknown?: boolean;
   /** テスト用。省略時は toolsMeta().mode（ソースから動かすと dev、ビルドした bundle は build） */
   mode?: "build" | "dev";
 }
@@ -122,51 +118,20 @@ export function resolvePluginSources(opt: LoadEngineOptions = {}, mode: "build" 
   };
 }
 
-const PARTS: Array<[label: string, key: keyof KnownRelease & keyof PluginSources["sha256"]]> = [
-  ["計算式エンジン", "engine"],
-  ["authoring API", "api"],
-  ["bignumber", "bignumber"],
-  ["moment-timezone", "momentTimezone"]
-];
-
-/**
- * zip の中身が既知のリリースの組み合わせと一致するか。一致すれば []、しなければ最も近いリリースと違う部品の一覧
- * （releases はテスト用に差し替えられる）
- */
-export function unknownParts(src: PluginSources, releases: Record<string, KnownRelease[]> = KNOWN_PLUGIN_RELEASES): string[] {
-  const list = releases[src.pluginVersion];
-  if (!list?.length) return ["版の一覧が無い"];
-  const matches = (r: KnownRelease): number => PARTS.filter(([, k]) => src.sha256[k] && r[k] === src.sha256[k]).length;
-  if (list.some((r) => matches(r) === PARTS.length)) return [];
-  const show = ([label, k]: (typeof PARTS)[number]): string => `${label} ${src.sha256[k] ? src.sha256[k]!.slice(0, 12) + "…" : "無し"}`;
-  const bestScore = Math.max(...list.map(matches));
-  if (bestScore === 0) return PARTS.map(show);
-  // 最も近いリリース（同率なら全部）で「違う部品」が同じならそれを出す。候補によって違う部品が違うなら 4 つとも出す（登録順に左右されない）
-  const candidates = list.filter((r) => matches(r) === bestScore);
-  const diffs = candidates.map((r) => PARTS.filter(([, k]) => !src.sha256[k] || r[k] !== src.sha256[k]).map(([label]) => label).join("|"));
-  if (new Set(diffs).size !== 1) return PARTS.map(show);
-  const best = candidates[0];
-  const diff = PARTS.filter(([, k]) => !src.sha256[k] || best[k] !== src.sha256[k]).map(show);
-  return diff.length ? diff : PARTS.map(show);
-}
-
 export async function loadEngine(opt: LoadEngineOptions = {}): Promise<Engine> {
   if (loaded) return loaded;
   const meta = toolsMeta();
   const src = resolvePluginSources(opt, opt.mode ?? meta.mode);
   const warnings: string[] = [];
-  if (!SUPPORTED_PLUGIN_VERSIONS.includes(src.pluginVersion)) {
-    throw new PluginZipError(`印刷屋プラグインの版 ${src.pluginVersion || "不明"}（${src.from}）には対応していない。tools が対応する版: ${SUPPORTED_PLUGIN_VERSIONS.join(", ")}`);
+  // 実行してよいか: 外側の zip の PUBKEY から出るプラグイン ID が印刷屋のものか（1.1.0。Takashi 2026-10-08「pluginid のチェックのみで OK」。SIGNATURE は見ない）
+  if (src.kind === "zip" && src.pluginId !== PRINT_CRAFT_PLUGIN_ID) {
+    throw new PluginZipError(`印刷屋プラグインの zip ではない（プラグイン ID ${src.pluginId ?? "不明（PUBKEY が無い）"}。印刷屋は ${PRINT_CRAFT_PLUGIN_ID}）: ${src.from}。配布元から入手した印刷屋の zip を PCRAFT_PLUGIN_ZIP に書く`);
   }
-  if (!src.api) throw new PluginZipError(`印刷屋の zip に ${API_ENTRY} が無い（Ver.6 以降の zip が要る）: ${src.from}`);
-  const unknown = unknownParts(src);
-  const engineKnown = unknown.length === 0;
-  if (!engineKnown) {
-    const head = `印刷屋の zip の中身が tools の既知のリリースと違う: ${unknown.join("、")}（${src.from}）`;
-    if (src.kind === "dev") warnings.push(`${head}。開発中の print-craft（PCRAFT_ALLOW_DEV_PLUGIN=1）なので続ける`);
-    else if (opt.allowUnknown) warnings.push(`${head}。PCRAFT_ALLOW_UNKNOWN_PLUGIN=1 なので続ける（結果が設定画面と違うことがある）`);
-    else throw new PluginZipError(`${head}。配布元から取り直した zip を使うか、tools を新しい版にする。新しい修正版の zip だと分かっていて続けるなら、利用者が .env に PCRAFT_ALLOW_UNKNOWN_PLUGIN=1 を書く（zip の中のコードはこの PC の権限で動く。AI は .env を書けない）`);
+  if (src.kind === "dev") warnings.push(`開発中の print-craft（${src.from}。PCRAFT_ALLOW_DEV_PLUGIN=1）から読む。プラグイン ID は確かめない`);
+  if (!isSupportedPluginVersion(src.pluginVersion)) {
+    throw new PluginZipError(`印刷屋プラグインの版 ${src.pluginVersion || "不明"}（${src.from}）には対応していない。tools が扱うのは Ver.${MIN_PLUGIN_VERSION} 以降`);
   }
+  if (!src.api) throw new PluginZipError(`印刷屋の zip に ${API_ENTRY} が無い（Ver.${MIN_PLUGIN_VERSION} 以降の zip が要る）: ${src.from}`);
 
   const g = globalThis as Record<string, unknown>;
   const { Window } = (await import("happy-dom")) as unknown as { Window: new (opt: { url: string }) => Record<string, unknown> };
@@ -219,7 +184,7 @@ export async function loadEngine(opt: LoadEngineOptions = {}): Promise<Engine> {
   if (typeof Ctor !== "function") throw new Error("KintoneFormulaPCraft is not loaded");
   const api = window.rex0220PrintCraftAuthoring as PrintCraftAuthoringApi | undefined;
   if (!api || typeof api !== "object") throw new PluginZipError("印刷屋の authoring API（rex0220PrintCraftAuthoring）が読めない");
-  if (api.apiVersion !== SUPPORTED_API_VERSION) throw new PluginZipError(`印刷屋の authoring API の版 ${String(api.apiVersion)} には対応していない（tools は ${SUPPORTED_API_VERSION}）。tools を印刷屋の版に合わせて更新する`);
+  if (!SUPPORTED_API_VERSIONS.includes(api.apiVersion)) throw new PluginZipError(`印刷屋の authoring API の版 ${String(api.apiVersion)} には対応していない（tools は ${SUPPORTED_API_VERSIONS.join(", ")}）。tools を新しい版にする`);
   if (String(api.pluginVersion) !== src.pluginVersion) throw new PluginZipError(`authoring API の印刷屋の版 ${String(api.pluginVersion)} が zip の manifest の版 ${src.pluginVersion} と違う（組み替えられた zip）`);
   const bad = Object.entries(REQUIRED_API).filter(([k, t]) => typeof (api as unknown as Record<string, unknown>)[k] !== t).map(([k]) => k);
   if (bad.length) throw new PluginZipError(`印刷屋の authoring API に tools が使うものが無い、または型が違う: ${bad.join(", ")}（tools と印刷屋の版を合わせる）`);
@@ -228,7 +193,7 @@ export async function loadEngine(opt: LoadEngineOptions = {}): Promise<Engine> {
     window,
     Ctor,
     api,
-    source: { kind: src.kind, from: src.from, pluginVersion: src.pluginVersion, engineSha256: src.sha256.engine, apiSha256: src.sha256.api, engineKnown, ...(src.pluginId ? { pluginId: src.pluginId } : {}) },
+    source: { kind: src.kind, from: src.from, pluginVersion: src.pluginVersion, engineSha256: src.sha256.engine, apiSha256: src.sha256.api, ...(src.pluginId ? { pluginId: src.pluginId } : {}) },
     warnings,
     setContext(next) {
       if (next.baseUrl) ctx.baseUrl = next.baseUrl.replace(/\/+$/, "");

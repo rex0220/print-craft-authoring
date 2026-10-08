@@ -32,7 +32,7 @@ AI が書くのは設定 JSON と要件の整理だけで、kintone には何も
 npx @rex0220/print-craft-authoring-tools version
 ```
 
-tools の版と、zip から読んだ印刷屋の版（6）・authoring API の版・計算式エンジンの SHA-256（既知）が出れば OK です。Claude Code に「kintone-get-app でアプリ 3740 を見て」（番号は自分のアプリ）→ アプリ名が返れば MCP も OK です。
+tools の版と、zip から読んだ印刷屋の版（6）・authoring API の版・プラグイン ID（`lcapkanpjdabgphknkabojmcfhonhkhp`）が出れば OK です。Claude Code に「kintone-get-app でアプリ 3740 を見て」（番号は自分のアプリ）→ アプリ名が返れば MCP も OK です。
 
 ## 3. 利用者がすること
 

@@ -3,8 +3,8 @@
  *   KINTONE_BASE_URL   例 https://example.cybozu.com（必須。*.cybozu.com / *.kintone.com / *.cybozu.cn だけ。kintone-url.ts）
  *   KINTONE_API_TOKEN  API トークン（閲覧権限だけのものを第一候補にする。カンマ区切りで複数可）
  *   KINTONE_USERNAME / KINTONE_PASSWORD   ログインユーザー（トークンが無いとき）
- *   PCRAFT_PLUGIN_ZIP  印刷屋プラグインの zip（計算式エンジンと authoring API をここから読む）
- *   PCRAFT_ALLOW_UNKNOWN_PLUGIN=1  既知でない中身の zip でも警告で続ける（利用者だけが書く。engine.ts）
+ *   PCRAFT_PLUGIN_ZIP  印刷屋プラグインの zip（計算式エンジンと authoring API をここから読む。プラグイン ID が印刷屋のものでなければ読まない。engine.ts）
+ *   （PCRAFT_ALLOW_UNKNOWN_PLUGIN は 1.1.0 で廃止。既知の中身の照合をやめたため）
  * dashboard の authoring テンプレートの KSQL_* も読む（KINTONE_* が無いとき）。OS の環境変数が優先され、.env は足りない分を埋める。値はログや例外の文言に出さない。
  * .env の場所はリポジトリのルート（cwd）に固定。CLI から別の場所を指定できない（1-10 レビュー BLOCKER 5。AI が書けるファイルを .env として読ませない）。
  * 注意: kintone 公式 MCP はトークンとユーザーの両方があるとユーザーを使う。tools はトークンを使う。どちらか 1 つだけ書くのがよい。
@@ -25,8 +25,7 @@ const NAMES = {
   token: ["KINTONE_API_TOKEN", "KSQL_TOKEN"],
   username: ["KINTONE_USERNAME", "KSQL_USERNAME"],
   password: ["KINTONE_PASSWORD", "KSQL_PASSWORD"],
-  pluginZip: ["PCRAFT_PLUGIN_ZIP"],
-  allowUnknown: ["PCRAFT_ALLOW_UNKNOWN_PLUGIN"]
+  pluginZip: ["PCRAFT_PLUGIN_ZIP"]
 } as const;
 
 /** .env の形（KEY=VALUE。# の行と空行は無視。両端の " ' は外す。export KEY=… も可） */
@@ -130,11 +129,6 @@ export function pluginZipPath(opt: LoadAuthOptions = {}): string | undefined {
   const v = picker(opt)(NAMES.pluginZip);
   if (!v) return undefined;
   return path.resolve(path.dirname(envFileOf(opt)), v);
-}
-
-/** 既知でない中身の zip でも続けるか（.env の PCRAFT_ALLOW_UNKNOWN_PLUGIN=1） */
-export function allowUnknownPlugin(opt: LoadAuthOptions = {}): boolean {
-  return picker(opt)(NAMES.allowUnknown) === "1";
 }
 
 /** 認証の種類だけを文言にする（値もユーザー名も出さない） */

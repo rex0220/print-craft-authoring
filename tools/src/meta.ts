@@ -1,10 +1,11 @@
 /**
- * tools の版と、対応する印刷屋の版・authoring API の版・既知の zip の中身の SHA-256（docs/authoring-plan.md 12.1、12.2 の version）。
+ * tools の版と、扱う印刷屋の zip の決まり（docs/authoring-plan.md 12.1、12.2 の version、12.18）。
  * エンジンと印刷屋のコードは利用者の zip から読むので、ビルド時に埋めるのは tools の版と commit だけ。印刷屋の版は実行時に zip から分かる。
- * 1-10 レビュー BLOCKER 2: zip の中身（エンジン・API・bignumber・moment-timezone）は Node のプロセスで実行するので、既知のリリースの
- * 組み合わせ（4 つの SHA-256 の tuple）と一致しなければ既定では止める（engine.ts。利用者が .env に PCRAFT_ALLOW_UNKNOWN_PLUGIN=1 を書いたときだけ警告で続ける）。
- * 部品ごとの一覧でなくリリース単位の tuple なのは、配っていない組み合わせ（エンジンは修正版 A、API は修正版 B）を既知と見ないため（再レビュー MAJOR 3）。
- * 印刷屋の版を上げたら、この一覧に新しいリリースの tuple を足す（print-craft の CLAUDE.md）。
+ * 1.1.0（2026-10-08 Takashi「pluginid のチェックのみで OK」）: zip のコードを実行してよいかは、外側の zip の PUBKEY から出るプラグイン ID が
+ * 印刷屋のもの（PRINT_CRAFT_PLUGIN_ID）かで決める。版は MIN_PLUGIN_VERSION 以上、API の版は SUPPORTED_API_VERSIONS のどれか（engine.ts）。
+ * 1.0.0 までは 4 ファイルの SHA-256 の組を既知のリリースと照合していた（1-10 レビュー BLOCKER 2）ので、印刷屋の zip が変わるたびに tools の公開が要った。
+ * ID は PUBKEY から計算するだけで、SIGNATURE は検証しない（Takashi 判断。本物の zip の PUBKEY を写した zip も通る）。
+ * 印刷屋の AUTHORING_API_VERSION が上がったら SUPPORTED_API_VERSIONS に足す（print-craft の CLAUDE.md）。
  */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -14,46 +15,17 @@ import { AUTHORING_ROOT } from "./paths.ts";
 
 declare const __PCRAFT_TOOLS_META__: string | undefined;
 
-/** tools が対応する印刷屋プラグインの版（manifest.json の version） */
-export const SUPPORTED_PLUGIN_VERSIONS = ["6"];
-/** tools が対応する印刷屋の authoring API の版（print-craft の src/authoring/api.ts の AUTHORING_API_VERSION） */
-export const SUPPORTED_API_VERSION = 1;
+/** 印刷屋プラグインの kintone のプラグイン ID（PUBKEY の SHA-256 から。plugin-zip.ts の pluginIdOf。5 変種とも同じ鍵） */
+export const PRINT_CRAFT_PLUGIN_ID = "lcapkanpjdabgphknkabojmcfhonhkhp";
+/** tools が扱う印刷屋の版の下限（manifest.json の version。authoring API を同梱したのが Ver.6） */
+export const MIN_PLUGIN_VERSION = 6;
+/** tools が対応する印刷屋の authoring API の版（print-craft の src/authoring/api.ts の AUTHORING_API_VERSION。2 = Ver.7 で webFontPageCss を追加） */
+export const SUPPORTED_API_VERSIONS: readonly number[] = [1, 2];
 
-/** 印刷屋の 1 リリース（5 変種とも同じファイル）の中身の SHA-256 */
-export interface KnownRelease {
-  /** desktop_js/KintoneFormulaPCraft.min.js */
-  engine: string;
-  /** config_js/print-craft-authoring-api.js */
-  api: string;
-  /** desktop_js/bignumber.min.js */
-  bignumber: string;
-  /** desktop_js/moment-timezone-with-data.min.js */
-  momentTimezone: string;
-  note?: string;
+/** 印刷屋の版として扱えるか（整数で MIN_PLUGIN_VERSION 以上） */
+export function isSupportedPluginVersion(version: string): boolean {
+  return /^[1-9]\d{0,5}$/.test(version) && Number(version) >= MIN_PLUGIN_VERSION;
 }
-
-/** 版ごとの既知のリリース（印刷屋の修正版が出たら tuple を足す。`node -e` で zip から計算） */
-export const KNOWN_PLUGIN_RELEASES: Record<string, KnownRelease[]> = {
-  "6": [
-    {
-      engine: "8a5f78f78f51e04b5daaa435b0e8a8c0ea4d08d388d84d279f0cd1b50a857140",
-      api: "59c27e480f419b9d3480c24426ae93dadf0ce7c46c940bcf7457d8252b26dea3",
-      bignumber: "eca7c1c71fee589d7b5c58bd3df3f31d56fbd234821ed8c60ec4e2050ec50129",
-      momentTimezone: "31b9bea01ffef2e8f311eafdbbcdd944a12194fa216d8f54489e15a7188d47dc",
-      note: "Ver.6（2026-10-04 の PR #2 マージ時点。print-craft 73097d2。描画前の掃除が入る前）"
-    },
-    {
-      engine: "8a5f78f78f51e04b5daaa435b0e8a8c0ea4d08d388d84d279f0cd1b50a857140",
-      api: "3c029ba0bb2b2c869de9dc074e588cf3e5cae8caac91a83e3da196ef2aeee673",
-      bignumber: "eca7c1c71fee589d7b5c58bd3df3f31d56fbd234821ed8c60ec4e2050ec50129",
-      momentTimezone: "31b9bea01ffef2e8f311eafdbbcdd944a12194fa216d8f54489e15a7188d47dc",
-      note: "Ver.6（2026-10-04〜05 描画前の掃除 sanitize.ts と共通の設定「外部参照」externalRefs、load.ts の derivedOf（無効な行と空の計算式は formula / usedFields を持たない）を入れた後。API に sanitizeReportCss / sanitizeReportNodes / isAllowedReportUrl / EXTERNAL_REFS / externalRefsOf を追加。途中の API 9cc7daf8… / b22564da… / 6c2e447d… は配っていないので載せない）"
-    }
-  ]
-};
-
-/** 旧名（計算式エンジンだけの一覧） */
-export const KNOWN_ENGINE_SHA256: Record<string, string[]> = Object.fromEntries(Object.entries(KNOWN_PLUGIN_RELEASES).map(([v, rs]) => [v, rs.map((r) => r.engine)]));
 
 /** tools が使う authoring API のキーと型（契約。zip の API がこの形でなければ止める。1-10 レビュー MAJOR 8） */
 export const REQUIRED_API: Record<string, "function" | "object" | "string" | "number"> = {
@@ -69,8 +41,11 @@ export const REQUIRED_API: Record<string, "function" | "object" | "string" | "nu
 
 export interface ToolsMeta {
   toolsVersion: string;
-  supportedPluginVersions: string[];
-  supportedApiVersion: number;
+  /** 扱う印刷屋の zip のプラグイン ID */
+  pluginId: string;
+  /** 扱う印刷屋の版の下限 */
+  minPluginVersion: number;
+  supportedApiVersions: number[];
   /** tools のリポジトリ（print-craft-authoring）の commit（作業ツリーに変更があれば +dirty） */
   commit: string;
   builtAt: string;
@@ -103,7 +78,7 @@ export function gitCommit(dir: string): string {
 
 export function devMeta(): ToolsMeta {
   const pkg = JSON.parse(readFileSync(path.join(AUTHORING_ROOT, "package.json"), "utf8")) as { version: string };
-  return { toolsVersion: pkg.version, supportedPluginVersions: SUPPORTED_PLUGIN_VERSIONS, supportedApiVersion: SUPPORTED_API_VERSION, commit: gitCommit(AUTHORING_ROOT), builtAt: "", mode: "dev" };
+  return { toolsVersion: pkg.version, pluginId: PRINT_CRAFT_PLUGIN_ID, minPluginVersion: MIN_PLUGIN_VERSION, supportedApiVersions: [...SUPPORTED_API_VERSIONS], commit: gitCommit(AUTHORING_ROOT), builtAt: "", mode: "dev" };
 }
 
 export function toolsMeta(): ToolsMeta {
