@@ -17,7 +17,7 @@ Projects/
 
 ## 構成
 
-- `src/cli.ts` … `pcraft-authoring <command>`（version / fields / record / pull / normalize / preview / diff / buttons。pull は API ラボのプラグインの設定の GET。fields と record の `--summary` は取得済みのファイルの要約で通信しない。record の要約は値を出さない）。読むのは cwd の中、書くのは fields/ records/ settings/ temp/ out/ の下だけ（`src/safe-path.ts`）。`.env` / policy / zip の場所は固定
+- `src/cli.ts` … `pcraft-authoring <command>`（version / fields / record / pull / normalize / preview / diff / buttons。pull は API ラボのプラグインの設定の GET。fields と record の `--summary` は取得済みのファイルの要約で通信しない。record の要約は値を出さない）。読むのは cwd の中、書くのは fields/ records/ settings/ temp/ out/ kintone/ の下だけ（`src/safe-path.ts`。kintone/ の下は `src/permission.ts` の許可も）。`.env` / policy / zip の場所は固定
 - `src/plugin-zip.ts` … 印刷屋の zip（contents.zip の 2 層）を Node の zlib だけで読む。大きさ・entry 数・展開後の上限、CRC-32、名前の一致、重複を検査
 - `src/engine.ts` … zip のエンジンと authoring API を happy-dom + スタブで動かす。照合（プラグイン ID、印刷屋の版、API の版と pluginVersion、API のキーと型）
 - `src/kintone-url.ts` … 接続先の検証（`*.cybozu.com` / `*.kintone.com` / `*.cybozu.cn`、ユーザー情報・パス・ポート無し）

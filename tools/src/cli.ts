@@ -44,7 +44,8 @@ const USAGE = `使い方: npx @rex0220/print-craft-authoring-tools <command> [op
   pull --app N [--preview] [--guest <spaceId>] [--out settings/<file>] [--force] [--plugin-id <ID>]
       アプリに入っている印刷屋の今の設定を取って、設定画面の「設定をダウンロード」と同じ封筒形式で settings/APP<N>-<アプリ名>.json に保存（GET だけ）。
       kintone の API ラボ「アプリに追加されているプラグインの設定情報を取得する」を有効にした環境だけ。権限は運用中の設定がレコード閲覧（API トークンでも可）、
-      --preview（動作テスト環境 = 保存して未反映の設定）がアプリ管理。プラグイン ID は印刷屋の zip から。既にあるファイルは --force で上書き。
+      --preview（動作テスト環境 = 保存して未反映の設定）がアプリ管理。プラグイン ID は印刷屋の zip から。既にあるファイルは --force で上書き
+      （--force は settings/ に置くときだけ。environments.json があるときはダウンロードと同じ日時の名前で新しく置き、上書きしない）。
   record --app N --id R [--fields-from <settings.json>] [--guest <spaceId>] [--out records/<file>]
       レコードを records/<N>-<R>.json に保存。--fields-from で設定が使う項目だけ残す。
   record --app N --id R --summary
@@ -402,6 +403,8 @@ async function pull(args: string[]): Promise<number> {
   const ctx = context(args);
   const app = appOf(args, ctx);
   noOutInWorkspace(args, ctx);
+  // environments.json があるときはダウンロード / pull のファイル（新しい名前で置くだけ。上書きしない）なので --force は使えない（Codex 再々レビュー MINOR 4）
+  if (ctx.ws && flag(args, "force")) throw new UsageError("environments.json があるときの pull は、ダウンロードと同じ日時の名前で新しく置く（ダウンロード / pull のファイルは上書きしない）ので --force は使えない");
   const guestSpaceId = intOption(args, "guest", false);
   const preview = flag(args, "preview");
   const outArg = option(args, "out");
@@ -423,9 +426,10 @@ async function pull(args: string[]): Promise<number> {
   const out = ctx.ws
     ? resolveWrite(path.join(appDirFor(W.root, ctx.env!, app, result.appName), snapshotNameOf(app)), WRITE_ROOTS.kintone)
     : resolveWrite(outArg ?? path.join("settings", defaultPullName(result.appName, app)), WRITE_ROOTS.settings);
+  if (existsSync(out) && ctx.ws) throw new InputError(`${shown(out)} は既にある（同じ日時の名前）。少し待ってからやり直す（ダウンロード / pull のファイルは上書きしない）`);
   if (existsSync(out) && !flag(args, "force")) throw new InputError(`${shown(out)} は既にある。上書きするなら --force（上書きの前の内容は git の差分で確かめる）、別の名前なら --out settings/<ファイル>`);
   allow(out, ctx.ws ? "snapshot" : "settings");
-  writeJson(out, result.envelope, ctx.ws ? WRITE_ROOTS.kintone : WRITE_ROOTS.settings, ctx.ws ? "snapshot" : "settings", { exclusive: ctx.ws ? true : !flag(args, "force") });
+  writeJson(out, result.envelope, ctx.ws ? WRITE_ROOTS.kintone : WRITE_ROOTS.settings, ctx.ws ? "snapshot" : "settings", { exclusive: !!ctx.ws || !flag(args, "force") });
   console.log(`pull: アプリ ${app} ${result.appName}（${preview ? "動作テスト環境" : "運用中"}の設定、revision ${result.revision}、保存形式 ${result.format}）を${authLabel}で ${c.baseUrl} から取得 → ${shown(out)}`);
   console.log(listButtons(result.envelope, { file: shown(out) }));
   return 0;
@@ -471,8 +475,9 @@ async function take(args: string[]): Promise<number> {
   const ctx = context(args);
   if (!ctx.ws) throw new UsageError("take は environments.json があるときだけ使える（inbox/ のダウンロードをアプリのフォルダーへ移す）");
   const r = takeInbox(W.root, ctx.ws, args.includes("--env") ? ctx.env!.name : undefined);
-  for (const m of r.moved) console.log(`${m.file} → ${m.to}${m.same ? "（同じものが既にあったので inbox から消した）" : ""}`);
+  for (const m of r.moved) console.log(`${m.file} → ${m.to}${m.leftInInbox ? "（置いたが inbox に残った）" : m.same ? "（同じものが既にあったので inbox から消した）" : ""}`);
   for (const s of r.skipped) console.error(`移さない: ${s.file}（${s.reason}）`);
+  for (const w of r.warnings) console.error(`注意: ${w}`);
   if (!r.moved.length && !r.skipped.length) console.log(`${INBOX}/ に設定のファイルが無い`);
   return r.skipped.length ? 1 : 0;
 }

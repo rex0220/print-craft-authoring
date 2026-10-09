@@ -10,15 +10,29 @@ import path from "node:path";
 import { readJsonLimited } from "./normalize.ts";
 import { realResolve, resolveRead, resolveWrite, WRITE_ROOTS } from "../safe-path.ts";
 import { assertChangeAllowed, PermissionError } from "../permission.ts";
-import { FileExistsError, writeNewFile } from "../commit-file.ts";
+import { FileExistsError, withRetry, writeNewFile } from "../commit-file.ts";
 import { appDirFor, INBOX, SNAPSHOT_RE, type EnvironmentDef, type Workspace } from "../workspace.ts";
 
 /** 印刷屋の設定の封筒の pluginID（印刷屋の PLUGIN_ID_NAME と同じ。engine の api.pluginId で確かめている） */
 export const PRINT_CRAFT_PLUGIN_ID = "rex0220 Print craft plugin";
 
 export interface TakeResult {
-  moved: Array<{ file: string; to: string; same: boolean }>;
+  /** leftInInbox: 行き先には置いたが inbox の元を消せなかった（消してよい。次の take でも「同じもの」として消す） */
+  moved: Array<{ file: string; to: string; same: boolean; leftInInbox?: boolean }>;
   skipped: Array<{ file: string; reason: string }>;
+  /** 置いたが一時ファイルを消せなかった、など（移したことは変わらない） */
+  warnings: string[];
+}
+
+/** inbox の元を消す（Windows の EPERM / EBUSY は短く待ってやり直す）。消せなければ false（行き先には置いてある） */
+function removeSource(src: string, warnings: string[], rel: string): boolean {
+  try {
+    withRetry(() => unlinkSync(src));
+    return true;
+  } catch (e) {
+    warnings.push(`${rel} は行き先に置いたが、inbox から消せなかった（${(e as NodeJS.ErrnoException).code ?? (e as Error).message}）。消してよい`);
+    return false;
+  }
 }
 
 function envFor(ws: Workspace, appId: number, envName?: string): EnvironmentDef | string {
@@ -34,7 +48,7 @@ function envFor(ws: Workspace, appId: number, envName?: string): EnvironmentDef 
 export function takeInbox(cwdIn: string, ws: Workspace, envName?: string): TakeResult {
   // 作業フォルダーを最初に実際のパスに直す（移した先は実際のパスなので、相対パスの表示がずれないように。macOS の /var → /private/var）
   const cwd = realResolve(".", cwdIn);
-  const result: TakeResult = { moved: [], skipped: [] };
+  const result: TakeResult = { moved: [], skipped: [], warnings: [] };
   const inbox = path.join(cwd, INBOX);
   if (!existsSync(inbox)) return result;
   for (const name of readdirSync(inbox).filter((n) => n.toLowerCase().endsWith(".json")).sort()) {
@@ -79,8 +93,8 @@ export function takeInbox(cwdIn: string, ws: Workspace, envName?: string): TakeR
         result.skipped.push({ file: rel, reason: `行き先に同じ名前の別の中身がある: ${path.relative(cwd, dest)}` });
         continue;
       }
-      unlinkSync(src);
-      result.moved.push({ file: rel, to: path.relative(cwd, dest), same: true });
+      const removed = removeSource(src, result.warnings, rel);
+      result.moved.push({ file: rel, to: path.relative(cwd, dest), same: true, ...(removed ? {} : { leftInInbox: true }) });
       continue;
     }
     // 本番は新しい名前のダウンロードを足すことだけ、未分類は何も変えない（permission.ts）。確定の直前にも確かめ直し、
@@ -88,10 +102,11 @@ export function takeInbox(cwdIn: string, ws: Workspace, envName?: string): TakeR
     try {
       assertChangeAllowed(cwd, dest, "snapshot");
       mkdirSync(path.dirname(dest), { recursive: true });
-      writeNewFile(dest, text, () => {
+      const { cleanup } = writeNewFile(dest, text, () => {
         if (resolveWrite(path.join(dir, name), WRITE_ROOTS.kintone, cwd) !== dest) throw new PermissionError(`書く先のフォルダーが途中で変わった（symlink など）: ${path.relative(cwd, dest)}`);
         assertChangeAllowed(cwd, dest, "snapshot");
       });
+      for (const c of cleanup) result.warnings.push(`${rel} は行き先に置いたが、一時ファイルを消せなかった（${c}）。${path.relative(cwd, path.dirname(dest))} の .${name}.*.tmp を消してよい`);
     } catch (e) {
       if (e instanceof PermissionError) {
         result.skipped.push({ file: rel, reason: e.message });
@@ -103,8 +118,8 @@ export function takeInbox(cwdIn: string, ws: Workspace, envName?: string): TakeR
       }
       throw e;
     }
-    unlinkSync(src);
-    result.moved.push({ file: rel, to: path.relative(cwd, dest), same: false });
+    const removed = removeSource(src, result.warnings, rel);
+    result.moved.push({ file: rel, to: path.relative(cwd, dest), same: false, ...(removed ? {} : { leftInInbox: true }) });
   }
   return result;
 }

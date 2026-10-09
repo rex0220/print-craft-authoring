@@ -4,10 +4,13 @@
  *     作られたファイルも上書きしない。ハードリンクが使えないファイルシステムでは COPYFILE_EXCL のコピー）→ 一時ファイルを消す
  *   - ロック（acquireLock）: 確定先の隣の .<名前>.pcraft-lock に所有者の印（乱数）を書く（wx。symlink があれば失敗する）。
  *     普通のファイルでなければ取らない。60 秒より古いものは、固有の名前に付け替えて（原子的に自分のものにして）から古いかを確かめて消す。
- *     付け替えの間に新しいロックに替わっていたら戻す。外すときと確定の直前は、自分の印のロックかを確かめる（長く止まった後に、他の保存が取り直したロックを消さない・上書きしない）
- *   - 後始末（cleanupAll）: 一時ファイルとロックの片付けは、1 つずつ別に試す（1 つの失敗で残りを飛ばさない）。Windows の EPERM / EBUSY は短く待って 3 回まで。
+ *     付け替えの間に新しいロックに替わっていたら戻す（戻す先に別のロックがあれば戻さない。それ以外で戻せなければ、付け替えたファイルを残して止める）。
+ *     外すときと確定の直前は、自分の印のロックかを確かめる（長く止まった後に、他の保存が取り直したロックを消さない・上書きしない）
+ *   - 後始末（cleanupAll）: 一時ファイルとロックの片付けは、1 つずつ別に試す（1 つの失敗で残りを飛ばさない）。
  *     確定の後の片付けの失敗は、確定の失敗にしない（呼ぶ側が警告として返す）
- * 同じ中核を使う書き込みどうしだけがロックに従う（AI の直接の Write はプラグインのフックで止める）。
+ *   - Windows の EPERM / EBUSY（ウイルス対策ソフトなどが一時的に開いている）は、消す・付け替える・戻すときに短く待って 3 回まで（withRetry）
+ * 同じ中核を使う書き込みどうしだけがロックに従う協調のロック（AI の直接の Write はプラグインのフックで止める）。確定は数ミリ秒なので、
+ * 「確かめてから確定・外すまで」の短い間に、60 秒より長く止まった別の保存がロックを取り直す競合は扱わない（Codex 再々レビュー MINOR 2。確定の直前の owned() で気づく範囲だけ）
  */
 import { randomBytes } from "node:crypto";
 import { constants, copyFileSync, linkSync, lstatSync, readFileSync, renameSync, rmSync, writeFileSync, type Stats } from "node:fs";
@@ -27,23 +30,30 @@ function sleepSync(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
+/** EPERM / EBUSY なら短く待ってやり直す（tries 回まで）。それ以外の失敗はそのまま投げる */
+export function withRetry<T>(fn: () => T, tries = 3): T {
+  for (let i = 1; ; i++) {
+    try {
+      return fn();
+    } catch (e) {
+      const code = errCode(e);
+      if (i < tries && (code === "EPERM" || code === "EBUSY")) {
+        sleepSync(20 * i);
+        continue;
+      }
+      throw e;
+    }
+  }
+}
+
 /** 片付けを 1 つずつ試し、失敗の文を返す（一方の失敗で他方を飛ばさない。EPERM / EBUSY は短く待ってやり直す） */
 export function cleanupAll(steps: Array<() => void>, tries = 3): string[] {
   const errors: string[] = [];
   for (const step of steps) {
-    for (let i = 1; ; i++) {
-      try {
-        step();
-        break;
-      } catch (e) {
-        const code = errCode(e);
-        if (i < tries && (code === "EPERM" || code === "EBUSY")) {
-          sleepSync(20 * i);
-          continue;
-        }
-        errors.push(e instanceof Error ? e.message : String(e));
-        break;
-      }
+    try {
+      withRetry(step, tries);
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e));
     }
   }
   return errors;
@@ -54,10 +64,10 @@ export function tempPathFor(target: string): string {
   return path.join(path.dirname(target), `.${path.basename(target)}.${rand()}.tmp`);
 }
 
-/** 一時ファイルを新しい名前で確定する（同じ名前があれば FileExistsError。上書きしない） */
-export function placeNew(tmp: string, target: string): void {
+/** 一時ファイルを新しい名前で確定する（同じ名前があれば FileExistsError。上書きしない）。link は試験用（ハードリンクが使えない場合を作る） */
+export function placeNew(tmp: string, target: string, link: (from: string, to: string) => void = linkSync): void {
   try {
-    linkSync(tmp, target);
+    link(tmp, target);
     return;
   } catch (e) {
     const code = errCode(e);
@@ -119,8 +129,14 @@ function lstatOrNull(p: string): Stats | null {
   }
 }
 
+/** 試験用: 古いロックを付け替える直前・戻す直前に呼ぶ（その間に替わる場合を作る） */
+export interface LockTestHooks {
+  beforeClaim?: () => void;
+  beforeRestore?: () => void;
+}
+
 /** 確定先のロックを取る。取れなければ LockBusyError */
-export function acquireLock(target: string, staleMs = LOCK_STALE_MS): Lock {
+export function acquireLock(target: string, staleMs = LOCK_STALE_MS, hooks: LockTestHooks = {}): Lock {
   const file = lockPathFor(target);
   const token = randomBytes(16).toString("hex");
   const busy = (why = "同じファイルへの別の保存が進行中。少し待ってからやり直す"): LockBusyError => new LockBusyError(why);
@@ -141,26 +157,28 @@ export function acquireLock(target: string, staleMs = LOCK_STALE_MS): Lock {
     if (st) {
       // 古いロック: 固有の名前に付け替えて自分のものにしてから、まだ古いかを確かめる
       const aside = `${file}.${rand()}.stale`;
+      hooks.beforeClaim?.();
       try {
-        renameSync(file, aside);
+        withRetry(() => renameSync(file, aside));
       } catch (e) {
         if (errCode(e) !== "ENOENT") throw e;
       }
       const moved = lstatOrNull(aside);
       if (moved) {
-        if (!moved.isFile() || !isStale(moved)) {
-          // 付け替えの間に新しいロックに替わっていた → 戻す（戻せなければ、もう別のロックがある）
-          if (moved.isFile()) {
-            try {
-              linkSync(aside, file);
-            } catch {
-              // 別のロックがある
-            }
+        if (!moved.isFile()) throw busy(`ロックのファイルが普通のファイルでない: ${path.basename(aside)}（利用者が確かめて消す）`);
+        if (!isStale(moved)) {
+          // 付け替えの間に新しいロックに替わっていた → 戻す。戻す先に別のロックがあれば戻さない（付け替えたロックの持ち主は確定の直前の owned() で気づく）。
+          // それ以外の理由で戻せなければ、付け替えたファイルを消さずに止める（持ち主の印を失わない）
+          hooks.beforeRestore?.();
+          try {
+            withRetry(() => placeNew(aside, file));
+          } catch (e) {
+            if (!(e instanceof FileExistsError)) throw busy(`新しいロックを戻せなかった（${errCode(e) ?? (e as Error).message}）: ${path.basename(aside)} を確かめて ${path.basename(file)} に戻すか消す`);
           }
-          rmSync(aside, { force: true });
+          cleanupAll([() => rmSync(aside, { force: true })]);
           throw busy();
         }
-        rmSync(aside, { force: true });
+        cleanupAll([() => rmSync(aside, { force: true })]);
       }
     }
     if (!tryCreate()) throw busy();
@@ -177,7 +195,7 @@ export function acquireLock(target: string, staleMs = LOCK_STALE_MS): Lock {
     owned,
     release: () => {
       if (!owned()) return false;
-      rmSync(file, { force: true });
+      withRetry(() => rmSync(file, { force: true }));
       return true;
     }
   };

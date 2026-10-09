@@ -25,7 +25,7 @@ import { WRITE_ROOTS, resolveRead, resolveWrite } from "../safe-path.ts";
 import { assertChangeAllowed } from "../permission.ts";
 import { SNAPSHOT_RE, appFolderOfFile } from "../workspace.ts";
 import { normalizeSettings, readFieldsFile } from "./normalize.ts";
-import { FileExistsError, LockBusyError, acquireLock, cleanupAll, placeNew, tempPathFor, type Lock } from "../commit-file.ts";
+import { FileExistsError, LockBusyError, acquireLock, cleanupAll, placeNew, tempPathFor, withRetry, type Lock } from "../commit-file.ts";
 
 export type SaveStatus = "ok" | "invalid" | "conflict" | "denied";
 
@@ -49,6 +49,8 @@ export interface SaveContext {
   policy: Policy;
   /** iframe の同一オリジンの判定に使う接続先（検証済み） */
   baseUrl?: string;
+  /** 試験用: 確定の直後（片付けの前）に呼ぶ。print-craft MCP と CLI は渡さない */
+  afterPlace?: () => void;
 }
 
 /** 入力（content / replacement）の上限（バイト） */
@@ -86,23 +88,26 @@ function commit(ctx: SaveContext, target: string, text: string, mode: "new" | "r
   let lock: Lock | undefined;
   let digest: string | undefined;
   let failure: unknown;
-  const sameTarget = (): void => {
+  // 書く先（symlink の差し替えを含む）、role と操作 × 場所（environments.json を読み直す）、ダウンロードのファイル
+  const checkTarget = (): void => {
     if (resolveWrite(rel(ctx.root, target), WRITE_ROOTS.settings, ctx.root) !== target) throw new SaveDenied("書く先のフォルダーが途中で変わった（symlink など）");
-  };
-  try {
-    sameTarget(); // 一時ファイルを書く前にも（差し替えられたフォルダーに書かない）
-    writeFileSync(tmp, text, { encoding: "utf8", flag: "wx" });
-    lock = acquireLock(target);
-    // 確定の直前にもう一度: 書ける場所（symlink の差し替えを含む）、role と操作 × 場所、ダウンロードのファイル、digest / 無いこと
-    sameTarget();
     assertChangeAllowed(ctx.root, target, "settings");
     if (SNAPSHOT_RE.test(path.basename(target))) throw new SaveDenied("ダウンロード / pull のファイルは書き換えない。edit で -edit.json に写して直す");
+  };
+  try {
+    // 一時ファイルとロックを作る前にも（normalize の間に本番に変わったフォルダー・差し替えられたフォルダーに何も作らない。Codex 再々レビュー MAJOR 1）
+    checkTarget();
+    writeFileSync(tmp, text, { encoding: "utf8", flag: "wx" });
+    lock = acquireLock(target);
+    // 確定の直前にもう一度。digest / 無いことも
+    checkTarget();
     recheck();
     // 長く止まっている間に、古いとみなされて他の保存にロックを取られていたら確定しない
     if (!lock.owned()) throw new ConflictError("ロックを失った（保存が 60 秒より長く止まった）。pcraft_buttons で読み直してやり直す");
-    if (mode === "new") placeNew(tmp, target);
-    else renameSync(tmp, target);
+    if (mode === "new") withRetry(() => placeNew(tmp, target));
+    else withRetry(() => renameSync(tmp, target));
     digest = digestOf(text);
+    ctx.afterPlace?.();
   } catch (e) {
     failure = e;
   }

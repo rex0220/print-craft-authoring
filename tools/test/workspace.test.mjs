@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -147,6 +147,40 @@ test("take: inbox のダウンロードを、封筒の appId と apps からア�
     assert.deepEqual(takeInbox(work, ws).moved.map((m) => m.same), [true]);
     writeFileSync(path.join(work, "inbox", dl), text.replace("見積書を PDF", "別の説明"));
     assert.match(takeInbox(work, ws).skipped.find((s) => s.file.endsWith(dl)).reason, /同じ名前の別の中身がある/);
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test("take: 行き先に置いた後に inbox の元を消せなくても、置いたことを返す（leftInInbox と注意。Codex 再々レビュー MINOR 3）", { skip: process.platform === "win32" || process.getuid?.() === 0 }, async () => {
+  const work = makeWorkspace(WS3);
+  const inbox = path.join(work, "inbox");
+  try {
+    const ws = parseWorkspace(JSON.stringify(WS3));
+    const dl = "rex0220-print-craft-app3740-20261005-125115.json";
+    writeFileSync(path.join(inbox, dl), await snapshotText(3740));
+    chmodSync(inbox, 0o555);
+    const r = takeInbox(work, ws);
+    assert.deepEqual(r.moved.map((m) => [m.same, m.leftInInbox]), [[false, true]]);
+    assert.ok(existsSync(path.join(work, "kintone", "x.cybozu.com", "3740-見積書(印刷屋)", dl)), "行き先には置いた");
+    assert.match(r.warnings.join("\n"), /行き先に置いたが、inbox から消せなかった/);
+    const again = takeInbox(work, ws);
+    assert.deepEqual(again.moved.map((m) => [m.same, m.leftInInbox]), [[true, true]], "同じものの経路も消せなければそう返す");
+    chmodSync(inbox, 0o755);
+    assert.deepEqual(takeInbox(work, ws).moved.map((m) => [m.same, m.leftInInbox]), [[true, undefined]], "次の take で消す");
+    assert.deepEqual(readdirSync(inbox), []);
+  } finally {
+    chmodSync(inbox, 0o755);
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test("CLI: environments.json があるときの pull は --force を使えない（ダウンロード / pull のファイルは上書きしない。通信の前に止まる）", () => {
+  const work = makeWorkspace(WS1);
+  try {
+    const r = run(["pull", "--app", "見積書", "--force"], work);
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /--force は使えない/);
   } finally {
     rmSync(work, { recursive: true, force: true });
   }

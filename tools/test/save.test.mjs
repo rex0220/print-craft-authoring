@@ -1,7 +1,7 @@
 /** 保存の約束（段階 0-2 の段 5。print-craft-authoring-mcp の実装案 5.3。pcraft_save_settings / pcraft_update_button の本体） */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { loadEngine } from "./helpers.mjs";
@@ -237,6 +237,55 @@ test("確かめてから確定までの間に、書く先のフォルダーが s
     assert.match(r.message, /途中で変わった/);
     assert.deepEqual(readdirSync(path.join(root, "temp")), [], "差し替えた先に何も書かない（一時ファイルも残さない）");
   } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+const NO_CHMOD = process.platform === "win32" || process.getuid?.() === 0;
+const DEV_ENVS = { environments: { dev: { baseUrl: "https://dev-x.cybozu.com", role: "development" } } };
+
+test("normalize の間に本番に変わったフォルダーには、一時ファイルもロックも作らない（denied。Codex 再々レビュー MAJOR 1）", { skip: NO_CHMOD }, async () => {
+  const root = makeWork(DEV_ENVS);
+  const dir = path.join(root, "kintone", "dev-x.cybozu.com", "3740-見積書");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, "fields.json"), JSON.stringify(FIELDS_FILE));
+  const toProd = () => {
+    writeFileSync(path.join(root, "environments.json"), JSON.stringify({ environments: { dev: { ...DEV_ENVS.environments.dev, role: "production" } } }));
+    chmodSync(dir, 0o555); // 先に一時ファイルかロックを作ろうとすれば、本番の拒否でなく書き込みの失敗になる
+  };
+  try {
+    const content = JSON.stringify(aiSettings());
+    const saved = await saveNewSettings({ root, engine, policy }, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", content, expectedAbsent: true });
+    assert.equal(saved.status, "ok", saved.message);
+    const r = await saveNewSettings({ root, engine: racing(toProd), policy }, { path: "kintone/dev-x.cybozu.com/3740-見積書/b.json", content, expectedAbsent: true });
+    assert.equal(r.status, "denied");
+    assert.match(r.message, /本番（role: production）/);
+    chmodSync(dir, 0o755);
+    writeFileSync(path.join(root, "environments.json"), JSON.stringify(DEV_ENVS));
+    const u = await updateButton({ root, engine: racing(toProd), policy }, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", button: "見積書", expectedDigest: saved.digest, replacement: JSON.stringify({ ...aiSettings().pluginInfos[0], desc: "変えた" }) });
+    assert.equal(u.status, "denied");
+    assert.match(u.message, /本番（role: production）/);
+    chmodSync(dir, 0o755);
+    assert.deepEqual(readdirSync(dir).filter((n) => n.startsWith(".")), [], "一時ファイルもロックも無い");
+    assert.equal(digestOf(readFileSync(path.join(dir, "a.json"))), saved.digest);
+  } finally {
+    chmodSync(dir, 0o755);
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("確定の後に一時ファイル・ロックを消せなくても ok（確定している）。cleanup と message で伝える（Codex 再レビュー MAJOR 4）", { skip: NO_CHMOD }, async () => {
+  const root = makeWork();
+  const dir = path.join(root, "settings");
+  try {
+    const r = await saveNewSettings({ root, engine, policy, afterPlace: () => chmodSync(dir, 0o555) }, { path: "settings/見積書.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json", expectedAbsent: true });
+    chmodSync(dir, 0o755);
+    assert.equal(r.status, "ok");
+    assert.equal(r.digest, digestOf(readFileSync(path.join(dir, "見積書.json"))), "確定したファイル");
+    assert.equal(r.cleanup.length, 2, "ロックと一時ファイルの両方を試した（1 つの失敗で残りを飛ばさない）");
+    assert.match(r.message, /確定したが、一時ファイルかロックを消せなかった/);
+  } finally {
+    chmodSync(dir, 0o755);
     rmSync(root, { recursive: true, force: true });
   }
 });
