@@ -22,6 +22,7 @@ Projects/
 - `src/engine.ts` … zip のエンジンと authoring API を happy-dom + スタブで動かす。照合（プラグイン ID、印刷屋の版、API の版と pluginVersion、API のキーと型）
 - `src/kintone-url.ts` … 接続先の検証（`*.cybozu.com` / `*.kintone.com` / `*.cybozu.cn`、ユーザー情報・パス・ポート無し）
 - `src/context.ts` … 作業の文脈（作業フォルダーの実際のパスと環境変数）。CLI は起動時に一度だけ作り、中核には引数で渡す（print-craft MCP も同じ中核を呼ぶ）
+- `src/core.ts` … 共通の中核の入口（npm の `@rex0220/print-craft-authoring-tools/core`。print-craft MCP が使う。2026-10-09 Takashi「B」: 別のパッケージにしない。版は CLI と同じ）。`scripts/build.mjs` が `dist/core.mjs`（ESM。happy-dom は依存のまま）と `dist/types/`（型。印刷屋の型は代わりの型 `scripts/types-stub/` に置き換える。型の検査は本物の型で行う）を作る。CLI と `dev-paths.ts` は出さない。出す名前を消すときは `CORE_API_VERSION` を上げる
 - `src/paths.ts` / `src/dev-paths.ts` … tools の置き場所（環境変数を読まない。中核から使う）/ 開発とビルドのときだけ使う場所の探し方（隣の print-craft、kit、rexgrid。`PCRAFT_PRINT_CRAFT_ROOT` などの環境変数を読む。import するのは `cli.ts` と scripts/・試験だけ）
 - `src/commit-file.ts` … ファイルの確定（新しいファイルはハードリンクで、上書きしない）、所有者の印付きのロック、片付け（save / pull / take が使う）
 - `src/permission.ts` … `kintone/` の下を変える前の許可（`environments.json` の `role`。本番は読み取りだけ、未分類は何も変えない）
@@ -30,7 +31,7 @@ Projects/
 - `src/commands/` … 各コマンド。`save.ts` は保存の約束（新しい設定の保存、ボタン 1 つの差し替え。print-craft MCP の保存のツールの本体）、`records.ts` はレコードを数件・形だけで見る（print-craft MCP の kintone_list_records）。`src/normalize/` … 派生値の生成、検査（HTML / CSS の allowlist、policy、大きさ）、行の差分。`src/preview/` … 帳票 HTML（sandbox + CSP + DOM の無害化）
 - `src/meta.ts` … tools の版、扱う印刷屋（プラグイン ID `PRINT_CRAFT_PLUGIN_ID`、版の下限 `MIN_PLUGIN_VERSION`）、API の版（`SUPPORTED_API_VERSIONS`）、API の契約（`REQUIRED_API`）
 - `scripts/vendor.mjs` … moment 2.24.0 を CDN から `vendor/` に取る（`vendor/moment.json` の SHA-256 と照合）
-- `scripts/build.mjs` … esbuild で `dist/cli.mjs`（Node 20、ESM。印刷屋 / kit のコードが入ったら失敗）
+- `scripts/build.mjs` … esbuild で `dist/cli.mjs`（Node 20、ESM。印刷屋 / kit のコードが入ったら失敗）と中核の入口 `dist/core.mjs`・型 `dist/types/`（型の検査 → 宣言 → 読み込む側の設定で使えるかを確かめる）
 - `scripts/gen-schema-manifest.mjs` … `docs/schema-manifest.json` と `docs/defaults/*.json`（API の CONFIG_SCHEMA から）
 - `scripts/gen-functions.mjs` … `functions.json`（関数の分類）。`scripts/gen-function-list.mjs` … `docs/関数一覧.md` ほか（lib の説明表 p.desc から）
 - `test/` … `node --test`（src の .ts を直接読む。`test/helpers.mjs` が fixture の zip を PCRAFT_PLUGIN_ZIP に置く）
