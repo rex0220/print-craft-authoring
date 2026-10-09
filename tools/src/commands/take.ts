@@ -9,6 +9,7 @@ import { existsSync, readdirSync, readFileSync, unlinkSync, writeFileSync, mkdir
 import path from "node:path";
 import { readJsonLimited } from "./normalize.ts";
 import { realResolve, resolveRead, resolveWrite, WRITE_ROOTS } from "../safe-path.ts";
+import { assertChangeAllowed, PermissionError } from "../permission.ts";
 import { appDirFor, INBOX, type EnvironmentDef, type Workspace } from "../workspace.ts";
 
 /** 印刷屋の設定の封筒の pluginID（印刷屋の PLUGIN_ID_NAME と同じ。engine の api.pluginId で確かめている） */
@@ -74,6 +75,14 @@ export function takeInbox(cwdIn: string, ws: Workspace, envName?: string): TakeR
       }
       unlinkSync(src);
       result.moved.push({ file: rel, to: path.relative(cwd, dest), same: true });
+      continue;
+    }
+    // 本番は新しい名前のダウンロードを足すことだけ、未分類は何も変えない（permission.ts）
+    try {
+      assertChangeAllowed(cwd, dest, "add-snapshot");
+    } catch (e) {
+      if (!(e instanceof PermissionError)) throw e;
+      result.skipped.push({ file: rel, reason: e.message });
       continue;
     }
     mkdirSync(path.dirname(dest), { recursive: true });

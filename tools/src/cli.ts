@@ -26,6 +26,7 @@ import { PolicyError } from "./normalize/policy.ts";
 import { isSupportedPluginVersion, schemaRevisionOf, toolsMeta } from "./meta.ts";
 import { PathError, WRITE_ROOTS, resolveRead as resolveReadIn, resolveWrite as resolveWriteIn, resolveWriteDir as resolveWriteDirIn } from "./safe-path.ts";
 import { createContext, type WorkContext } from "./context.ts";
+import { assertChangeAllowed, PermissionError, type ChangeKind } from "./permission.ts";
 
 const USAGE = `使い方: npx @rex0220/print-craft-authoring-tools <command> [options]
 （短い npx pcraft-authoring は使わない。npm ci の前だと npm の公開レジストリの同じ名前のパッケージを取りに行く）
@@ -87,6 +88,8 @@ const resolveRead = (target: string): string => resolveReadIn(target, W.root);
 const resolveWrite = (target: string, roots: readonly string[]): string => resolveWriteIn(target, roots, W.root);
 const resolveWriteDir = (target: string, roots: readonly string[]): string => resolveWriteDirIn(target, roots, W.root);
 const authOpt = () => ({ cwd: W.root, env: W.env });
+/** kintone/ の下を変える直前の許可（environments.json の role。permission.ts） */
+const allow = (file: string, kind: ChangeKind = "write"): void => assertChangeAllowed(W.root, file, kind);
 
 function option(args: string[], name: string): string | undefined {
   const i = args.indexOf(`--${name}`);
@@ -277,6 +280,7 @@ async function fields(args: string[]): Promise<number> {
   const out = ctx.ws
     ? resolveWrite(path.join(appDirFor(W.root, ctx.env!, app, file.appName), "fields.json"), WRITE_ROOTS.kintone)
     : resolveWrite(option(args, "out") ?? path.join("fields", `${app}.json`), WRITE_ROOTS.fields);
+  allow(out);
   writeJson(out, file);
   console.log(`${summarizeFields(file)}\n${authLabel}で ${c.baseUrl} から取得 → ${shown(out)}`);
   return 0;
@@ -306,6 +310,7 @@ async function record(args: string[]): Promise<number> {
     else keep = codes;
   }
   const { client: c, authLabel } = client(ctx);
+  allow(out);
   const file = await fetchRecord(c, { app, id, guestSpaceId, keep });
   writeJson(out, file);
   console.log(`${summarizeRecord(file)}\n${authLabel}で ${c.baseUrl} から取得 → ${shown(out)}（個人情報を含む。コミットしない）`);
@@ -324,6 +329,7 @@ async function normalize(args: string[]): Promise<number> {
     throw new UsageError(`ダウンロード / pull のファイルは書き換えない。npx @rex0220/print-craft-authoring-tools edit ${shown(settingsFile)} で -edit.json に写してから直す（検査だけなら --dry-run）`);
   }
   const out = write ? resolveWrite(option(args, "out") ?? settingsFile, WRITE_ROOTS.settings) : undefined;
+  if (out) allow(out);
   const fieldsData = await readFieldsFile(fieldsFile);
   const baseUrl = trustedBaseUrl(folder);
   const engine = await engineFor();
@@ -394,6 +400,7 @@ async function pull(args: string[]): Promise<number> {
     ? resolveWrite(path.join(appDirFor(W.root, ctx.env!, app, result.appName), snapshotNameOf(app)), WRITE_ROOTS.kintone)
     : resolveWrite(outArg ?? path.join("settings", defaultPullName(result.appName, app)), WRITE_ROOTS.settings);
   if (existsSync(out) && !flag(args, "force")) throw new InputError(`${shown(out)} は既にある。上書きするなら --force（上書きの前の内容は git の差分で確かめる）、別の名前なら --out settings/<ファイル>`);
+  allow(out, existsSync(out) ? "write" : "add-snapshot");
   writeJson(out, result.envelope);
   console.log(`pull: アプリ ${app} ${result.appName}（${preview ? "動作テスト環境" : "運用中"}の設定、revision ${result.revision}、保存形式 ${result.format}）を${authLabel}で ${c.baseUrl} から取得 → ${shown(out)}`);
   console.log(listButtons(result.envelope, { file: shown(out) }));
@@ -444,6 +451,7 @@ async function edit(args: string[]): Promise<number> {
   if (existsSync(dest)) {
     console.log(`既にある（続けて直す）: ${shown(dest)}`);
   } else {
+    allow(dest);
     writeText(dest, readTextLimited(file));
     console.log(`${shown(file)} → ${shown(dest)}（ここを直す。ダウンロードのファイルは書き換えない）`);
   }
@@ -498,6 +506,7 @@ async function preview(args: string[]): Promise<number> {
   if (!result.findings.hasErrors) {
     for (const r of result.results) {
       const file = resolveWrite(path.join(outDir, r.file), WRITE_ROOTS.out);
+      allow(file);
       writeText(file, r.html);
       written.push(shown(file));
     }
@@ -567,7 +576,7 @@ main(process.argv.slice(2)).then(
     if (e instanceof UsageError || e instanceof PathError) {
       console.error(`${e.message}\n${USAGE}`);
       process.exitCode = 2;
-    } else if (e instanceof AuthError || e instanceof RestError || e instanceof NotAllowedError || e instanceof PluginZipError || e instanceof PolicyError || e instanceof InputError || e instanceof KintoneUrlError || e instanceof ButtonNotFoundError || e instanceof WorkspaceError) {
+    } else if (e instanceof AuthError || e instanceof RestError || e instanceof NotAllowedError || e instanceof PluginZipError || e instanceof PolicyError || e instanceof InputError || e instanceof KintoneUrlError || e instanceof ButtonNotFoundError || e instanceof WorkspaceError || e instanceof PermissionError) {
       console.error(e.message);
       process.exitCode = 1;
     } else {

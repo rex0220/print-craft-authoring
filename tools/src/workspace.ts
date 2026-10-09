@@ -32,8 +32,17 @@ const MAX_BYTES = 256 * 1024;
 
 export class WorkspaceError extends Error {}
 
+/**
+ * 環境の役割（段階 0-2 の段 3。print-craft-authoring-mcp の実装案 13.3、permission-table.md）。environments.json に書けるのは
+ * development / production だけ。書いていない環境は内部だけの状態 unclassified（読み取りと診断だけ。kintone/ の下を変えられない）
+ */
+export type EnvRole = "development" | "production" | "unclassified";
+export const ENV_ROLES = ["development", "production"] as const;
+
 export interface EnvironmentDef {
   name: string;
+  /** 役割（書いていなければ unclassified） */
+  role: EnvRole;
   /** 正規化した接続先（https://<サブドメイン>.cybozu.com） */
   baseUrl: string;
   /** フォルダー名に使うホスト名 */
@@ -76,7 +85,9 @@ export function parseWorkspace(text: string, where = WORKSPACE_FILE): Workspace 
   for (const [name, v] of Object.entries(envsRaw)) {
     if (!isEnvName(name)) throw new WorkspaceError(`${where}: 環境の名前は英数字と _ - の 32 文字まで: ${name}`);
     const e = obj(v, `environments.${name}`);
-    for (const k of Object.keys(e)) if (!["baseUrl", "envFile"].includes(k)) throw new WorkspaceError(`${where}: environments.${name} に使えるキーは baseUrl / envFile: ${k}`);
+    for (const k of Object.keys(e)) if (!["baseUrl", "envFile", "role"].includes(k)) throw new WorkspaceError(`${where}: environments.${name} に使えるキーは baseUrl / envFile / role: ${k}`);
+    if (e.role !== undefined && !(ENV_ROLES as readonly unknown[]).includes(e.role)) throw new WorkspaceError(`${where}: environments.${name}.role は development（開発）か production（本番）: ${String(e.role)}`);
+    const role: EnvRole = e.role === undefined ? "unclassified" : (e.role as EnvRole);
     let baseUrl: string;
     try {
       baseUrl = normalizeKintoneBaseUrl(String(e.baseUrl ?? ""));
@@ -85,7 +96,7 @@ export function parseWorkspace(text: string, where = WORKSPACE_FILE): Workspace 
     }
     const envFile = e.envFile === undefined ? ".env" : String(e.envFile).replace(/\\/g, "/");
     if (!ENV_FILE.test(envFile)) throw new WorkspaceError(`${where}: environments.${name}.envFile は .env か env/<名前>.env: ${envFile}`);
-    environments[name] = { name, baseUrl, host: new URL(baseUrl).hostname, envFile };
+    environments[name] = { name, role, baseUrl, host: new URL(baseUrl).hostname, envFile };
   }
   if (Object.keys(environments).length === 0) throw new WorkspaceError(`${where}: environments に環境が 1 つも無い`);
   const defaultEnv = root.default === undefined ? Object.keys(environments)[0] : String(root.default);
@@ -228,4 +239,15 @@ export function listAppFolder(dir: string): AppFolderList {
 /** 環境のうち、ホスト名が同じもの（構成 2 では 2 つ以上ある） */
 export function envsOfHost(ws: Workspace, host: string): EnvironmentDef[] {
   return Object.values(ws.environments).filter((e) => e.host === host);
+}
+
+/**
+ * アプリのフォルダー（kintone/<ホスト>/<番号>-…/）がどの環境のものか。ホストが 1 つの環境だけならそれ、
+ * 同じホストの環境が 2 つ以上（構成 2）なら apps でその番号を持つ環境が 1 つだけのときそれ。決まらなければ undefined
+ */
+export function envOfAppFolder(ws: Workspace, host: string, appId: number): EnvironmentDef | undefined {
+  const hits = envsOfHost(ws, host);
+  if (hits.length === 1) return hits[0];
+  const byApp = hits.filter((e) => ws.apps.some((a) => a.ids[e.name] === appId));
+  return byApp.length === 1 ? byApp[0] : undefined;
 }

@@ -18,12 +18,15 @@ const baseEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !
 const run = (args, cwd) => spawnSync(process.execPath, ["--no-warnings", CLI, ...args], { encoding: "utf8", env: { ...baseEnv, PCRAFT_PLUGIN_ZIP: PLUGIN_ZIP }, cwd });
 
 /** 構成 1（ドメインが違う）と構成 2（同じドメインでアプリが違う） */
-const WS1 = { default: "dev", environments: { dev: { baseUrl: "https://dev-x.cybozu.com", envFile: "env/dev.env" }, prod: { baseUrl: "https://x.cybozu.com", envFile: "env/prod.env" } }, apps: [{ name: "見積書", dev: 101, prod: 3740 }] };
-const WS2 = { default: "dev", environments: { dev: { baseUrl: "https://x.cybozu.com" }, prod: { baseUrl: "https://x.cybozu.com" } }, apps: [{ name: "見積書", dev: 101, prod: 3740 }] };
+const WS1 = { default: "dev", environments: { dev: { baseUrl: "https://dev-x.cybozu.com", envFile: "env/dev.env", role: "development" }, prod: { baseUrl: "https://x.cybozu.com", envFile: "env/prod.env", role: "production" } }, apps: [{ name: "見積書", dev: 101, prod: 3740 }] };
+const WS2 = { default: "dev", environments: { dev: { baseUrl: "https://x.cybozu.com", role: "development" }, prod: { baseUrl: "https://x.cybozu.com", role: "production" } }, apps: [{ name: "見積書", dev: 101, prod: 3740 }] };
+/** 開発の環境だけ（アプリ 3740 を開発で直す流れの試験） */
+const WS3 = { default: "dev", environments: { dev: { baseUrl: "https://x.cybozu.com", role: "development" } }, apps: [{ name: "見積書", dev: 3740 }] };
 
 test("environments.json: 構成 1 と構成 2 を読む。envFile の既定は .env、ホスト名はフォルダー名に", () => {
   const w1 = parseWorkspace(JSON.stringify(WS1));
-  assert.deepEqual(w1.environments.prod, { name: "prod", baseUrl: "https://x.cybozu.com", host: "x.cybozu.com", envFile: "env/prod.env" });
+  assert.deepEqual(w1.environments.prod, { name: "prod", role: "production", baseUrl: "https://x.cybozu.com", host: "x.cybozu.com", envFile: "env/prod.env" });
+  assert.equal(parseWorkspace(JSON.stringify({ environments: { only: { baseUrl: "https://a.cybozu.com" } } })).environments.only.role, "unclassified", "role が無ければ未分類（内部だけの状態）");
   assert.equal(w1.defaultEnv, "dev");
   assert.deepEqual(w1.apps, [{ name: "見積書", ids: { dev: 101, prod: 3740 } }]);
   const w2 = parseWorkspace(JSON.stringify(WS2));
@@ -38,7 +41,9 @@ test("environments.json: 形を厳しく見る（未知のキー、名前、接�
   bad({ environments: { dev: { baseUrl: "https://evil.example.com" } } }, /baseUrl が不正/);
   bad({ environments: { dev: { baseUrl: "https://a.cybozu.com", envFile: "../secrets.env" } } }, /envFile は \.env か env\/<名前>\.env/);
   bad({ environments: { dev: { baseUrl: "https://a.cybozu.com", envFile: "settings/x.env" } } }, /envFile/);
-  bad({ environments: { dev: { baseUrl: "https://a.cybozu.com", token: "x" } } }, /使えるキーは baseUrl \/ envFile/);
+  bad({ environments: { dev: { baseUrl: "https://a.cybozu.com", token: "x" } } }, /使えるキーは baseUrl \/ envFile \/ role/);
+  bad({ environments: { dev: { baseUrl: "https://a.cybozu.com", role: "unclassified" } } }, /role は development（開発）か production（本番）/);
+  bad({ environments: { dev: { baseUrl: "https://a.cybozu.com", role: "prod" } } }, /role は development/);
   bad({ default: "prod", environments: { dev: { baseUrl: "https://a.cybozu.com" } } }, /default の環境が environments に無い/);
   bad({ environments: {} }, /環境が 1 つも無い/);
   bad({ ...WS1, apps: [{ name: "見積書", dev: "101" }] }, /アプリ番号/);
@@ -133,9 +138,10 @@ test("take: inbox のダウンロードを、封筒の appId と apps からア�
     assert.match(reasons["inbox/rex0220-print-craft-app999-20261005-125115.json"], /apps に無く、環境が 2 つ以上ある/);
     assert.match(reasons["inbox/other.json"], /印刷屋の設定のファイルではない/);
     assert.match(reasons["inbox/rex0220-print-craft-app101-20261005-125115.json"], /ファイル名のアプリ 101 と封筒の appId 3740 が違う/);
-    // --env を付ければ apps に無い番号も移せる
+    // 同じホストの環境が 2 つ（構成 2）で apps に無い番号は、--env を付けても移さない（開発か本番か決まらない。--env では本番の保護を外せない。段階 0-2 の段 3）
     const r2 = takeInbox(work, ws, "dev");
-    assert.deepEqual(r2.moved.map((m) => m.to.replace(/\\/g, "/")), ["kintone/x.cybozu.com/999-見積書(印刷屋)/rex0220-print-craft-app999-20261005-125115.json"]);
+    assert.deepEqual(r2.moved, []);
+    assert.match(r2.skipped.find((s) => s.file.endsWith("app999-20261005-125115.json")).reason, /どの環境のものか.*apps にアプリの番号を足す/);
     // 同じものをもう一度置いたら inbox から消すだけ、違う中身なら移さない
     writeFileSync(path.join(work, "inbox", dl), text);
     assert.deepEqual(takeInbox(work, ws).moved.map((m) => m.same), [true]);
@@ -146,8 +152,8 @@ test("take: inbox のダウンロードを、封筒の appId と apps からア�
   }
 });
 
-test("CLI（environments.json あり）: take → files → buttons --app → normalize は fields.json を同じフォルダーから、ダウンロードは書き換えない → edit → normalize → preview --record 3", async () => {
-  const work = makeWorkspace(WS2);
+test("CLI（environments.json あり、開発の環境）: take → files → buttons --app → normalize は fields.json を同じフォルダーから、ダウンロードは書き換えない → edit → normalize → preview --record 3", async () => {
+  const work = makeWorkspace(WS3);
   try {
     const dir = path.join(work, "kintone", "x.cybozu.com", "3740-見積書(印刷屋)");
     mkdirSync(path.join(dir, "records"), { recursive: true });
@@ -159,13 +165,13 @@ test("CLI（environments.json あり）: take → files → buttons --app → no
     assert.equal(t.status, 0, t.stderr);
     const snap = path.join("kintone", "x.cybozu.com", "3740-見積書(印刷屋)", dl);
     assert.ok(existsSync(path.join(work, snap)));
-    const f = run(["files", "--app", "見積書", "--env", "prod"], work);
+    const f = run(["files", "--app", "見積書", "--env", "dev"], work);
     assert.equal(f.status, 0, f.stderr);
     assert.match(f.stdout, new RegExp(`${dl}  ← 今の設定`));
-    const s = run(["fields", "--app", "見積書", "--env", "prod", "--summary"], work);
+    const s = run(["fields", "--app", "見積書", "--env", "dev", "--summary"], work);
     assert.equal(s.status, 0, s.stderr);
     assert.match(s.stdout, /^アプリ 3740 /);
-    const b = run(["buttons", "--app", "3740", "--env", "prod"], work);
+    const b = run(["buttons", "--app", "3740", "--env", "dev"], work);
     assert.equal(b.status, 0, b.stderr);
     assert.match(b.stdout, /1\. 見積書（有効/);
     // ダウンロードのファイルは書き換えない（--dry-run なら検査できる。--fields は要らない）
@@ -176,7 +182,7 @@ test("CLI（environments.json あり）: take → files → buttons --app → no
     assert.equal(n2.status, 0, n2.stderr + n2.stdout);
     assert.match(n2.stdout, /--check: 入力の派生値と生成した値は一致/);
     // edit で写して直す
-    const e = run(["edit", "--app", "見積書", "--env", "prod"], work);
+    const e = run(["edit", "--app", "見積書", "--env", "dev"], work);
     assert.equal(e.status, 0, e.stderr);
     const editFile = path.join("kintone", "x.cybozu.com", "3740-見積書(印刷屋)", dl.replace(".json", "-edit.json"));
     assert.equal(readFileSync(path.join(work, editFile), "utf8"), readFileSync(path.join(work, snap), "utf8"));
