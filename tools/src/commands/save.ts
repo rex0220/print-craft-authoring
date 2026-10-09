@@ -6,16 +6,17 @@
  *   - 項目定義: アプリのフォルダーの中なら常に同じフォルダーの fields.json（別のファイルを渡されたら拒否。Codex レビュー MAJOR 4）。
  *     それ以外は引数の fields が要る
  *   - 入力の大きさ: content / replacement は 256 KiB まで（印刷屋の保存値の上限に合わせる）
- *   - 確定の仕方: normalize（エラーが 1 つでもあれば確定しない）→ 書ける場所・role・ダウンロードのファイルを確かめ、書く先のフォルダーが無ければ作る →
- *     確定先と同じフォルダーに一時ファイル → ロックを取る →
- *     書ける場所・environments.json の role・ダウンロードのファイル・digest・ロックがまだ自分のものかをもう一度確かめる → 確定 → 片付け。
+ *   - 確定の仕方: normalize（エラーが 1 つでもあれば確定しない）→ 書ける場所・kintone/ の下の許可（profile の形、印、ダウンロードのファイル）を確かめ、
+ *     書く先のフォルダーが無ければ作る（kintone/ の下のアプリのフォルダーは作らない。先に fields か pull）→ 確定先と同じフォルダーに一時ファイル → ロックを取る →
+ *     書ける場所・kintone/ の下の許可と接続（接続のファイルを読み直す）・digest・ロックがまだ自分のものかをもう一度確かめる → 確定 → 片付け。
  *     新しい設定はハードリンクで確定し（同じ名前があれば失敗する = 上書きしない）、既存の設定は名前の付け替えで確定する
  *     （Codex レビュー MAJOR 5: 確かめてから確定までの間に作られた・変えられたファイルを上書きしない）
  *   - ロックと片付けは commit-file.ts（所有者の印付きのロック、60 秒より古いロックの回収。一時ファイルとロックの片付けは別々に試し、
  *     確定の後の片付けの失敗は確定の失敗にしない＝ ok に cleanup の文を添える。Codex 再レビュー MAJOR 3、4）
  *   - 警告は確定を止めない（findings で返す）
- *   - 状態: ok / invalid（normalize のエラー、入力の誤り）/ conflict（同じ名前がある、digest が違う、競合）/ denied（書けない場所、本番、
- *     ダウンロードのファイル、作業フォルダーの外）/ failed（読み書きの失敗など想定外）。code に誤りの種類（print-craft MCP の 5.2 の約束）
+ *   - 状態: ok / invalid（normalize のエラー、入力の誤り、知らない profile）/ conflict（同じ名前がある、digest が違う、競合、アプリのフォルダーの印、
+ *     途中で接続が変わった）/ denied（書けない場所、ダウンロードのファイル、作業フォルダーの外、接続のファイルに無い profile）/ failed（接続のファイルの誤り、
+ *     移行で止まっている、読み書きの失敗など想定外）。code に誤りの種類（接続の誤りは ConnectionError の code。print-craft MCP の 5.2、15.10 の約束）
  * パスは作業フォルダーからの相対で受け取る（..・絶対パス・ドライブ名は safe-path.ts が止める）。
  */
 import { createHash } from "node:crypto";
@@ -26,7 +27,8 @@ import type { Policy } from "../normalize/policy.ts";
 import type { Finding } from "../normalize/findings.ts";
 import { PathError, WRITE_ROOTS, resolveRead, resolveWrite } from "../safe-path.ts";
 import { PermissionError, assertChangeAllowed } from "../permission.ts";
-import { SNAPSHOT_RE, appFolderOfFile } from "../workspace.ts";
+import { SNAPSHOT_RE, appFolderOfFile, assertUsableInKintone, type WorkspaceMode } from "../workspace.ts";
+import { ConnectionError } from "../connections.ts";
 import { InputError, normalizeSettings, readFieldsFile } from "./normalize.ts";
 import { FileExistsError, LockBusyError, acquireLock, cleanupAll, placeNew, tempPathFor, withRetry, type Lock } from "../commit-file.ts";
 
@@ -54,6 +56,8 @@ export interface SaveContext {
   policy: Policy;
   /** iframe の同一オリジンの判定に使う接続先（検証済み） */
   baseUrl?: string;
+  /** 動く形（kintone/ の下を読む・変えてよいか。workspace.ts の modeOf） */
+  mode: WorkspaceMode;
   /** 試験用: 確定の直後（片付けの前）に呼ぶ。print-craft MCP と CLI は渡さない */
   afterPlace?: () => void;
 }
@@ -76,12 +80,14 @@ function fieldsFileFor(ctx: SaveContext, target: string, fields: string | undefi
   const folder = appFolderOfFile(ctx.root, target);
   if (folder) {
     const own = resolveRead(path.join(folder.dir, "fields.json"), ctx.root);
+    assertUsableInKintone(ctx.root, own, ctx.mode);
     if (!existsSync(own)) throw new InputError(`アプリのフォルダーに fields.json が無い: ${rel(ctx.root, own)}（fields コマンドか pcraft_fields で取る）`);
     if (fields !== undefined && resolveRead(fields, ctx.root) !== own) throw new SaveDenied(`アプリのフォルダーの中の設定は、同じフォルダーの fields.json で検査する（fields は渡さないか、${rel(ctx.root, own)} にする）`);
     return own;
   }
-  if (!fields) throw new InputError("fields（項目定義のファイル）が要る（アプリのフォルダー kintone/<ホスト名>/<番号>-…/ の中なら同じフォルダーの fields.json を使う）");
+  if (!fields) throw new InputError("fields（項目定義のファイル）が要る（アプリのフォルダー kintone/<profile>/<番号>-…/ の中なら同じフォルダーの fields.json を使う）");
   const file = resolveRead(fields, ctx.root);
+  assertUsableInKintone(ctx.root, file, ctx.mode);
   if (!existsSync(file)) throw new InputError(`項目定義のファイルが無い: ${rel(ctx.root, file)}（fields コマンドか pcraft_fields で取る）`);
   return file;
 }
@@ -96,14 +102,14 @@ function commit(ctx: SaveContext, target: string, text: string, mode: "new" | "r
   let lock: Lock | undefined;
   let digest: string | undefined;
   let failure: unknown;
-  // 書く先（symlink の差し替えを含む）、role と操作 × 場所（environments.json を読み直す）、ダウンロードのファイル
+  // 書く先（symlink の差し替えを含む）、kintone/ の下の許可（profile、印、操作 × 場所、接続のファイルを読み直して接続が同じか）、ダウンロードのファイル
   const checkTarget = (): void => {
     if (resolveWrite(rel(ctx.root, target), WRITE_ROOTS.settings, ctx.root) !== target) throw new SaveDenied("書く先のフォルダーが途中で変わった（symlink など）");
-    assertChangeAllowed(ctx.root, target, "settings");
+    assertChangeAllowed(ctx.root, target, "settings", ctx.mode);
     if (SNAPSHOT_RE.test(path.basename(target))) throw new SaveDenied("ダウンロード / pull のファイルは書き換えない。edit で -edit.json に写して直す");
   };
   try {
-    // 一時ファイルとロックを作る前にも（normalize の間に本番に変わったフォルダー・差し替えられたフォルダーに何も作らない。Codex 再々レビュー MAJOR 1）
+    // 一時ファイルとロックを作る前にも（normalize の間に接続が変わったフォルダー・差し替えられたフォルダーに何も作らない。Codex 再々レビュー MAJOR 1）
     checkTarget();
     // 書く先のフォルダー（まだ settings/ が無い作業フォルダーなど）を作る。書ける場所と許可を確かめた後だけ（0-3b の試作で見つけた）
     mkdirSync(path.dirname(target), { recursive: true });
@@ -137,13 +143,33 @@ async function normalizeText(ctx: SaveContext, target: string, text: string, fie
  * 入力（項目定義のファイル、JSON）の誤りは invalid、それ以外（読み書きの失敗など想定外）は failed。以前は失敗をすべて denied にしていた
  */
 function statusOf(e: unknown): Exclude<SaveStatus, "ok"> {
+  if (e instanceof ConnectionError) return connectionStatusOf(e);
   if (e instanceof ConflictError || e instanceof FileExistsError || e instanceof LockBusyError) return "conflict";
   if (e instanceof SaveDenied || e instanceof PermissionError || e instanceof PathError) return "denied";
   if (e instanceof InputError || e instanceof SyntaxError) return "invalid";
   return "failed";
 }
 
+/** 接続の誤りの状態（print-craft MCP の 15.10 の表） */
+export function connectionStatusOf(e: ConnectionError): Exclude<SaveStatus, "ok"> {
+  switch (e.code) {
+    case "inside-workspace":
+      return "denied";
+    case "unknown-profile":
+    case "guest-mismatch":
+      return "invalid";
+    case "app-marker-missing":
+    case "app-marker-invalid":
+    case "app-identity-conflict":
+    case "connection-changed":
+      return "conflict";
+    default:
+      return "failed";
+  }
+}
+
 function codeOf(e: unknown): string {
+  if (e instanceof ConnectionError) return e.code;
   if (e instanceof ConflictError || e instanceof FileExistsError || e instanceof LockBusyError) return "ConflictError";
   if (e instanceof SaveDenied || e instanceof PermissionError) return "PermissionError";
   return e instanceof Error ? e.constructor.name : "Error";
@@ -170,7 +196,7 @@ export async function saveNewSettings(ctx: SaveContext, opt: { path: string; con
   try {
     target = resolveWrite(opt.path, WRITE_ROOTS.settings, ctx.root);
     if (SNAPSHOT_RE.test(path.basename(target))) throw new SaveDenied("ダウンロード / pull の名前（rex0220-print-craft-app<番号>-<日時>.json）では新しく保存しない");
-    assertChangeAllowed(ctx.root, target, "settings");
+    assertChangeAllowed(ctx.root, target, "settings", ctx.mode);
   } catch (e) {
     return errorResult(ctx.root, path.resolve(ctx.root, opt.path), e);
   }
@@ -201,7 +227,8 @@ export async function updateButton(ctx: SaveContext, opt: { path: string; button
     target = resolveRead(opt.path, ctx.root);
     resolveWrite(opt.path, WRITE_ROOTS.settings, ctx.root);
     if (SNAPSHOT_RE.test(path.basename(target))) throw new SaveDenied("ダウンロード / pull のファイルは書き換えない。edit で -edit.json に写して直す");
-    assertChangeAllowed(ctx.root, target, "settings");
+    assertUsableInKintone(ctx.root, target, ctx.mode);
+    assertChangeAllowed(ctx.root, target, "settings", ctx.mode);
   } catch (e) {
     return errorResult(ctx.root, path.resolve(ctx.root, opt.path), e);
   }

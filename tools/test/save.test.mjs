@@ -8,6 +8,7 @@ import { loadEngine } from "./helpers.mjs";
 import { FIELDS_FILE, aiSettings } from "./fixtures.mjs";
 import { MAX_SAVE_INPUT_BYTES, digestOf, saveNewSettings, updateButton } from "../src/commands/save.ts";
 import { realResolve } from "../src/safe-path.ts";
+import { CONN, makeConnWorkspace } from "./conn-helper.mjs";
 
 const engine = await loadEngine();
 const policy = { allowExternal: [] };
@@ -58,27 +59,39 @@ test("saveNewSettings: normalize を通ったときだけ確定する。同じ�
   }
 });
 
-test("saveNewSettings: 作業フォルダーの外・書けない場所・ダウンロードの名前・本番のフォルダー・fields が無いときは denied", async () => {
-  const root = makeWork({ environments: { prod: { baseUrl: "https://x.cybozu.com", role: "production" } } });
-  const ctx = { root, engine, policy };
+test("saveNewSettings: 作業フォルダーの外・書けない場所・ダウンロードの名前・接続のファイルに無い profile・1 接続の形の kintone/ は denied、印の無いフォルダーは conflict、fields が無いのは invalid", async () => {
+  const t = makeConnWorkspace();
+  const root = t.root;
+  mkdirSync(path.join(root, "settings"));
+  mkdirSync(path.join(root, "fields"));
+  writeFileSync(path.join(root, "fields", "3740.json"), JSON.stringify(FIELDS_FILE));
+  const ctx = { root, engine, policy, mode: t.mode() };
   const content = JSON.stringify(aiSettings());
   try {
     for (const p of ["../x.json", ".env", "policy/authoring-policy.json", "settings/rex0220-print-craft-app3740-20261005-125115.json"]) {
       const r = await saveNewSettings(ctx, { path: p, content, fields: "fields/3740.json", expectedAbsent: true });
       assert.equal(r.status, "denied", p);
     }
-    const prodDir = path.join(root, "kintone", "x.cybozu.com", "3740-見積書");
-    mkdirSync(prodDir, { recursive: true });
-    writeFileSync(path.join(prodDir, "fields.json"), JSON.stringify(FIELDS_FILE));
-    const prod = await saveNewSettings(ctx, { path: "kintone/x.cybozu.com/3740-見積書/新しい帳票.json", content, expectedAbsent: true });
-    assert.equal(prod.status, "denied");
-    assert.match(prod.message, /本番/);
+    const unknown = path.join(root, "kintone", "stage", "3740-見積書");
+    mkdirSync(unknown, { recursive: true });
+    writeFileSync(path.join(unknown, "fields.json"), JSON.stringify(FIELDS_FILE));
+    const r1 = await saveNewSettings(ctx, { path: "kintone/stage/3740-見積書/新しい帳票.json", content, expectedAbsent: true });
+    assert.deepEqual([r1.status, r1.code], ["denied", "PermissionError"], r1.message);
+    assert.match(r1.message, /profile「stage」は接続のファイル/);
+    const bare = path.join(root, "kintone", "dev", "3740-見積書");
+    mkdirSync(bare, { recursive: true });
+    writeFileSync(path.join(bare, "fields.json"), JSON.stringify(FIELDS_FILE));
+    const r2 = await saveNewSettings(ctx, { path: "kintone/dev/3740-見積書/新しい帳票.json", content, expectedAbsent: true });
+    assert.deepEqual([r2.status, r2.code], ["conflict", "app-marker-missing"], r2.message);
+    const single = await saveNewSettings({ ...ctx, mode: { kind: "single" } }, { path: "kintone/dev/3740-見積書/新しい帳票.json", content, expectedAbsent: true });
+    assert.equal(single.status, "denied", "1 接続の形では kintone/ の下を変えない");
+    assert.ok(!existsSync(path.join(bare, "新しい帳票.json")));
     const noFields = await saveNewSettings(ctx, { path: "settings/a.json", content, expectedAbsent: true });
     assert.equal(noFields.status, "invalid", "fields が無いのは入力の誤り（0-3b で denied から変えた）");
     assert.equal(noFields.code, "InputError");
     assert.match(noFields.message, /fields/);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    t.cleanup();
   }
 });
 
@@ -151,30 +164,38 @@ test("saveNewSettings: expectedAbsent: true が無い・大きすぎる入力は
   }
 });
 
-test("アプリのフォルダーの中は同じフォルダーの fields.json で検査する。別の fields を渡すと denied（Codex レビュー MAJOR 4）", async () => {
-  const root = makeWork({ environments: { dev: { baseUrl: "https://dev-x.cybozu.com", role: "development" } } });
-  const ctx = { root, engine, policy };
+test("アプリのフォルダーの中は同じフォルダーの fields.json で検査する。別の fields を渡すと denied（Codex レビュー MAJOR 4）。フォルダーが無ければ作らない", async () => {
+  const t = makeConnWorkspace();
+  const root = t.root;
+  mkdirSync(path.join(root, "fields"));
+  writeFileSync(path.join(root, "fields", "3740.json"), JSON.stringify(FIELDS_FILE));
+  const ctx = { root, engine, policy, mode: t.mode() };
   const content = JSON.stringify(aiSettings());
   try {
-    const dir = path.join(root, "kintone", "dev-x.cybozu.com", "3740-見積書");
-    mkdirSync(dir, { recursive: true });
-    const other = await saveNewSettings(ctx, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", content, fields: "fields/3740.json", expectedAbsent: true });
+    const none = await saveNewSettings(ctx, { path: "kintone/dev/3740-見積書/a.json", content, expectedAbsent: true });
+    assert.equal(none.status, "denied", none.message);
+    assert.match(none.message, /アプリのフォルダーが無い.*先に fields か pull/);
+    assert.ok(!existsSync(path.join(root, "kintone")), "アプリのフォルダーを保存では作らない（先に fields か pull）");
+    const dir = t.appFolder("dev", 3740, "見積書");
+    const other = await saveNewSettings(ctx, { path: "kintone/dev/3740-見積書/a.json", content, fields: "fields/3740.json", expectedAbsent: true });
     assert.equal(other.status, "invalid", "アプリのフォルダーに fields.json がまだ無い（入力の誤り）");
     assert.match(other.message, /fields\.json が無い/);
     writeFileSync(path.join(dir, "fields.json"), JSON.stringify(FIELDS_FILE));
-    const stillOther = await saveNewSettings(ctx, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", content, fields: "fields/3740.json", expectedAbsent: true });
+    const stillOther = await saveNewSettings(ctx, { path: "kintone/dev/3740-見積書/a.json", content, fields: "fields/3740.json", expectedAbsent: true });
     assert.equal(stillOther.status, "denied");
     assert.match(stillOther.message, /同じフォルダーの fields\.json/);
     assert.ok(!existsSync(path.join(dir, "a.json")));
-    const own = await saveNewSettings(ctx, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", content, expectedAbsent: true });
+    const own = await saveNewSettings(ctx, { path: "kintone/dev/3740-見積書/a.json", content, expectedAbsent: true });
     assert.equal(own.status, "ok", own.message);
-    const same = await saveNewSettings(ctx, { path: "kintone/dev-x.cybozu.com/3740-見積書/b.json", content, fields: "kintone/dev-x.cybozu.com/3740-見積書/fields.json", expectedAbsent: true });
+    const same = await saveNewSettings(ctx, { path: "kintone/dev/3740-見積書/b.json", content, fields: "kintone/dev/3740-見積書/fields.json", expectedAbsent: true });
     assert.equal(same.status, "ok", same.message);
-    const upd = await updateButton(ctx, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", button: "見積書", expectedDigest: own.digest, replacement: JSON.stringify(aiSettings().pluginInfos[0]), fields: "fields/3740.json" });
+    const upd = await updateButton(ctx, { path: "kintone/dev/3740-見積書/a.json", button: "見積書", expectedDigest: own.digest, replacement: JSON.stringify(aiSettings().pluginInfos[0]), fields: "fields/3740.json" });
     assert.equal(upd.status, "denied");
+    const marker = await saveNewSettings(ctx, { path: "kintone/dev/3740-見積書/.pcraft-app.json", content, expectedAbsent: true });
+    assert.notEqual(marker.status, "ok", "印は書く先にできない");
     noTmp(dir);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    t.cleanup();
   }
 });
 
@@ -244,35 +265,31 @@ test("確かめてから確定までの間に、書く先のフォルダーが s
 });
 
 const NO_CHMOD = process.platform === "win32" || process.getuid?.() === 0;
-const DEV_ENVS = { environments: { dev: { baseUrl: "https://dev-x.cybozu.com", role: "development" } } };
 
-test("normalize の間に本番に変わったフォルダーには、一時ファイルもロックも作らない（denied。Codex 再々レビュー MAJOR 1）", { skip: NO_CHMOD }, async () => {
-  const root = makeWork(DEV_ENVS);
-  const dir = path.join(root, "kintone", "dev-x.cybozu.com", "3740-見積書");
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(path.join(dir, "fields.json"), JSON.stringify(FIELDS_FILE));
-  const toProd = () => {
-    writeFileSync(path.join(root, "environments.json"), JSON.stringify({ environments: { dev: { ...DEV_ENVS.environments.dev, role: "production" } } }));
-    chmodSync(dir, 0o555); // 先に一時ファイルかロックを作ろうとすれば、本番の拒否でなく書き込みの失敗になる
+test("normalize の間に接続が変わったフォルダーには、一時ファイルもロックも作らない（conflict の connection-changed。Codex 再々レビュー MAJOR 1）", { skip: NO_CHMOD }, async () => {
+  const t = makeConnWorkspace();
+  const root = t.root;
+  const dir = t.appFolder("dev", 3740, "見積書", FIELDS_FILE);
+  const rotate = () => {
+    t.writeConn({ ...CONN, profiles: { ...CONN.profiles, dev: { ...CONN.profiles.dev, tokenMap: { ...CONN.profiles.dev.tokenMap, APP3740: "rotated-token" } } } });
+    chmodSync(dir, 0o555); // 先に一時ファイルかロックを作ろうとすれば、接続の変化でなく書き込みの失敗になる
   };
   try {
     const content = JSON.stringify(aiSettings());
-    const saved = await saveNewSettings({ root, engine, policy }, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", content, expectedAbsent: true });
+    const saved = await saveNewSettings({ root, engine, policy, mode: t.mode() }, { path: "kintone/dev/3740-見積書/a.json", content, expectedAbsent: true });
     assert.equal(saved.status, "ok", saved.message);
-    const r = await saveNewSettings({ root, engine: racing(toProd), policy }, { path: "kintone/dev-x.cybozu.com/3740-見積書/b.json", content, expectedAbsent: true });
-    assert.equal(r.status, "denied");
-    assert.match(r.message, /本番（role: production）/);
+    const r = await saveNewSettings({ root, engine: racing(rotate), policy, mode: t.mode() }, { path: "kintone/dev/3740-見積書/b.json", content, expectedAbsent: true });
+    assert.deepEqual([r.status, r.code], ["conflict", "connection-changed"], r.message);
     chmodSync(dir, 0o755);
-    writeFileSync(path.join(root, "environments.json"), JSON.stringify(DEV_ENVS));
-    const u = await updateButton({ root, engine: racing(toProd), policy }, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", button: "見積書", expectedDigest: saved.digest, replacement: JSON.stringify({ ...aiSettings().pluginInfos[0], desc: "変えた" }) });
-    assert.equal(u.status, "denied");
-    assert.match(u.message, /本番（role: production）/);
+    t.writeConn(CONN);
+    const u = await updateButton({ root, engine: racing(rotate), policy, mode: t.mode() }, { path: "kintone/dev/3740-見積書/a.json", button: "見積書", expectedDigest: saved.digest, replacement: JSON.stringify({ ...aiSettings().pluginInfos[0], desc: "変えた" }) });
+    assert.deepEqual([u.status, u.code], ["conflict", "connection-changed"], u.message);
     chmodSync(dir, 0o755);
-    assert.deepEqual(readdirSync(dir).filter((n) => n.startsWith(".")), [], "一時ファイルもロックも無い");
+    assert.deepEqual(readdirSync(dir).filter((n) => n.startsWith(".") && n !== ".pcraft-app.json"), [], "一時ファイルもロックも無い");
     assert.equal(digestOf(readFileSync(path.join(dir, "a.json"))), saved.digest);
   } finally {
     chmodSync(dir, 0o755);
-    rmSync(root, { recursive: true, force: true });
+    t.cleanup();
   }
 });
 

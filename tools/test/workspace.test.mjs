@@ -1,4 +1,7 @@
-/** 環境とアプリのフォルダー（environments.json、kintone/<ホスト名>/<番号>-<アプリ名>/、inbox と take、edit、files、ファイルの置き場所からの既定。2026-10-05） */
+/**
+ * 作業フォルダーの形とアプリのフォルダー（tools 2.0.0。print-craft-authoring-mcp の実装案 15 章）: 動く形の決め方（接続のファイル、environments.json）、
+ * kintone/<profile>/<番号>-<アプリ名>/、アプリのフォルダーの印、take、作業フォルダーの外を指すフォルダー、CLI の流れ
+ */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -7,267 +10,204 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEngine, PLUGIN_ZIP } from "./helpers.mjs";
-import { appDirFor, appFolderOfFile, assertInsideWorkspace, EDIT_RE, editNameOf, findAppDir, folderNameOf, listAppFolder, loadWorkspace, parseWorkspace, pickEnv, resolveApp, SNAPSHOT_RE, snapshotNameOf, WorkspaceError } from "../src/workspace.ts";
-import { AuthError, loadAuthForEnv } from "../src/env.ts";
+import {
+  APP_MARKER,
+  EDIT_RE,
+  SNAPSHOT_RE,
+  appDirFor,
+  appFolderOfFile,
+  appFoldersOf,
+  assertInsideWorkspace,
+  assertUsableInKintone,
+  editNameOf,
+  ensureAppFolder,
+  findAppDir,
+  folderNameOf,
+  listAppFolder,
+  modeOf,
+  readAppMark,
+  requireProfiles,
+  snapshotNameOf,
+  unusedProfileDirs
+} from "../src/workspace.ts";
+import { ConnectionError, pickProfile } from "../src/connections.ts";
+import { PermissionError } from "../src/permission.ts";
 import { PathError } from "../src/safe-path.ts";
 import { takeInbox } from "../src/commands/take.ts";
 import { normalizeSettings } from "../src/commands/normalize.ts";
 import { FIELDS_FILE, aiSettings } from "./fixtures.mjs";
-
-const CLI = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
-const baseEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(KINTONE_|KSQL_|PCRAFT_)/.test(k)));
-const run = (args, cwd) => spawnSync(process.execPath, ["--no-warnings", CLI, ...args], { encoding: "utf8", env: { ...baseEnv, PCRAFT_PLUGIN_ZIP: PLUGIN_ZIP }, cwd });
-
-/** 構成 1（ドメインが違う）と構成 2（同じドメインでアプリが違う） */
-const WS1 = { default: "dev", environments: { dev: { baseUrl: "https://dev-x.cybozu.com", envFile: "env/dev.env", role: "development" }, prod: { baseUrl: "https://x.cybozu.com", envFile: "env/prod.env", role: "production" } }, apps: [{ name: "見積書", dev: 101, prod: 3740 }] };
-const WS2 = { default: "dev", environments: { dev: { baseUrl: "https://x.cybozu.com", role: "development" }, prod: { baseUrl: "https://x.cybozu.com", role: "production" } }, apps: [{ name: "見積書", dev: 101, prod: 3740 }] };
-/** 開発の環境だけ（アプリ 3740 を開発で直す流れの試験） */
-const WS3 = { default: "dev", environments: { dev: { baseUrl: "https://x.cybozu.com", role: "development" } }, apps: [{ name: "見積書", dev: 3740 }] };
-
-test("environments.json: 構成 1 と構成 2 を読む。envFile の既定は .env、ホスト名はフォルダー名に", () => {
-  const w1 = parseWorkspace(JSON.stringify(WS1));
-  assert.deepEqual(w1.environments.prod, { name: "prod", role: "production", baseUrl: "https://x.cybozu.com", host: "x.cybozu.com", envFile: "env/prod.env" });
-  assert.equal(parseWorkspace(JSON.stringify({ environments: { only: { baseUrl: "https://a.cybozu.com" } } })).environments.only.role, "unclassified", "role が無ければ未分類（内部だけの状態）");
-  assert.equal(w1.defaultEnv, "dev");
-  assert.deepEqual(w1.apps, [{ name: "見積書", ids: { dev: 101, prod: 3740 } }]);
-  const w2 = parseWorkspace(JSON.stringify(WS2));
-  assert.deepEqual([w2.environments.dev.envFile, w2.environments.dev.host, w2.environments.prod.host], [".env", "x.cybozu.com", "x.cybozu.com"]);
-  assert.equal(parseWorkspace(JSON.stringify({ environments: { only: { baseUrl: "https://a.cybozu.com" } } })).defaultEnv, "only", "default が無ければ最初の環境");
-});
-
-test("environments.json: 形を厳しく見る（未知のキー、名前、接続先、envFile の場所、default、apps の番号と名前）", () => {
-  const bad = (o, re) => assert.throws(() => parseWorkspace(JSON.stringify(o)), (e) => e instanceof WorkspaceError && re.test(e.message), JSON.stringify(o));
-  bad({ ...WS1, extra: 1 }, /使えるキーは default/);
-  bad({ environments: { "dev env": { baseUrl: "https://a.cybozu.com" } } }, /環境の名前/);
-  bad({ environments: { dev: { baseUrl: "https://evil.example.com" } } }, /baseUrl が不正/);
-  bad({ environments: { dev: { baseUrl: "https://a.cybozu.com", envFile: "../secrets.env" } } }, /envFile は \.env か env\/<名前>\.env/);
-  bad({ environments: { dev: { baseUrl: "https://a.cybozu.com", envFile: "settings/x.env" } } }, /envFile/);
-  bad({ environments: { dev: { baseUrl: "https://a.cybozu.com", token: "x" } } }, /使えるキーは baseUrl \/ envFile \/ role/);
-  bad({ environments: { dev: { baseUrl: "https://a.cybozu.com", role: "unclassified" } } }, /role は development（開発）か production（本番）/);
-  bad({ environments: { dev: { baseUrl: "https://a.cybozu.com", role: "prod" } } }, /role は development/);
-  bad({ default: "prod", environments: { dev: { baseUrl: "https://a.cybozu.com" } } }, /default の環境が environments に無い/);
-  bad({ environments: {} }, /環境が 1 つも無い/);
-  bad({ ...WS1, apps: [{ name: "見積書", dev: "101" }] }, /アプリ番号/);
-  bad({ ...WS1, apps: [{ name: "見積書", stage: 1 }] }, /environments に無い環境/);
-  bad({ ...WS1, apps: [{ name: "a", dev: 1 }, { name: "a", dev: 2 }] }, /重複/);
-  bad({ ...WS1, apps: [{ name: "123", dev: 1 }] }, /数字だけは不可/);
-  assert.throws(() => parseWorkspace("{"), /JSON として読めない/);
-});
-
-test("--app: 番号か apps の名前。名前はその環境の番号に", () => {
-  const ws = parseWorkspace(JSON.stringify(WS1));
-  assert.deepEqual(resolveApp(ws, pickEnv(ws), "見積書"), { appId: 101, name: "見積書" });
-  assert.deepEqual(resolveApp(ws, pickEnv(ws, "prod"), "見積書"), { appId: 3740, name: "見積書" });
-  assert.deepEqual(resolveApp(ws, pickEnv(ws, "prod"), "3740"), { appId: 3740, name: "見積書" });
-  assert.deepEqual(resolveApp(ws, pickEnv(ws, "prod"), "55"), { appId: 55 });
-  assert.throws(() => resolveApp(ws, pickEnv(ws), "請求書"), /apps に無い/);
-  assert.throws(() => pickEnv(ws, "stage"), /environments\.json に無い/);
-});
-
-test("フォルダー: 番号-アプリ名、番号で探す（名前が変わっても）、同じ番号が 2 つなら止まる。ファイルの置き場所からアプリを知る。ダウンロードと同じ名前", () => {
-  const work = mkdtempSync(path.join(os.tmpdir(), "pcraft-ws-"));
-  try {
-    const ws = parseWorkspace(JSON.stringify(WS1));
-    const prod = pickEnv(ws, "prod");
-    assert.equal(folderNameOf(3740, "見積書(印刷屋)"), "3740-見積書(印刷屋)");
-    assert.equal(folderNameOf(3740, "a/b"), "3740-a_b");
-    assert.equal(folderNameOf(3740, ""), "3740");
-    assert.equal(findAppDir(work, prod, 3740), null);
-    assert.equal(appDirFor(work, prod, 3740, "見積書(印刷屋)"), path.join(work, "kintone", "x.cybozu.com", "3740-見積書(印刷屋)"));
-    mkdirSync(path.join(work, "kintone", "x.cybozu.com", "3740-古い名前"), { recursive: true });
-    assert.equal(appDirFor(work, prod, 3740, "新しい名前"), path.join(work, "kintone", "x.cybozu.com", "3740-古い名前"), "番号で探す");
-    assert.equal(findAppDir(work, prod, 374), null, "374 は 3740 と区別する");
-    mkdirSync(path.join(work, "kintone", "x.cybozu.com", "3740"), { recursive: true });
-    assert.throws(() => findAppDir(work, prod, 3740), /フォルダーが 2 つある/);
-    const f = path.join(work, "kintone", "x.cybozu.com", "3740-古い名前", "records", "3.json");
-    assert.deepEqual(appFolderOfFile(work, f), { dir: path.join(work, "kintone", "x.cybozu.com", "3740-古い名前"), host: "x.cybozu.com", appId: 3740 });
-    assert.equal(appFolderOfFile(work, path.join(work, "settings", "a.json")), null);
-    assert.equal(appFolderOfFile(work, path.join(work, "kintone", "x.cybozu.com", "a.json")), null);
-    const name = snapshotNameOf(3740, new Date(2026, 9, 5, 12, 51, 15));
-    assert.equal(name, "rex0220-print-craft-app3740-20261005-125115.json", "設定画面のダウンロードと同じ名前");
-    assert.ok(SNAPSHOT_RE.test(name) && EDIT_RE.test(editNameOf(name)) && !SNAPSHOT_RE.test(editNameOf(name)));
-  } finally {
-    rmSync(work, { recursive: true, force: true });
-  }
-});
-
-test("認証: 環境の envFile だけを読む（OS の環境変数は読まない）。接続先が environments.json と違えば止まる", () => {
-  const work = mkdtempSync(path.join(os.tmpdir(), "pcraft-ws-"));
-  try {
-    const ws = parseWorkspace(JSON.stringify(WS1));
-    const dev = pickEnv(ws);
-    assert.throws(() => loadAuthForEnv(dev, work), (e) => e instanceof AuthError && /認証のファイルが無い: env\/dev\.env/.test(e.message));
-    mkdirSync(path.join(work, "env"));
-    writeFileSync(path.join(work, "env", "dev.env"), "KINTONE_API_TOKEN=tok\n");
-    assert.deepEqual(loadAuthForEnv(dev, work), { baseUrl: "https://dev-x.cybozu.com", token: "tok", username: undefined, password: undefined });
-    writeFileSync(path.join(work, "env", "dev.env"), "KINTONE_BASE_URL=https://x.cybozu.com\nKINTONE_API_TOKEN=tok\n");
-    assert.throws(() => loadAuthForEnv(dev, work), /environments\.json の環境「dev」の baseUrl/);
-    writeFileSync(path.join(work, "env", "dev.env"), "KINTONE_BASE_URL=https://dev-x.cybozu.com/\nKINTONE_USERNAME=u\n");
-    assert.throws(() => loadAuthForEnv(dev, work), /OS の環境変数は読まない/);
-  } finally {
-    rmSync(work, { recursive: true, force: true });
-  }
-});
+import { CONN, makeConnWorkspace } from "./conn-helper.mjs";
 
 const engine = await loadEngine();
+const CLI = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
+const baseEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(KINTONE_|KSQL_|PCRAFT_)/.test(k)));
+const run = (args, cwd, env = {}) => spawnSync(process.execPath, ["--no-warnings", CLI, ...args], { encoding: "utf8", env: { ...baseEnv, PCRAFT_PLUGIN_ZIP: PLUGIN_ZIP, ...env }, cwd });
+const DL = "rex0220-print-craft-app3740-20261005-125115.json";
+const code = (c) => (e) => e instanceof ConnectionError && e.code === c;
+
+/** 印刷屋の設定のダウンロードと同じ形（封筒の appId） */
 async function snapshotText(appId = 3740) {
   const r = await normalizeSettings({ settingsText: JSON.stringify(aiSettings({ appId })), settingsFile: "x.json", fields: { ...FIELDS_FILE, appId }, engine });
   return JSON.stringify(r.output, null, 2) + "\n";
 }
 
-function makeWorkspace(ws) {
-  const work = mkdtempSync(path.join(os.tmpdir(), "pcraft-ws-"));
-  writeFileSync(path.join(work, "environments.json"), JSON.stringify(ws));
-  mkdirSync(path.join(work, "inbox"));
-  return work;
-}
+test("フォルダーの名前: 番号-アプリ名、名前が使えなければ番号だけ。ファイルの置き場所から profile と番号を知る。ダウンロードと同じ名前", () => {
+  assert.equal(folderNameOf(3740, "見積書(印刷屋)"), "3740-見積書(印刷屋)");
+  assert.equal(folderNameOf(3740, "a/b"), "3740-a_b");
+  assert.equal(folderNameOf(3740, ""), "3740");
+  for (const bad of ["CON", "NUL", ".", ".."]) assert.ok(!/^3740-(CON|NUL|\.|\.\.)$/.test(folderNameOf(3740, bad)), bad);
+  assert.ok(folderNameOf(3740, "あ".repeat(300)).length < 260, "長い名前は切る");
+  const root = "/w";
+  assert.deepEqual(appFolderOfFile(root, "/w/kintone/dev/3740-見積書/records/3.json"), { dir: path.join(root, "kintone", "dev", "3740-見積書"), profile: "dev", appId: 3740 });
+  assert.equal(appFolderOfFile(root, "/w/settings/a.json"), null);
+  assert.equal(appFolderOfFile(root, "/w/kintone/dev/a.json"), null);
+  assert.equal(appFolderOfFile(root, "/w/kintone/x.cybozu.com/3740-見積書/a.json"), null, "1.x のホスト名のフォルダーは profile の形でない");
+  assert.equal(appFolderOfFile(root, "/w/kintone/dev/0123-x/a.json"), null);
+  const name = snapshotNameOf(3740, new Date(2026, 9, 5, 12, 51, 15));
+  assert.equal(name, DL, "設定画面のダウンロードと同じ名前");
+  assert.ok(SNAPSHOT_RE.test(name) && EDIT_RE.test(editNameOf(name)) && !SNAPSHOT_RE.test(editNameOf(name)));
+});
 
-test("take: inbox のダウンロードを、封筒の appId と apps からアプリのフォルダーへ名前のまま移す。分からないもの・印刷屋でないもの・名前と appId が違うものは移さない", async () => {
-  const work = makeWorkspace(WS2);
+test("動く形（15.4）: 接続のファイルがあれば profiles、空・読めないのは誤り（1 接続に戻らない）、無くて environments.json があれば legacy-blocked、無ければ CLI は single・MCP は not-configured", () => {
+  const t = makeConnWorkspace();
   try {
-    const ws = parseWorkspace(JSON.stringify(WS2));
+    const opt = (configFile, surface = "cli") => ({ configFile, workspaceRoots: [t.root], env: {}, surface });
+    assert.equal(modeOf(t.root, opt(t.connFile)).kind, "profiles");
+    assert.throws(() => modeOf(t.root, opt("")), code("unreadable"));
+    assert.throws(() => modeOf(t.root, opt(path.join(t.base, "無い.json"))), code("unreadable"));
+    assert.equal(modeOf(t.root, opt(undefined)).kind, "single");
+    assert.equal(modeOf(t.root, opt(undefined, "mcp")).kind, "not-configured");
+    writeFileSync(path.join(t.root, "environments.json"), "{}");
+    assert.equal(modeOf(t.root, opt(undefined)).kind, "legacy-blocked");
+    assert.equal(modeOf(t.root, opt(undefined, "mcp")).kind, "legacy-blocked");
+    assert.equal(modeOf(t.root, opt(t.connFile)).kind, "profiles", "接続のファイルがあれば environments.json は読まない");
+    assert.throws(() => requireProfiles({ kind: "legacy-blocked" }, "fields"), code("legacy-config-present"));
+    assert.throws(() => requireProfiles({ kind: "not-configured" }, "fields"), code("not-configured"));
+    assert.throws(() => requireProfiles({ kind: "single" }, "take"), (e) => code("not-configured")(e) && /take は kintone の接続のファイル/.test(e.message));
+    assert.ok(requireProfiles(t.mode(), "x").set.profiles.has("dev"));
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("アプリのフォルダー: 番号で探す（名前が変わっても）、同じ番号が 2 つなら止まる、. で始まるもの（一時フォルダー）は数えない。作るときは印を先に置く（一時フォルダーから付け替え）", () => {
+  const t = makeConnWorkspace();
+  try {
+    const def = pickProfile(t.mode().connections.set, "dev");
+    assert.equal(findAppDir(t.root, "dev", 3740), null);
+    const dir = appDirFor(t.root, "dev", 3740, "見積書(印刷屋)");
+    assert.equal(dir, path.join(t.root, "kintone", "dev", "3740-見積書(印刷屋)"));
+    ensureAppFolder(dir, def, 3740);
+    assert.deepEqual(readAppMark(dir), { state: "ok", mark: { schemaVersion: 1, profile: "dev", origin: "https://dev-x.cybozu.com", guestSpaceId: null, appId: 3740 } });
+    assert.deepEqual(readdirSync(path.join(t.root, "kintone", "dev")), ["3740-見積書(印刷屋)"], "一時フォルダーを残さない");
+    assert.equal(appDirFor(t.root, "dev", 3740, "新しい名前"), dir, "番号で探す");
+    ensureAppFolder(dir, def, 3740);
+    assert.throws(() => ensureAppFolder(dir, def, 101), code("app-identity-conflict"), "番号の違う印");
+    mkdirSync(path.join(t.root, "kintone", "dev", ".3740-x.abc.tmp"));
+    assert.equal(findAppDir(t.root, "dev", 3740), dir, "途中で止まった一時フォルダーは数えない");
+    assert.equal(findAppDir(t.root, "dev", 374), null, "374 は 3740 と区別する");
+    mkdirSync(path.join(t.root, "kintone", "dev", "3740"));
+    assert.throws(() => findAppDir(t.root, "dev", 3740), /フォルダーが 2 つある/);
+    rmSync(path.join(t.root, "kintone", "dev", "3740"), { recursive: true });
+    // 印の無いフォルダー（ほかで作った、1.x から移した）は採用しない
+    const bare = path.join(t.root, "kintone", "dev", "101-手で作った");
+    mkdirSync(bare);
+    assert.throws(() => ensureAppFolder(bare, def, 101), code("app-marker-missing"));
+    assert.equal(existsSync(path.join(bare, APP_MARKER)), false, "後から印を置かない");
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("通常の操作で kintone/ の下を読む前（15.5）: profile の形だけ、接続のファイルにある profile、印が合うフォルダーだけ。診断は名前と印の状態だけ", () => {
+  const t = makeConnWorkspace();
+  try {
+    const mode = t.mode();
+    const dir = t.appFolder("dev", 3740, "見積書", FIELDS_FILE);
+    assertUsableInKintone(t.root, path.join(dir, "fields.json"), mode);
+    assertUsableInKintone(t.root, path.join(t.root, "settings", "a.json"), { kind: "single" });
+    assert.throws(() => assertUsableInKintone(t.root, path.join(dir, "fields.json"), { kind: "single" }), PermissionError);
+    assert.throws(() => assertUsableInKintone(t.root, path.join(dir, "fields.json"), { kind: "legacy-blocked" }), code("legacy-config-present"));
+    const stage = path.join(t.root, "kintone", "stage", "3740-x");
+    mkdirSync(stage, { recursive: true });
+    assert.throws(() => assertUsableInKintone(t.root, path.join(stage, "a.json"), mode), (e) => e instanceof PermissionError && /profile「stage」/.test(e.message));
+    const bare = path.join(t.root, "kintone", "dev", "101-手で作った");
+    mkdirSync(bare);
+    assert.throws(() => assertUsableInKintone(t.root, path.join(bare, "a.json"), mode), code("app-marker-missing"));
+    const def = pickProfile(mode.connections.set, "dev");
+    assert.deepEqual(appFoldersOf(t.root, def), [
+      { name: "101-手で作った", appId: 101, mark: "missing" },
+      { name: "3740-見積書", appId: 3740, mark: "ok" }
+    ]);
+    assert.deepEqual(unusedProfileDirs(t.root, mode.connections.set), ["stage"]);
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("take: inbox のダウンロードを、封筒の appId で profile（--profile か defaultProfile）のアプリのフォルダーへ名前のまま移す。印を先に置く。印刷屋でないもの・名前と appId が違うもの・印が合わないフォルダーには移さない", async () => {
+  const t = makeConnWorkspace();
+  const inbox = path.join(t.root, "inbox");
+  mkdirSync(inbox);
+  try {
     const text = await snapshotText(3740);
-    const dl = "rex0220-print-craft-app3740-20261005-125115.json";
-    writeFileSync(path.join(work, "inbox", dl), text);
-    writeFileSync(path.join(work, "inbox", "rex0220-print-craft-app999-20261005-125115.json"), text.replace('"appId": 3740', '"appId": 999'));
-    writeFileSync(path.join(work, "inbox", "other.json"), JSON.stringify({ pluginID: "other" }));
-    writeFileSync(path.join(work, "inbox", "rex0220-print-craft-app101-20261005-125115.json"), text);
-    const r = takeInbox(work, ws);
-    assert.deepEqual(r.moved.map((m) => m.to.replace(/\\/g, "/")), [`kintone/x.cybozu.com/3740-見積書(印刷屋)/${dl}`]);
-    assert.equal(readFileSync(path.join(work, "kintone", "x.cybozu.com", "3740-見積書(印刷屋)", dl), "utf8"), text, "中身も名前もそのまま");
+    writeFileSync(path.join(inbox, DL), text);
+    writeFileSync(path.join(inbox, "other.json"), JSON.stringify({ pluginID: "other" }));
+    writeFileSync(path.join(inbox, "rex0220-print-craft-app101-20261005-125115.json"), text);
+    const r = takeInbox(t.root, t.mode());
+    assert.deepEqual(r.moved.map((m) => m.to.replace(/\\/g, "/")), [`kintone/dev/3740-見積書(印刷屋)/${DL}`], JSON.stringify(r));
+    const dir = path.join(t.root, "kintone", "dev", "3740-見積書(印刷屋)");
+    assert.equal(readFileSync(path.join(dir, DL), "utf8"), text, "中身も名前もそのまま");
+    assert.equal(readAppMark(dir).state, "ok", "印を置いた");
     const reasons = Object.fromEntries(r.skipped.map((s) => [s.file, s.reason]));
-    assert.match(reasons["inbox/rex0220-print-craft-app999-20261005-125115.json"], /apps に無く、環境が 2 つ以上ある/);
     assert.match(reasons["inbox/other.json"], /印刷屋の設定のファイルではない/);
     assert.match(reasons["inbox/rex0220-print-craft-app101-20261005-125115.json"], /ファイル名のアプリ 101 と封筒の appId 3740 が違う/);
-    // 同じホストの環境が 2 つ（構成 2）で apps に無い番号は、--env を付けても移さない（開発か本番か決まらない。--env では本番の保護を外せない。段階 0-2 の段 3）
-    const r2 = takeInbox(work, ws, "dev");
-    assert.deepEqual(r2.moved, []);
-    assert.match(r2.skipped.find((s) => s.file.endsWith("app999-20261005-125115.json")).reason, /どの環境のものか.*apps にアプリの番号を足す/);
+    // --profile prod は prod のフォルダーへ
+    writeFileSync(path.join(inbox, DL), text);
+    const p = takeInbox(t.root, t.mode(), "prod");
+    assert.deepEqual(p.moved.map((m) => m.to.replace(/\\/g, "/")), [`kintone/prod/3740-見積書(印刷屋)/${DL}`]);
     // 同じものをもう一度置いたら inbox から消すだけ、違う中身なら移さない
-    writeFileSync(path.join(work, "inbox", dl), text);
-    assert.deepEqual(takeInbox(work, ws).moved.map((m) => m.same), [true]);
-    writeFileSync(path.join(work, "inbox", dl), text.replace("見積書を PDF", "別の説明"));
-    assert.match(takeInbox(work, ws).skipped.find((s) => s.file.endsWith(dl)).reason, /同じ名前の別の中身がある/);
+    writeFileSync(path.join(inbox, DL), text);
+    assert.deepEqual(takeInbox(t.root, t.mode()).moved.map((m) => m.same), [true]);
+    writeFileSync(path.join(inbox, DL), text.replace("見積書を PDF", "別の説明"));
+    assert.match(takeInbox(t.root, t.mode()).skipped.find((s) => s.file.endsWith(DL)).reason, /同じ名前の別の中身がある/);
+    // 印が合わないフォルダー（接続先を変えた profile）には置かない
+    t.writeConn({ ...CONN, profiles: { ...CONN.profiles, dev: { ...CONN.profiles.dev, baseUrl: "https://dev-z.cybozu.com" } } });
+    const dl2 = DL.replace("20261005-125115", "20261006-090000");
+    writeFileSync(path.join(inbox, dl2), text);
+    const c = takeInbox(t.root, t.mode());
+    assert.match(c.skipped.find((s) => s.file.endsWith(dl2)).reason, /別の接続/);
+    assert.ok(!existsSync(path.join(dir, dl2)));
+    assert.throws(() => takeInbox(t.root, { kind: "single" }), code("not-configured"));
   } finally {
-    rmSync(work, { recursive: true, force: true });
+    t.cleanup();
   }
 });
 
 test("take: 行き先に置いた後に inbox の元を消せなくても、置いたことを返す（leftInInbox と注意。Codex 再々レビュー MINOR 3）", { skip: process.platform === "win32" || process.getuid?.() === 0 }, async () => {
-  const work = makeWorkspace(WS3);
-  const inbox = path.join(work, "inbox");
+  const t = makeConnWorkspace();
+  const inbox = path.join(t.root, "inbox");
+  mkdirSync(inbox);
   try {
-    const ws = parseWorkspace(JSON.stringify(WS3));
-    const dl = "rex0220-print-craft-app3740-20261005-125115.json";
-    writeFileSync(path.join(inbox, dl), await snapshotText(3740));
+    writeFileSync(path.join(inbox, DL), await snapshotText(3740));
     chmodSync(inbox, 0o555);
-    const r = takeInbox(work, ws);
+    const r = takeInbox(t.root, t.mode());
     assert.deepEqual(r.moved.map((m) => [m.same, m.leftInInbox]), [[false, true]]);
-    assert.ok(existsSync(path.join(work, "kintone", "x.cybozu.com", "3740-見積書(印刷屋)", dl)), "行き先には置いた");
     assert.match(r.warnings.join("\n"), /行き先に置いたが、inbox から消せなかった/);
-    const again = takeInbox(work, ws);
-    assert.deepEqual(again.moved.map((m) => [m.same, m.leftInInbox]), [[true, true]], "同じものの経路も消せなければそう返す");
+    assert.deepEqual(takeInbox(t.root, t.mode()).moved.map((m) => [m.same, m.leftInInbox]), [[true, true]], "同じものの経路も消せなければそう返す");
     chmodSync(inbox, 0o755);
-    assert.deepEqual(takeInbox(work, ws).moved.map((m) => [m.same, m.leftInInbox]), [[true, undefined]], "次の take で消す");
+    assert.deepEqual(takeInbox(t.root, t.mode()).moved.map((m) => [m.same, m.leftInInbox]), [[true, undefined]], "次の take で消す");
     assert.deepEqual(readdirSync(inbox), []);
   } finally {
     chmodSync(inbox, 0o755);
-    rmSync(work, { recursive: true, force: true });
+    t.cleanup();
   }
 });
 
-test("CLI: environments.json があるときの pull は --force を使えない（ダウンロード / pull のファイルは上書きしない。通信の前に止まる）", () => {
-  const work = makeWorkspace(WS1);
-  try {
-    const r = run(["pull", "--app", "見積書", "--force"], work);
-    assert.equal(r.status, 2);
-    assert.match(r.stderr, /--force は使えない/);
-  } finally {
-    rmSync(work, { recursive: true, force: true });
-  }
-});
-
-test("CLI（environments.json あり、開発の環境）: take → files → buttons --app → normalize は fields.json を同じフォルダーから、ダウンロードは書き換えない → edit → normalize → preview --record 3", async () => {
-  const work = makeWorkspace(WS3);
-  try {
-    const dir = path.join(work, "kintone", "x.cybozu.com", "3740-見積書(印刷屋)");
-    mkdirSync(path.join(dir, "records"), { recursive: true });
-    writeFileSync(path.join(dir, "fields.json"), JSON.stringify(FIELDS_FILE));
-    writeFileSync(path.join(dir, "records", "3.json"), JSON.stringify({ record: { 見積番号: { type: "SINGLE_LINE_TEXT", value: "S-1" } } }));
-    const dl = "rex0220-print-craft-app3740-20261005-125115.json";
-    writeFileSync(path.join(work, "inbox", dl), await snapshotText(3740));
-    const t = run(["take"], work);
-    assert.equal(t.status, 0, t.stderr);
-    const snap = path.join("kintone", "x.cybozu.com", "3740-見積書(印刷屋)", dl);
-    assert.ok(existsSync(path.join(work, snap)));
-    const f = run(["files", "--app", "見積書", "--env", "dev"], work);
-    assert.equal(f.status, 0, f.stderr);
-    assert.match(f.stdout, new RegExp(`${dl}  ← 今の設定`));
-    const s = run(["fields", "--app", "見積書", "--env", "dev", "--summary"], work);
-    assert.equal(s.status, 0, s.stderr);
-    assert.match(s.stdout, /^アプリ 3740 /);
-    const b = run(["buttons", "--app", "3740", "--env", "dev"], work);
-    assert.equal(b.status, 0, b.stderr);
-    assert.match(b.stdout, /1\. 見積書（有効/);
-    // ダウンロードのファイルは書き換えない（--dry-run なら検査できる。--fields は要らない）
-    const n1 = run(["normalize", snap], work);
-    assert.equal(n1.status, 2);
-    assert.match(n1.stderr, /ダウンロード \/ pull のファイルは書き換えない/);
-    const n2 = run(["normalize", snap, "--dry-run", "--check"], work);
-    assert.equal(n2.status, 0, n2.stderr + n2.stdout);
-    assert.match(n2.stdout, /--check: 入力の派生値と生成した値は一致/);
-    // edit で写して直す
-    const e = run(["edit", "--app", "見積書", "--env", "dev"], work);
-    assert.equal(e.status, 0, e.stderr);
-    const editFile = path.join("kintone", "x.cybozu.com", "3740-見積書(印刷屋)", dl.replace(".json", "-edit.json"));
-    assert.equal(readFileSync(path.join(work, editFile), "utf8"), readFileSync(path.join(work, snap), "utf8"));
-    assert.match(run(["edit", snap], work).stdout, /既にある（続けて直す）/);
-    const n3 = run(["normalize", editFile], work);
-    assert.equal(n3.status, 0, n3.stderr + n3.stdout);
-    // --record 3 は同じフォルダーの records/3.json、out/ もアプリのフォルダーの中（見本のレコードは明細が無いので式のエラーで終了コード 1。場所の確かめだけ）
-    const p = run(["preview", editFile, "--record", "3"], work);
-    assert.notEqual(p.status, 2, p.stderr);
-    assert.match(p.stdout, /見積書: 1 ページ/);
-    assert.deepEqual(readdirSync(path.join(dir, "out")), ["見積書.html"], "out/ はアプリのフォルダーの中");
-  } finally {
-    rmSync(work, { recursive: true, force: true });
-  }
-});
-
-test("CLI: --env は環境の名前だけ（場所は不可、environments.json が無ければ使えない）。environments.json があるときは --out を使わない。take / edit / files は environments.json が要る", () => {
-  const work = makeWorkspace(WS1);
-  const legacy = mkdtempSync(path.join(os.tmpdir(), "pcraft-legacy-"));
-  try {
-    const r1 = run(["fields", "--app", "見積書", "--env", "../env/prod.env", "--summary"], work);
-    assert.equal(r1.status, 2);
-    assert.match(r1.stderr, /環境の名前を続ける（ファイルの場所は指定できない）/);
-    const r2 = run(["fields", "--app", "見積書", "--env", "stage", "--summary"], work);
-    assert.equal(r2.status, 1);
-    assert.match(r2.stderr, /環境「stage」は environments\.json に無い/);
-    const r3 = run(["fields", "--app", "見積書", "--out", "fields/x.json"], work);
-    assert.equal(r3.status, 2);
-    assert.match(r3.stderr, /--out を使わない/);
-    const r4 = run(["fields", "--app", "見積書", "--summary"], work);
-    assert.equal(r4.status, 1);
-    assert.match(r4.stderr, /フォルダー（kintone\/dev-x\.cybozu\.com\/101-…）が無い。先に npx @rex0220\/print-craft-authoring-tools fields --app 101/);
-    for (const cmd of [["take"], ["edit", "--app", "1"], ["files", "--app", "1"]]) {
-      const r = run(cmd, legacy);
-      assert.equal(r.status, 2, cmd.join(" "));
-      assert.match(r.stderr, /environments\.json があるときだけ/);
-    }
-    const r5 = run(["fields", "--app", "1", "--env", "dev", "--summary"], legacy);
-    assert.equal(r5.status, 2);
-    assert.match(r5.stderr, /environments\.json があるときだけ使える/);
-  } finally {
-    rmSync(work, { recursive: true, force: true });
-    rmSync(legacy, { recursive: true, force: true });
-  }
-});
-
-test("listAppFolder: ダウンロード / pull は新しい順、-edit.json と新しい帳票は分ける", () => {
+test("listAppFolder: ダウンロード / pull は新しい順、-edit.json と新しい帳票は分ける。. で始まるもの（印）は出さない", () => {
   const work = mkdtempSync(path.join(os.tmpdir(), "pcraft-ws-"));
   try {
-    for (const n of ["rex0220-print-craft-app1-20261001-090000.json", "rex0220-print-craft-app1-20261005-125115.json", "rex0220-print-craft-app1-20261001-090000-edit.json", "納品書.json", "fields.json"]) writeFileSync(path.join(work, n), "{}");
+    for (const n of ["rex0220-print-craft-app1-20261001-090000.json", "rex0220-print-craft-app1-20261005-125115.json", "rex0220-print-craft-app1-20261001-090000-edit.json", "納品書.json", "fields.json", APP_MARKER]) writeFileSync(path.join(work, n), "{}");
     const l = listAppFolder(work);
     assert.deepEqual(l.snapshots, ["rex0220-print-craft-app1-20261005-125115.json", "rex0220-print-craft-app1-20261001-090000.json"]);
     assert.deepEqual(l.edits, ["rex0220-print-craft-app1-20261001-090000-edit.json"]);
@@ -278,100 +218,146 @@ test("listAppFolder: ダウンロード / pull は新しい順、-edit.json と�
   }
 });
 
-test("フォルダーの実体が作業フォルダーの外（symlink / junction）なら一覧しない: kintone/ とホストのフォルダー、アプリのフォルダーと records / out、inbox（B1 の Codex レビュー BLOCKER 1）", (t) => {
-  const work = makeWorkspace(WS3);
+test("フォルダーの実体が作業フォルダーの外（symlink / junction）なら一覧しない: kintone/ と profile のフォルダー、アプリのフォルダーと records / out、inbox（B1 の Codex レビュー BLOCKER 1）", (t2) => {
+  const t = makeConnWorkspace();
   const outside = mkdtempSync(path.join(os.tmpdir(), "pcraft-outside-"));
   const link = (target, at) => symlinkSync(target, at, "junction");
   try {
-    const ws = parseWorkspace(JSON.stringify(WS3));
-    const dev = pickEnv(ws, "dev");
-    mkdirSync(path.join(outside, "x.cybozu.com", "3740-外"), { recursive: true });
-    writeFileSync(path.join(outside, "rex0220-print-craft-app3740-20261005-125115.json"), "{}");
+    mkdirSync(path.join(outside, "dev", "3740-外"), { recursive: true });
     writeFileSync(path.join(outside, "99.json"), "{}");
     try {
-      link(outside, path.join(work, "kintone"));
+      link(outside, path.join(t.root, "kintone"));
     } catch (e) {
-      t.skip(`symlink を作れない: ${e.message}`);
+      t2.skip(`symlink を作れない: ${e.message}`);
       return;
     }
-    assert.throws(() => findAppDir(work, dev, 3740), PathError, "kintone/ が外");
-    assert.throws(() => assertInsideWorkspace(work, path.join(work, "kintone")), /kintone の実体が作業フォルダーの外を指している/);
-    rmSync(path.join(work, "kintone"));
-    mkdirSync(path.join(work, "kintone"));
-    link(path.join(outside, "x.cybozu.com"), path.join(work, "kintone", "x.cybozu.com"));
-    assert.throws(() => findAppDir(work, dev, 3740), PathError, "ホストのフォルダーが外");
-    rmSync(path.join(work, "kintone", "x.cybozu.com"));
-
-    const app = path.join(work, "kintone", "x.cybozu.com", "3740-見積書");
-    mkdirSync(app, { recursive: true });
-    assert.equal(findAppDir(work, dev, 3740), app, "中なら今までどおり");
-    assert.deepEqual(listAppFolder(app, work).snapshots, []);
+    assert.throws(() => findAppDir(t.root, "dev", 3740), PathError, "kintone/ が外");
+    assert.throws(() => assertInsideWorkspace(t.root, path.join(t.root, "kintone")), /kintone の実体が作業フォルダーの外を指している/);
+    rmSync(path.join(t.root, "kintone"));
+    mkdirSync(path.join(t.root, "kintone"));
+    link(path.join(outside, "dev"), path.join(t.root, "kintone", "dev"));
+    assert.throws(() => findAppDir(t.root, "dev", 3740), PathError, "profile のフォルダーが外");
+    rmSync(path.join(t.root, "kintone", "dev"));
+    const app = t.appFolder("dev", 3740, "見積書");
+    assert.equal(findAppDir(t.root, "dev", 3740), app, "中なら今までどおり");
     link(outside, path.join(app, "records"));
-    assert.throws(() => listAppFolder(app, work), PathError, "records が外");
-    assert.ok(Array.isArray(listAppFolder(app).records), "作業フォルダーを渡さない呼び方は今までどおり（互換）");
-    const files = run(["files", "--app", "3740"], work);
+    assert.throws(() => listAppFolder(app, t.root), PathError, "records が外");
+    const files = run(["files", "--app", "3740"], t.root, { PCRAFT_KINTONE_CONFIG: t.connFile });
     assert.equal(files.status, 2, files.stderr);
     assert.match(files.stderr, /作業フォルダーの外を指している/);
     assert.ok(!files.stdout.includes("99.json") && !files.stderr.includes("99.json"), "外のファイルの名前を出さない");
     rmSync(path.join(app, "records"));
     link(outside, path.join(app, "out"));
-    assert.throws(() => listAppFolder(app, work), PathError, "out が外");
-    assert.throws(() => listAppFolder(outside, work), PathError, "アプリのフォルダーそのものが外");
-
-    rmSync(path.join(work, "inbox"), { recursive: true });
-    link(outside, path.join(work, "inbox"));
-    assert.throws(() => takeInbox(work, ws), PathError, "inbox が外");
-    const take = run(["take"], work);
+    assert.throws(() => listAppFolder(app, t.root), PathError, "out が外");
+    link(outside, path.join(t.root, "inbox"));
+    assert.throws(() => takeInbox(t.root, t.mode()), PathError, "inbox が外");
+    const take = run(["take"], t.root, { PCRAFT_KINTONE_CONFIG: t.connFile });
     assert.equal(take.status, 2, take.stderr);
     assert.match(take.stderr, /inbox の実体が作業フォルダーの外を指している（symlink など）/);
-    assert.ok(existsSync(path.join(outside, "rex0220-print-craft-app3740-20261005-125115.json")), "外のファイルは動かさない");
   } finally {
-    rmSync(work, { recursive: true, force: true });
+    t.cleanup();
     rmSync(outside, { recursive: true, force: true });
   }
 });
 
-test("environments.json は実体が作業フォルダーの中のときだけ読む: 外への symlink・リンク切れ・ループは PathError（外の中身を出さない）、中への symlink は読む、フォルダーは WorkspaceError（B1 の Codex 再レビュー BLOCKER 2）", (t) => {
-  const work = mkdtempSync(path.join(os.tmpdir(), "pcraft-ws-"));
-  const outside = mkdtempSync(path.join(os.tmpdir(), "pcraft-outside-"));
-  const file = path.join(work, "environments.json");
+test("CLI（接続のファイルあり）: take → files → fields --summary → buttons --app → normalize は fields.json を同じフォルダーから、ダウンロードは書き換えない → edit → normalize → preview --record 3。--profile で prod", async () => {
+  const t = makeConnWorkspace();
+  const env = { PCRAFT_KINTONE_CONFIG: t.connFile };
   try {
-    writeFileSync(path.join(outside, "environments.json"), JSON.stringify({ ...WS3, environments: { 外の秘密: { baseUrl: "https://secret.cybozu.com", role: "development" } }, default: "外の秘密", apps: [] }));
-    try {
-      symlinkSync(path.join(outside, "environments.json"), file);
-    } catch (e) {
-      t.skip(`symlink を作れない: ${e.message}`);
-      return;
-    }
-    assert.throws(() => loadWorkspace(work), (e) => e instanceof PathError && /environments\.json の実体が作業フォルダーの外を指している/.test(e.message) && !/外の秘密|secret/.test(e.message));
-    const cli = run(["files", "--app", "見積書"], work);
-    assert.equal(cli.status, 2, cli.stderr);
-    assert.ok(!/外の秘密|secret\.cybozu/.test(cli.stdout + cli.stderr), "外のファイルの中身を出さない");
-    rmSync(file);
-    symlinkSync(path.join(outside, "無い.json"), file);
-    assert.throws(() => loadWorkspace(work), (e) => e instanceof PathError && /リンク切れ/.test(e.message), "リンク切れは「無い」にしない");
-    const dangling = run(["files", "--app", "見積書"], work);
-    assert.equal(dangling.status, 2, dangling.stderr);
-    assert.match(dangling.stderr, /リンク切れ/);
-    rmSync(file);
-    symlinkSync(file, file);
-    assert.throws(() => loadWorkspace(work), PathError, "ループ");
-    assert.equal(run(["files", "--app", "見積書"], work).status, 2, "ループは終了コード 2");
-    rmSync(file);
-    mkdirSync(path.join(work, "config"));
-    writeFileSync(path.join(work, "config", "environments.json"), JSON.stringify(WS3));
-    symlinkSync(path.join(work, "config", "environments.json"), file);
-    assert.deepEqual(Object.keys(loadWorkspace(work).environments), ["dev"], "中への symlink は読む");
-    const inside = run(["files", "--app", "見積書"], work);
-    assert.equal(inside.status, 1, "中への symlink は読んで、アプリのフォルダーが無いと言う");
-    assert.match(inside.stderr, /3740-…）が無い/);
-    rmSync(file);
-    mkdirSync(file);
-    assert.throws(() => loadWorkspace(work), (e) => e instanceof WorkspaceError && /ファイルでない/.test(e.message));
-    rmSync(file, { recursive: true });
-    assert.equal(loadWorkspace(work), null, "無ければ今までの形");
+    mkdirSync(path.join(t.root, "inbox"));
+    writeFileSync(path.join(t.root, "inbox", DL), await snapshotText(3740));
+    const tk = run(["take"], t.root, env);
+    assert.equal(tk.status, 0, tk.stderr);
+    const dir = path.join(t.root, "kintone", "dev", "3740-見積書(印刷屋)");
+    writeFileSync(path.join(dir, "fields.json"), JSON.stringify(FIELDS_FILE));
+    mkdirSync(path.join(dir, "records"));
+    writeFileSync(path.join(dir, "records", "3.json"), JSON.stringify({ record: { 見積番号: { type: "SINGLE_LINE_TEXT", value: "S-1" } } }));
+    const snap = path.join("kintone", "dev", "3740-見積書(印刷屋)", DL);
+    const f = run(["files", "--app", "3740"], t.root, env);
+    assert.equal(f.status, 0, f.stderr);
+    assert.match(f.stdout, new RegExp(`${DL}  ← 今の設定`));
+    assert.match(f.stdout, /profile dev、https:\/\/dev-x\.cybozu\.com/);
+    const s = run(["fields", "--app", "3740", "--summary"], t.root, env);
+    assert.equal(s.status, 0, s.stderr);
+    assert.match(s.stdout, /^アプリ 3740 /);
+    const b = run(["buttons", "--app", "3740"], t.root, env);
+    assert.equal(b.status, 0, b.stderr);
+    assert.match(b.stdout, /1\. 見積書（有効/);
+    const n1 = run(["normalize", snap], t.root, env);
+    assert.equal(n1.status, 2);
+    assert.match(n1.stderr, /ダウンロード \/ pull のファイルは書き換えない/);
+    const n2 = run(["normalize", snap, "--dry-run", "--check"], t.root, env);
+    assert.equal(n2.status, 0, n2.stderr + n2.stdout);
+    assert.match(n2.stdout, /--check: 入力の派生値と生成した値は一致/);
+    const e = run(["edit", "--app", "3740"], t.root, env);
+    assert.equal(e.status, 0, e.stderr);
+    const editFile = path.join("kintone", "dev", "3740-見積書(印刷屋)", DL.replace(".json", "-edit.json"));
+    assert.equal(readFileSync(path.join(t.root, editFile), "utf8"), readFileSync(path.join(t.root, snap), "utf8"));
+    const n3 = run(["normalize", editFile], t.root, env);
+    assert.equal(n3.status, 0, n3.stderr + n3.stdout);
+    assert.equal(run(["normalize", editFile, "--profile", "prod"], t.root, env).status, 2, "--profile とフォルダーの profile が違う");
+    const p = run(["preview", editFile, "--record", "3"], t.root, env);
+    assert.notEqual(p.status, 2, p.stderr);
+    assert.match(p.stdout, /見積書: 1 ページ/);
+    assert.deepEqual(readdirSync(path.join(dir, "out")), ["見積書.html"], "out/ はアプリのフォルダーの中");
+    // --profile prod のフォルダーはまだ無い
+    const fp = run(["files", "--app", "3740", "--profile", "prod"], t.root, env);
+    assert.equal(fp.status, 1);
+    assert.match(fp.stderr, /kintone\/prod\/3740-…）が無い。先に .* fields --app 3740 --profile prod/);
   } finally {
-    rmSync(work, { recursive: true, force: true });
-    rmSync(outside, { recursive: true, force: true });
+    t.cleanup();
+  }
+});
+
+test("CLI: --profile と --guest と --out の決まり、environments.json が残っていれば kintone を使うコマンドは止まる（settings/ の作業は動く）、接続のファイルの設定が空・相対パス（OS）は誤り、.env の相対パスは使える", () => {
+  const t = makeConnWorkspace();
+  try {
+    const env = { PCRAFT_KINTONE_CONFIG: t.connFile };
+    const g = run(["fields", "--app", "3740", "--guest", "1"], t.root, env);
+    assert.equal(g.status, 2);
+    assert.match(g.stderr, /--guest を使わない/);
+    const o = run(["fields", "--app", "3740", "--out", "fields/x.json"], t.root, env);
+    assert.equal(o.status, 2);
+    assert.match(o.stderr, /--out を使わない/);
+    const unknown = run(["files", "--app", "3740", "--profile", "stage"], t.root, env);
+    assert.equal(unknown.status, 1);
+    assert.match(unknown.stderr, /profile「stage」は接続のファイル（connections\.json）に無い/);
+    // 接続のファイルが無いとき（1 接続の形）
+    const np = run(["fields", "--app", "3740", "--profile", "dev", "--summary"], t.root);
+    assert.equal(np.status, 2);
+    assert.match(np.stderr, /--profile は kintone の接続のファイル/);
+    for (const cmd of [["take"], ["edit", "--app", "1"], ["files", "--app", "1"], ["buttons", "--app", "1"]]) {
+      const r = run(cmd, t.root);
+      assert.equal(r.status, 2, cmd.join(" "));
+      assert.match(r.stderr, /接続のファイル（PCRAFT_KINTONE_CONFIG）があるときだけ使える/);
+    }
+    // 設定が空・OS の相対パス
+    const empty = run(["files", "--app", "1"], t.root, { PCRAFT_KINTONE_CONFIG: "" });
+    assert.equal(empty.status, 1);
+    assert.match(empty.stderr, /接続のファイル（PCRAFT_KINTONE_CONFIG）が空/);
+    const relOs = run(["files", "--app", "1"], t.root, { PCRAFT_KINTONE_CONFIG: "../connections.json" });
+    assert.equal(relOs.status, 1);
+    assert.match(relOs.stderr, /絶対パスで書く/);
+    // .env の相対パス（.env のフォルダーから）は使える
+    writeFileSync(path.join(t.root, ".env"), "PCRAFT_KINTONE_CONFIG=../connections.json\n");
+    const relEnv = run(["files", "--app", "3740"], t.root);
+    assert.equal(relEnv.status, 1, relEnv.stderr);
+    assert.match(relEnv.stderr, /kintone\/dev\/3740-…）が無い/, "接続のファイルを読めた（フォルダーがまだ無いと言う）");
+    rmSync(path.join(t.root, ".env"));
+    // environments.json が残っている
+    writeFileSync(path.join(t.root, "environments.json"), JSON.stringify({ environments: {} }));
+    const legacy = run(["fields", "--app", "3740", "--summary"], t.root);
+    assert.equal(legacy.status, 1);
+    assert.match(legacy.stderr, /environments\.json は tools 2\.0\.0 から使わない/);
+    mkdirSync(path.join(t.root, "settings"));
+    mkdirSync(path.join(t.root, "fields"));
+    writeFileSync(path.join(t.root, "settings", "a.json"), JSON.stringify(aiSettings()));
+    writeFileSync(path.join(t.root, "fields", "3740.json"), JSON.stringify(FIELDS_FILE));
+    const local = run(["normalize", "settings/a.json", "--fields", "fields/3740.json", "--dry-run"], t.root);
+    assert.equal(local.status, 0, local.stderr + local.stdout);
+    const withConn = run(["files", "--app", "3740"], t.root, env);
+    assert.match(withConn.stderr, /3740-…）が無い/, "接続のファイルがあれば environments.json は読まない");
+  } finally {
+    t.cleanup();
   }
 });

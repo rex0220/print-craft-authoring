@@ -134,14 +134,18 @@ try {
   );
   writeFileSync(
     path.join(consumerDir, "main.ts"),
-    `import { CORE_API_VERSION, saveNewSettings, createContext, type SaveResult, type Engine, type Workspace } from "@rex0220/print-craft-authoring-tools/core";
+    `import { CORE_API_VERSION, saveNewSettings, createContext, modeOf, pickProfile, loadConnections, type SaveResult, type Engine, type WorkspaceMode, type ConnectionSet, type ProfileDef } from "@rex0220/print-craft-authoring-tools/core";
 export async function f(engine: Engine): Promise<SaveResult["status"]> {
   const ctx = createContext({ cwd: "/", env: {} });
-  const r = await saveNewSettings({ root: ctx.root, engine, policy: { allowExternal: [] } }, { path: "settings/a.json", content: "{}", fields: "fields/1.json", expectedAbsent: true });
+  const mode: WorkspaceMode = modeOf(ctx.root, { configFile: undefined, workspaceRoots: [ctx.root], env: {}, surface: "mcp" });
+  const r = await saveNewSettings({ root: ctx.root, engine, policy: { allowExternal: [] }, mode }, { path: "settings/a.json", content: "{}", fields: "fields/1.json", expectedAbsent: true });
   return r.status;
 }
-export const v: 1 = CORE_API_VERSION;
-export type W = Workspace;
+export function g(file: string): ProfileDef {
+  const set: ConnectionSet = loadConnections(file, { workspaceRoots: [], env: {} });
+  return pickProfile(set);
+}
+export const v: 2 = CORE_API_VERSION;
 `
   );
   const consumer = spawnSync(process.execPath, [tscBin, "-p", path.join(consumerDir, "tsconfig.json")], { encoding: "utf8" });
@@ -153,7 +157,7 @@ export type W = Workspace;
   rmSync(consumerDir, { recursive: true, force: true });
 }
 // 入口が読み込めて、版が build で、公開の関数があるか（中核は読み込んだだけでは何も読み書きしない）
-const coreSmoke = spawnSync(process.execPath, ["--input-type=module", "-e", `const c = await import(${JSON.stringify(pathToFileURL(path.join(root, "dist", "core.mjs")).href)}); const m = c.toolsMeta(); if (c.CORE_API_VERSION !== 1 || m.mode !== "build" || typeof c.saveNewSettings !== "function" || typeof c.loadEngine !== "function") process.exit(2); console.log(m.toolsVersion);`], { encoding: "utf8" });
+const coreSmoke = spawnSync(process.execPath, ["--input-type=module", "-e", `const c = await import(${JSON.stringify(pathToFileURL(path.join(root, "dist", "core.mjs")).href)}); const m = c.toolsMeta(); if (c.CORE_API_VERSION !== 2 || m.mode !== "build" || typeof c.saveNewSettings !== "function" || typeof c.loadEngine !== "function") process.exit(2); console.log(m.toolsVersion);`], { encoding: "utf8" });
 if (coreSmoke.status !== 0 || coreSmoke.stdout.trim() !== meta.toolsVersion) {
   console.error(`dist/core.mjs が読み込めない（exit ${coreSmoke.status}）:\n${coreSmoke.stderr}`);
   process.exit(1);

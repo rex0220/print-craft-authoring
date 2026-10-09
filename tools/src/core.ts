@@ -5,37 +5,69 @@
  *   - 印刷屋のコード（計算式エンジン、authoring API）は含まない。利用者の印刷屋の zip から loadEngine が読む
  *   - ここに出すものが公開の約束。CLI（cli.ts）と開発用の dev-paths.ts は出さない
  * ビルド: scripts/build.mjs が dist/core.mjs（ESM。happy-dom は依存のまま外に置く）と dist/types/（型）を作る。
+ * 2.0.0（CORE_API_VERSION 2）: environments.json の形（loadWorkspace、parseWorkspace、pickEnv、resolveApp、loadAuthForEnv、role）を除き、
+ * kintone の接続のファイル（connections.ts。kSQL の ksql.config.json と同じ形）と profile の形を足した（print-craft-authoring-mcp の実装案 15 章）。
  */
-export const CORE_API_VERSION = 1;
+export const CORE_API_VERSION = 2;
 
 // 作業の文脈とパス
 export { createContext, type WorkContext } from "./context.ts";
 export { PathError, WRITE_ROOTS, isInside, realResolve, resolveRead, resolveWrite } from "./safe-path.ts";
-export { PermissionError, assertChangeAllowed, classOfAppPath, roleOfTarget, type ChangeOp, type TargetClass, type TargetRole } from "./permission.ts";
+export { PermissionError, assertChangeAllowed, classOfAppPath, type ChangeOp, type TargetClass } from "./permission.ts";
 export {
+  APP_MARKER,
   EDIT_RE,
   INBOX,
   KINTONE_ROOT,
+  LEGACY_WORKSPACE_FILE,
   SNAPSHOT_RE,
-  WORKSPACE_FILE,
   WorkspaceError,
   appDirFor,
   appFolderOfFile,
+  appFoldersOf,
+  assertAppMark,
   assertInsideWorkspace,
+  assertUsableInKintone,
   editNameOf,
-  envOfAppFolder,
+  ensureAppFolder,
   findAppDir,
   folderNameOf,
+  hasLegacyConfig,
+  legacyBlockedError,
   listAppFolder,
-  loadWorkspace,
-  parseWorkspace,
-  pickEnv,
-  resolveApp,
+  markOf,
+  modeOf,
+  profileDirOf,
+  readAppMark,
+  requireProfiles,
   snapshotNameOf,
-  type EnvRole,
-  type EnvironmentDef,
-  type Workspace
+  unusedProfileDirs,
+  type AppMark,
+  type AppMarkState,
+  type ModeOptions,
+  type ProfilesContext,
+  type WorkspaceMode
 } from "./workspace.ts";
+export {
+  CONNECTION_MAX_BYTES,
+  ConnectionError,
+  FALLBACK_PROFILE,
+  PROFILE_NAME_RE,
+  assertSameConnection,
+  authFor,
+  identityOf,
+  loadConnections,
+  pickProfile,
+  sameIdentity,
+  semanticDigest,
+  snapshotOf,
+  type ConnectionErrorCode,
+  type ConnectionSet,
+  type ConnectionSnapshot,
+  type LoadConnectionsOptions,
+  type ProfileDef,
+  type ProfileIdentity
+} from "./connections.ts";
 
 // 版と印刷屋の zip
 export { MIN_PLUGIN_VERSION, PRINT_CRAFT_PLUGIN_ID, SUPPORTED_API_VERSIONS, isSupportedPluginVersion, toolsMeta, type ToolsMeta } from "./meta.ts";
@@ -43,7 +75,7 @@ export { DEFAULT_CONTEXT_BASE_URL, loadEngine, type Engine, type LoadEngineOptio
 export { PluginZipError, type PluginZipErrorCode, type PluginZipErrorInfo } from "./plugin-zip.ts";
 
 // 接続先と認証、kintone の GET
-export { AuthError, baseUrlFromEnv, describeAuth, loadAuth, loadAuthForEnv, pluginZipPath, unquote, type KintoneAuth, type LoadAuthOptions } from "./env.ts";
+export { AuthError, baseUrlFromEnv, describeAuth, kintoneConfigPath, loadAuth, pluginZipPath, unquote, type KintoneAuth, type LoadAuthOptions } from "./env.ts";
 export { KintoneUrlError, isKintoneBaseUrl, normalizeKintoneBaseUrl } from "./kintone-url.ts";
 export { ALLOWED_APIS, NotAllowedError, RECEIVE_LIMITS, RestError, createRestClient, type AllowedApi, type FetchLike, type RestClient } from "./kintone-rest.ts";
 
@@ -51,7 +83,7 @@ export { ALLOWED_APIS, NotAllowedError, RECEIVE_LIMITS, RestError, createRestCli
 export { InputError, MAX_INPUT_BYTES, normalizeSettings, readFieldsFile, readJsonLimited, readTextLimited, relativeSettingsPath, type NormalizeInput, type NormalizeResult } from "./commands/normalize.ts";
 export { loadPolicy, type Policy } from "./normalize/policy.ts";
 export { type Finding } from "./normalize/findings.ts";
-export { MAX_SAVE_INPUT_BYTES, digestOf, saveNewSettings, updateButton, type SaveContext, type SaveResult, type SaveStatus } from "./commands/save.ts";
+export { MAX_SAVE_INPUT_BYTES, connectionStatusOf, digestOf, saveNewSettings, updateButton, type SaveContext, type SaveResult, type SaveStatus } from "./commands/save.ts";
 export { ButtonNotFoundError, listButtons, shortenDataUrls, type ButtonsOptions } from "./commands/buttons.ts";
 export { DERIVED_KEYS, diffSettings } from "./commands/diff.ts";
 

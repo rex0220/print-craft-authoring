@@ -9,7 +9,7 @@
  *   - 中核は process.env と設定の場所を読まない。呼ぶ側（CLI と print-craft MCP）が渡す
  *   - 誤りの文は決まった文だけ（profile の名前、アプリの番号、キーの名前、ファイルの名前まで。値・絶対パス・環境変数の名前・JSON の断片を入れない）
  */
-import { createHash } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import { closeSync, fstatSync, openSync, readSync, realpathSync, statSync, type Stats } from "node:fs";
 import path from "node:path";
 import type { KintoneAuth } from "./env.ts";
@@ -99,14 +99,15 @@ export interface ConnectionSnapshot extends ProfileIdentity {
 interface ProfileSecrets {
   username?: string;
   password?: string;
-  /** パスワードの参照の形（passwordEnv の名前か "inline"。意味の digest に使う） */
-  passwordRef?: string;
   /** アプリの番号 → 値（env:<NAME> か、トークンそのもの） */
   tokens: Map<number, string>;
 }
 
 /** 秘密の値は ConnectionSet の外に持つ（JSON にしたとき・表示したときに出ないように） */
 const SECRETS = new WeakMap<ConnectionSet, { env: Env; byProfile: Map<string, ProfileSecrets> }>();
+/** 資格情報の指紋の鍵（プロセスごとの乱数。指紋はこのプロセスの中で比べるだけで、外に出さない。15.6、r3 MAJOR 1） */
+const FINGERPRINT_KEY = randomBytes(32);
+const fingerprint = (parts: readonly string[]): string => createHmac("sha256", FINGERPRINT_KEY).update(JSON.stringify(parts)).digest("hex");
 
 const nonblank = (v: unknown): string | undefined => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 const own = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
@@ -163,7 +164,6 @@ function readProfile(name: string, raw: unknown, env: Env): { def: ProfileDef; s
     secrets: {
       ...(username ? { username } : {}),
       ...(password ? { password } : {}),
-      ...(typeof raw.passwordEnv === "string" && nonblank(env[raw.passwordEnv]) ? { passwordRef: `env:${raw.passwordEnv}` } : nonblank(raw.password) ? { passwordRef: "inline" } : {}),
       tokens
     }
   };
@@ -175,6 +175,26 @@ function realOf(p: string): string {
 
 /** ファイルの識別（読み込みの途中の書き換え・名前の付け替えを見つける。Windows で ino が 0 のときは大きさと更新日時で比べる。15.3） */
 const sameFile = (a: Stats, b: Stats): boolean => a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs;
+
+/** ino が取れないときの読み直し（同じ検査） */
+function readAgain(real: string, name: string): Buffer {
+  let fd: number | undefined;
+  try {
+    fd = openSync(real, "r");
+    const st = fstatSync(fd);
+    if (!st.isFile() || st.size > CONNECTION_MAX_BYTES) throw new ConnectionError(`接続のファイル（${name}）が読み込みの途中で変わった`, "unreadable");
+    const buf = Buffer.alloc(st.size);
+    let off = 0;
+    while (off < st.size) {
+      const n = readSync(fd, buf, off, st.size - off, off);
+      if (n === 0) break;
+      off += n;
+    }
+    return buf.subarray(0, off);
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
+}
 
 /** 実際のパスを開き、開いた fd が普通のファイルで上限以下なら fd から読む。読んだ後に fd と実際のパスの識別が読む前と同じか確かめる */
 function readRegularFile(real: string, name: string): { bytes: Buffer; mode: number } {
@@ -200,7 +220,10 @@ function readRegularFile(real: string, name: string): { bytes: Buffer; mode: num
       throw new ConnectionError(`接続のファイル（${name}）が読み込みの途中で変わった`, "unreadable");
     }
     if (!sameFile(before, after) || !sameFile(before, onPath) || off !== before.size) throw new ConnectionError(`接続のファイル（${name}）が読み込みの途中で変わった`, "unreadable");
-    return { bytes: buf.subarray(0, off), mode: before.mode };
+    const bytes = buf.subarray(0, off);
+    // ino が取れない（0 の）とき（Windows の一部）は、同じ大きさ・更新日時のファイルへの付け替えを見分けられないので、もう一度読んで中身で比べる（r3 MAJOR 2）
+    if (before.ino === 0 && !bytes.equals(readAgain(real, name))) throw new ConnectionError(`接続のファイル（${name}）が読み込みの途中で変わった`, "unreadable");
+    return { bytes, mode: before.mode };
   } catch (e) {
     if (e instanceof ConnectionError) throw e;
     throw new ConnectionError(`接続のファイル（${name}）を読めない`, "unreadable");
@@ -321,16 +344,19 @@ export function snapshotOf(set: ConnectionSet, def: ProfileDef): ConnectionSnaps
 }
 
 /**
- * 選んだ profile の意味の digest（15.6）: profile、接続先、ゲストスペース、認証の種類と、対象のアプリの資格情報の参照の形（token なら env:<名前> か直接、
- * userpass なら passwordEnv の名前か直接）。秘密の値そのものは入れない（同じ参照のまま値だけを入れ替えても取り違えにならない）
+ * 選んだ profile の意味の digest（15.6）: profile、接続先、ゲストスペース、認証の種類、対象のアプリと、資格情報の指紋（解決したログイン名とパスワード、
+ * または対象のアプリのトークンの HMAC。鍵はプロセスごとの乱数）。直接書いた値・ログイン名・env: の参照先の値の入れ替えも違う digest になる（r3 MAJOR 1）。
+ * この digest も指紋も外に出さない（このプロセスの中で比べるだけ）
  */
 export function semanticDigest(set: ConnectionSet, def: ProfileDef, appId?: number): string {
-  const secrets = SECRETS.get(set)?.byProfile.get(def.profile);
+  const held = SECRETS.get(set);
+  const secrets = held?.byProfile.get(def.profile);
   let credential = "none";
-  if (def.auth === "userpass") credential = `userpass:${secrets?.passwordRef ?? "none"}`;
+  if (def.auth === "userpass") credential = fingerprint(["userpass", secrets?.username ?? "", secrets?.password ?? ""]);
   else if (appId !== undefined) {
     const v = secrets?.tokens.get(appId);
-    credential = v === undefined ? "token:none" : v.startsWith("env:") ? `token:${v}` : "token:inline";
+    const value = v === undefined ? "" : v.startsWith("env:") ? (nonblank(held?.env[v.slice(4)]) ?? "") : v.trim();
+    credential = fingerprint(["token", v?.startsWith("env:") ? v : "inline", value]);
   }
   return createHash("sha256").update(JSON.stringify([def.profile, def.baseUrl, def.guestSpaceId, def.auth, credential, appId ?? null])).digest("hex");
 }

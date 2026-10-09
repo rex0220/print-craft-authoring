@@ -225,7 +225,18 @@ test("スナップショットと意味の digest（15.6）: 接続先・ゲス�
     };
     const d1 = semanticDigest(set, dev, 1);
     assert.equal(digestWith({ ...base, profiles: { ...base.profiles, other: { baseUrl: "https://c.cybozu.com" } } }, 1), d1, "ほかの profile だけの書き換え");
-    assert.equal(digestWith({ ...base, profiles: { ...base.profiles, dev: { ...base.profiles.dev, tokenMap: { 1: "env:T1", 2: "other-inline" } } } }, 2), semanticDigest(set, dev, 2), "直接書いた値だけの入れ替え（参照の形は同じ）");
+    assert.notEqual(digestWith({ ...base, profiles: { ...base.profiles, dev: { ...base.profiles.dev, tokenMap: { 1: "env:T1", 2: "other-inline" } } } }, 2), semanticDigest(set, dev, 2), "直接書いたトークンの入れ替えも違う（指紋。r3 MAJOR 1）");
+    assert.equal(digestWith(base, 2), semanticDigest(set, dev, 2), "同じ中身なら同じ");
+    const up = { profiles: { dev: { baseUrl: "https://a.cybozu.com", username: "u", password: PASSWORD } } };
+    const upDigest = (data) => {
+      const s2 = loadConnections(t.write("u.json", data), opt);
+      return semanticDigest(s2, pickProfile(s2, "dev"));
+    };
+    assert.notEqual(upDigest({ profiles: { dev: { ...up.profiles.dev, username: "u2" } } }), upDigest(up), "ログイン名の入れ替え");
+    assert.notEqual(upDigest({ profiles: { dev: { ...up.profiles.dev, password: "other" } } }), upDigest(up), "パスワードの入れ替え");
+    const envSet = (v) => loadConnections(file, { workspaceRoots: [], env: { T1: v } });
+    assert.notEqual(semanticDigest(envSet("other-token"), pickProfile(envSet("other-token")), 1), d1, "env: の参照先の値の入れ替え");
+    assert.ok(!semanticDigest(set, dev, 1).includes(SECRET));
     assert.notEqual(digestWith({ ...base, profiles: { ...base.profiles, dev: { ...base.profiles.dev, baseUrl: "https://x.cybozu.com" } } }, 1), d1, "接続先");
     assert.notEqual(digestWith({ ...base, profiles: { ...base.profiles, dev: { ...base.profiles.dev, guestSpaceId: 3 } } }, 1), d1, "ゲストスペース");
     assert.notEqual(digestWith({ ...base, profiles: { ...base.profiles, dev: { ...base.profiles.dev, tokenMap: { 1: "env:T9", 2: SECRET } } } }, 1), d1, "参照の環境変数");

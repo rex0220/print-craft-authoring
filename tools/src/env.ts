@@ -25,7 +25,8 @@ const NAMES = {
   token: ["KINTONE_API_TOKEN", "KSQL_TOKEN"],
   username: ["KINTONE_USERNAME", "KSQL_USERNAME"],
   password: ["KINTONE_PASSWORD", "KSQL_PASSWORD"],
-  pluginZip: ["PCRAFT_PLUGIN_ZIP"]
+  pluginZip: ["PCRAFT_PLUGIN_ZIP"],
+  kintoneConfig: ["PCRAFT_KINTONE_CONFIG"]
 } as const;
 
 /** 前後の空白と、対になった外側の " / ' を外す（.env の値と、OS の環境変数の場所・URL。Windows の「パスのコピー」で付く引用符。引用符の中の空白は値のうち） */
@@ -121,36 +122,6 @@ export function loadAuth(opt: LoadAuthOptions): KintoneAuth {
 }
 
 /**
- * environments.json の環境の認証（workspace.ts。2026-10-05）。接続先は environments.json の baseUrl、認証はその環境の envFile（.env か env/<名前>.env。
- * 場所は environments.json の値だけで、CLI から指定できない）だけから読む。OS の KINTONE_* / KSQL_* は読まない（開発と本番の取り違えを防ぐ。
- * OS に本番の KINTONE_BASE_URL があっても開発の環境で使わない）。envFile に KINTONE_BASE_URL があり environments.json と違えば止まる
- */
-export function loadAuthForEnv(env: { name: string; baseUrl: string; envFile: string }, cwd: string): KintoneAuth {
-  const file = path.join(cwd, env.envFile);
-  if (!existsSync(file)) throw new AuthError(`環境「${env.name}」の認証のファイルが無い: ${env.envFile}（${env.envFile === ".env" ? ".env.example を写して作る" : "env/ に作る。.env と同じ書き方"}）`);
-  const vars = parseDotEnv(readFileSync(file, "utf8"));
-  const pick = (names: readonly string[]): string | undefined => {
-    for (const n of names) if (vars[n] && vars[n].trim()) return vars[n].trim();
-    return undefined;
-  };
-  const fileBase = pick(NAMES.baseUrl);
-  if (fileBase) {
-    let normalized = "";
-    try {
-      normalized = normalizeKintoneBaseUrl(fileBase);
-    } catch {
-      normalized = "";
-    }
-    if (normalized !== env.baseUrl) throw new AuthError(`${env.envFile} の KINTONE_BASE_URL が environments.json の環境「${env.name}」の baseUrl（${env.baseUrl}）と違う。取り違えを防ぐため止める（どちらかを直す）`);
-  }
-  const token = pick(NAMES.token);
-  const username = pick(NAMES.username);
-  const password = pick(NAMES.password);
-  if (!token && !(username && password)) throw new AuthError(`${env.envFile} に KINTONE_API_TOKEN か、KINTONE_USERNAME と KINTONE_PASSWORD の両方が要る（環境「${env.name}」。OS の環境変数は読まない）`);
-  return { baseUrl: env.baseUrl, token, username: token ? undefined : username, password: token ? undefined : password };
-}
-
-/**
  * 印刷屋の zip の場所（OS の環境変数か .env の PCRAFT_PLUGIN_ZIP。無ければ undefined = 開発中の print-craft を探す）。
  * .env に書いた相対パスは .env のフォルダーから解決する（今までどおり）。OS の環境変数（print-craft MCP では設定項目）の値は
  * 絶対パスだけを受け付ける（相対パスの起点が起動の場所に左右されるため。Desktop の起動の場所は / や C:\Windows\System32。段階 0-2 の段 2）
@@ -161,6 +132,28 @@ export function pluginZipPath(opt: LoadAuthOptions): string | undefined {
   if (picked.source === "file") return path.resolve(path.dirname(picked.file ?? envFileOf(opt)), picked.value);
   if (!path.isAbsolute(picked.value)) throw new AuthError(`PCRAFT_PLUGIN_ZIP（OS の環境変数）は絶対パスで書く: ${picked.value}（.env に書くなら .env のフォルダーからの相対パスでもよい）`);
   return path.normalize(picked.value);
+}
+
+/**
+ * kintone の接続のファイルの場所（PCRAFT_KINTONE_CONFIG。print-craft MCP の実装案 15.9）。OS の環境変数が先で、OS の値は絶対パスだけ。
+ * 無ければ作業フォルダーの .env の値（.env のフォルダーからの相対か絶対）。設定されていなければ undefined、設定されていて空なら ""
+ * （空・読めないのは誤りにする。1 接続の形に戻らない）。存在するかは確かめない（connections.ts が読む）
+ */
+export function kintoneConfigPath(opt: LoadAuthOptions): string | undefined {
+  const name = NAMES.kintoneConfig[0];
+  const osRaw = opt.env[name];
+  if (osRaw !== undefined) {
+    const v = unquote(osRaw);
+    if (!v) return "";
+    if (!path.isAbsolute(v)) throw new AuthError(`${name}（OS の環境変数）は絶対パスで書く（.env に書くなら .env のフォルダーからの相対パスでもよい）`);
+    return path.normalize(v);
+  }
+  const file = envFileOf(opt);
+  if (!existsSync(file)) return undefined;
+  const vars = parseDotEnv(readFileSync(file, "utf8"));
+  if (!Object.prototype.hasOwnProperty.call(vars, name)) return undefined;
+  const v = vars[name].trim();
+  return v ? path.resolve(path.dirname(file), v) : "";
 }
 
 /** 認証の種類だけを文言にする（値もユーザー名も出さない） */

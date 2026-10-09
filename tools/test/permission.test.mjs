@@ -1,125 +1,136 @@
-/** kintone/ の下を変える前の許可（environments.json の role と、操作 × 場所。段階 0-2。print-craft-authoring-mcp の docs/permission-table.md 4.2） */
+/**
+ * kintone/ の下を変える前の許可（tools 2.0.0。print-craft-authoring-mcp の実装案 15.5〜15.7。本番の保護はやめた）: profile の形のときだけ、
+ * 接続のファイルにある profile のフォルダー、印が今の接続のもの、操作 × 場所、ダウンロードのファイルは書き換えない、フォルダーを作れるのは fields と snapshot、
+ * 確定の前に接続のファイルを読み直す（connection-changed）
+ */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import os from "node:os";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { assertChangeAllowed, classOfAppPath, PermissionError, roleOfTarget } from "../src/permission.ts";
-import { realResolve } from "../src/safe-path.ts";
+import { assertChangeAllowed, classOfAppPath, PermissionError } from "../src/permission.ts";
+import { ConnectionError } from "../src/connections.ts";
+import { APP_MARKER, modeOf } from "../src/workspace.ts";
+import { CONN, makeConnWorkspace } from "./conn-helper.mjs";
 
 const SNAP = "rex0220-print-craft-app3740-20261005-125115.json";
 const EDIT = SNAP.replace(".json", "-edit.json");
-const ENVS = {
-  default: "dev",
-  environments: { dev: { baseUrl: "https://dev-x.cybozu.com", role: "development" }, prod: { baseUrl: "https://x.cybozu.com", role: "production" } },
-  apps: [{ name: "見積書", dev: 101, prod: 3740 }]
-};
-
-/** 作業フォルダーを作り、実際のパスを返す（macOS の /var → /private/var をそろえる） */
-function makeWork(envs) {
-  const work = realResolve(".", mkdtempSync(path.join(os.tmpdir(), "pcraft-perm-")));
-  if (envs) writeFileSync(path.join(work, "environments.json"), JSON.stringify(envs));
-  return work;
-}
 
 const denied = (fn, re) => assert.throws(fn, (e) => e instanceof PermissionError && re.test(e.message));
+const conflict = (fn, code) => assert.throws(fn, (e) => e instanceof ConnectionError && e.code === code);
 
-test("classOfAppPath: アプリのフォルダーの中の場所（P4〜P9）", () => {
+test("classOfAppPath: アプリのフォルダーの中の場所（P4〜P9）。. で始まる名前（印）はどの操作でも書けない", () => {
   assert.equal(classOfAppPath(SNAP), "snapshot");
   assert.equal(classOfAppPath(EDIT), "edit");
   assert.equal(classOfAppPath("新しい帳票.json"), "report");
   assert.equal(classOfAppPath("fields.json"), "fields");
   assert.equal(classOfAppPath("records/3.json"), "record");
+  assert.equal(classOfAppPath("records/sub/3.json"), "other");
   assert.equal(classOfAppPath("records/x.txt"), "other");
   assert.equal(classOfAppPath("out/見積書.html"), "out");
   assert.equal(classOfAppPath("sub/a.json"), "other");
   assert.equal(classOfAppPath("a.txt"), "other");
+  assert.equal(classOfAppPath(APP_MARKER), "other");
+  assert.equal(classOfAppPath(".hidden.json"), "other");
+  assert.equal(classOfAppPath("records/.x.json"), "other");
 });
 
-test("開発: 操作ごとに書ける場所だけ。ダウンロード / pull のファイルの書き換えは拒否", () => {
-  const work = makeWork(ENVS);
+test("profile の形: 操作ごとに書ける場所だけ。ダウンロード / pull のファイルの書き換えと印は拒否。kintone/ の外は形に依らない", () => {
+  const t = makeConnWorkspace();
   try {
-    const dir = path.join(work, "kintone", "dev-x.cybozu.com", "101-見積書");
-    mkdirSync(dir, { recursive: true });
-    const at = (f) => path.join(dir, f);
-    assert.deepEqual(roleOfTarget(work, at("fields.json")), { role: "development", envName: "dev", cls: "fields" });
-    // 書ける組み合わせ
-    assertChangeAllowed(work, at("fields.json"), "fields");
-    assertChangeAllowed(work, at("records/3.json"), "record");
-    assertChangeAllowed(work, at("out/見積書.html"), "preview");
-    assertChangeAllowed(work, at("rex0220-print-craft-app101-20261005-125115-edit.json"), "settings");
-    assertChangeAllowed(work, at("新しい帳票.json"), "settings");
-    assertChangeAllowed(work, at("rex0220-print-craft-app101-20261005-125115.json"), "snapshot");
-    // 操作と場所が合わない（Codex レビュー MAJOR 3）
-    denied(() => assertChangeAllowed(work, at("fields.json"), "settings"), /書けるのは 設定/);
-    denied(() => assertChangeAllowed(work, at("rex0220-print-craft-app101-20261005-125116.json"), "settings"), /書けるのは 設定/, "設定の保存でダウンロードの名前を作らない");
-    denied(() => assertChangeAllowed(work, at("records/3.json"), "settings"), /書けるのは/);
-    denied(() => assertChangeAllowed(work, at("out/x.json"), "settings"), /書けるのは/);
-    denied(() => assertChangeAllowed(work, at("新しい帳票.json"), "snapshot"), /新しい名前のダウンロード/);
-    denied(() => assertChangeAllowed(work, at("records/3.json"), "fields"), /fields\.json/);
-    denied(() => assertChangeAllowed(work, at("fields.json"), "preview"), /out\/ の下/);
-    // ダウンロード / pull のファイルは書き換えない
-    writeFileSync(at("rex0220-print-craft-app101-20261005-125115.json"), "{}");
-    denied(() => assertChangeAllowed(work, at("rex0220-print-craft-app101-20261005-125115.json"), "snapshot"), /書き換えない/);
-    denied(() => assertChangeAllowed(work, at("rex0220-print-craft-app101-20261005-125115.json"), "settings"), /書き換えない/);
+    const mode = t.mode();
+    const dir = t.appFolder("dev", 3740, "見積書");
+    const f = (n) => path.join(dir, n);
+    assertChangeAllowed(t.root, f(EDIT), "settings", mode);
+    assertChangeAllowed(t.root, f("新しい帳票.json"), "settings", mode);
+    assertChangeAllowed(t.root, f("fields.json"), "fields", mode);
+    assertChangeAllowed(t.root, f("records/3.json"), "record", mode);
+    assertChangeAllowed(t.root, f("out/見積書.html"), "preview", mode);
+    assertChangeAllowed(t.root, f(SNAP), "snapshot", mode);
+    denied(() => assertChangeAllowed(t.root, f("fields.json"), "settings", mode), /この操作でアプリのフォルダーに書けるのは/);
+    denied(() => assertChangeAllowed(t.root, f(APP_MARKER), "settings", mode), /書けるのは/);
+    denied(() => assertChangeAllowed(t.root, f(APP_MARKER), "fields", mode), /書けるのは/);
+    writeFileSync(f(SNAP), "{}");
+    denied(() => assertChangeAllowed(t.root, f(SNAP), "snapshot", mode), /ダウンロード \/ pull のファイルは書き換えない/);
+    denied(() => assertChangeAllowed(t.root, f(SNAP), "settings", mode), /ダウンロード \/ pull のファイルは書き換えない/);
+    assertChangeAllowed(t.root, path.join(t.root, "settings", "a.json"), "settings", mode);
+    assertChangeAllowed(t.root, path.join(t.root, "settings", "a.json"), "settings", { kind: "single" });
   } finally {
-    rmSync(work, { recursive: true, force: true });
+    t.cleanup();
   }
 });
 
-test("本番: 新しい名前のダウンロード / pull を足すことだけ。直す・書く・上書きは拒否", () => {
-  const work = makeWork(ENVS);
+test("1 接続の形・未設定・移行で止まっている形では kintone/ の下をいつも変えない", () => {
+  const t = makeConnWorkspace();
   try {
-    const dir = path.join(work, "kintone", "x.cybozu.com", "3740-見積書");
-    mkdirSync(dir, { recursive: true });
-    assertChangeAllowed(work, path.join(dir, SNAP), "snapshot");
-    for (const [f, op] of [["fields.json", "fields"], [EDIT, "settings"], ["新しい帳票.json", "settings"], [path.join("records", "3.json"), "record"], [path.join("out", "見積書.html"), "preview"]]) {
-      denied(() => assertChangeAllowed(work, path.join(dir, f), op), /本番（role: production）なので変更できない/);
-    }
-    writeFileSync(path.join(dir, SNAP), "{}");
-    denied(() => assertChangeAllowed(work, path.join(dir, SNAP), "snapshot"), /書き換えない/);
+    const file = path.join(t.root, "kintone", "dev", "3740-見積書", "a.json");
+    denied(() => assertChangeAllowed(t.root, file, "settings", { kind: "single" }), /接続のファイルがあるときだけ/);
+    denied(() => assertChangeAllowed(t.root, file, "fields", { kind: "not-configured" }), /接続のファイルがあるときだけ/);
+    conflict(() => assertChangeAllowed(t.root, file, "fields", { kind: "legacy-blocked" }), "legacy-config-present");
+    writeFileSync(path.join(t.root, "environments.json"), "{}");
+    assert.equal(modeOf(t.root, { configFile: undefined, workspaceRoots: [t.root], env: {}, surface: "cli" }).kind, "legacy-blocked");
   } finally {
-    rmSync(work, { recursive: true, force: true });
+    t.cleanup();
   }
 });
 
-test("未分類: role が無い環境、environments.json が無い、どの環境にも合わない、アプリのフォルダーの外 → kintone/ の下は何も変えられない", () => {
-  const noRole = makeWork({ environments: { dev: { baseUrl: "https://dev-x.cybozu.com" } } });
-  const noEnvs = makeWork(null);
-  const work = makeWork(ENVS);
+test("接続のファイルに無い profile のフォルダー、アプリのフォルダーの外は denied。フォルダーを作れるのは fields と snapshot だけ", () => {
+  const t = makeConnWorkspace();
   try {
-    denied(() => assertChangeAllowed(noRole, path.join(noRole, "kintone", "dev-x.cybozu.com", "101-見積書", "fields.json"), "fields"), /環境「dev」に role が無い.*role（development か production）を書く/);
-    denied(() => assertChangeAllowed(noRole, path.join(noRole, "kintone", "dev-x.cybozu.com", "101-見積書", SNAP), "snapshot"), /role が無い/);
-    denied(() => assertChangeAllowed(noEnvs, path.join(noEnvs, "kintone", "x.cybozu.com", "3740-見積書", "a.json"), "settings"), /environments\.json が無い/);
-    denied(() => assertChangeAllowed(work, path.join(work, "kintone", "other.cybozu.com", "5-x", "a.json"), "settings"), /どの環境のものか/);
-    denied(() => assertChangeAllowed(work, path.join(work, "kintone", "x.cybozu.com", "a.json"), "settings"), /アプリのフォルダー/);
-  } finally {
-    for (const w of [noRole, noEnvs, work]) rmSync(w, { recursive: true, force: true });
-  }
-});
-
-test("kintone/ の外は環境に依らない（settings/ fields/ records/ out/ temp/）", () => {
-  const noRole = makeWork({ environments: { dev: { baseUrl: "https://dev-x.cybozu.com" } } });
-  try {
-    for (const [f, op] of [["settings/a.json", "settings"], ["fields/1.json", "fields"], ["records/1-1.json", "record"], ["out/a.html", "preview"], ["temp/a.json", "settings"]]) {
-      assert.equal(roleOfTarget(noRole, path.join(noRole, f)), null);
-      assertChangeAllowed(noRole, path.join(noRole, f), op);
+    const mode = t.mode();
+    denied(() => assertChangeAllowed(t.root, path.join(t.root, "kintone", "stage", "3740-見積書", "a.json"), "settings", mode), /profile「stage」は接続のファイル/);
+    denied(() => assertChangeAllowed(t.root, path.join(t.root, "kintone", "x.cybozu.com", "3740-見積書", "a.json"), "settings", mode), /アプリのフォルダー/);
+    denied(() => assertChangeAllowed(t.root, path.join(t.root, "kintone", "dev", "a.json"), "settings", mode), /アプリのフォルダー/);
+    const fresh = path.join(t.root, "kintone", "dev", "101-新しい");
+    assertChangeAllowed(t.root, path.join(fresh, "fields.json"), "fields", mode);
+    assertChangeAllowed(t.root, path.join(fresh, SNAP.replace("3740", "101")), "snapshot", mode);
+    for (const [name, op] of [["a.json", "settings"], ["records/3.json", "record"], ["out/a.html", "preview"]]) {
+      denied(() => assertChangeAllowed(t.root, path.join(fresh, name), op, mode), /アプリのフォルダーが無い/);
     }
   } finally {
-    rmSync(noRole, { recursive: true, force: true });
+    t.cleanup();
   }
 });
 
-test("environments.json は変える直前に読み直す（消すと本番の保護を外せない。role を production に変えれば次の判定から止まる）", () => {
-  const work = makeWork(ENVS);
+test("印: 無い・壊れている・別の接続（アプリ・ゲストスペース・接続先）は conflict。印の無いフォルダーは採用しない", () => {
+  const t = makeConnWorkspace();
   try {
-    const devFields = path.join(work, "kintone", "dev-x.cybozu.com", "101-見積書", "fields.json");
-    assertChangeAllowed(work, devFields, "fields");
-    writeFileSync(path.join(work, "environments.json"), JSON.stringify({ ...ENVS, environments: { ...ENVS.environments, dev: { ...ENVS.environments.dev, role: "production" } } }));
-    denied(() => assertChangeAllowed(work, devFields, "fields"), /本番/);
-    rmSync(path.join(work, "environments.json"));
-    denied(() => assertChangeAllowed(work, devFields, "fields"), /environments\.json が無い/);
+    const mode = t.mode();
+    const bare = path.join(t.root, "kintone", "dev", "3740-見積書");
+    mkdirSync(bare, { recursive: true });
+    conflict(() => assertChangeAllowed(t.root, path.join(bare, "a.json"), "settings", mode), "app-marker-missing");
+    conflict(() => assertChangeAllowed(t.root, path.join(bare, "fields.json"), "fields", mode), "app-marker-missing");
+    writeFileSync(path.join(bare, APP_MARKER), "{ broken");
+    conflict(() => assertChangeAllowed(t.root, path.join(bare, "a.json"), "settings", mode), "app-marker-invalid");
+    writeFileSync(path.join(bare, APP_MARKER), JSON.stringify({ schemaVersion: 1, profile: "dev", origin: "https://dev-x.cybozu.com", guestSpaceId: null, appId: 101 }));
+    conflict(() => assertChangeAllowed(t.root, path.join(bare, "a.json"), "settings", mode), "app-identity-conflict");
+    writeFileSync(path.join(bare, APP_MARKER), JSON.stringify({ schemaVersion: 1, profile: "dev", origin: "https://other.cybozu.com", guestSpaceId: null, appId: 3740 }));
+    conflict(() => assertChangeAllowed(t.root, path.join(bare, "a.json"), "settings", mode), "app-identity-conflict");
+    writeFileSync(path.join(bare, APP_MARKER), JSON.stringify({ schemaVersion: 1, profile: "dev", origin: "https://dev-x.cybozu.com", guestSpaceId: 15, appId: 3740 }));
+    conflict(() => assertChangeAllowed(t.root, path.join(bare, "a.json"), "settings", mode), "app-identity-conflict");
+    writeFileSync(path.join(bare, APP_MARKER), JSON.stringify({ schemaVersion: 1, profile: "dev", origin: "https://dev-x.cybozu.com", guestSpaceId: null, appId: 3740 }));
+    assertChangeAllowed(t.root, path.join(bare, "a.json"), "settings", mode);
   } finally {
-    rmSync(work, { recursive: true, force: true });
+    t.cleanup();
+  }
+});
+
+test("確定の前に接続のファイルを読み直す: 選んだ profile の接続先・トークンが変われば connection-changed。ほかの profile だけの書き換えでは止めない", () => {
+  const t = makeConnWorkspace();
+  try {
+    const mode = t.mode();
+    const dir = t.appFolder("dev", 3740, "見積書");
+    const file = path.join(dir, "a.json");
+    t.writeConn({ ...CONN, profiles: { ...CONN.profiles, prod: { ...CONN.profiles.prod, baseUrl: "https://y.cybozu.com" } } });
+    assertChangeAllowed(t.root, file, "settings", mode);
+    t.writeConn({ ...CONN, profiles: { ...CONN.profiles, dev: { ...CONN.profiles.dev, tokenMap: { ...CONN.profiles.dev.tokenMap, APP3740: "rotated" } } } });
+    conflict(() => assertChangeAllowed(t.root, file, "settings", mode), "connection-changed");
+    t.writeConn({ ...CONN, profiles: { ...CONN.profiles, dev: { ...CONN.profiles.dev, baseUrl: "https://dev-y.cybozu.com" } } });
+    conflict(() => assertChangeAllowed(t.root, file, "settings", mode), "connection-changed");
+    t.writeConn({ profiles: { prod: CONN.profiles.prod } });
+    conflict(() => assertChangeAllowed(t.root, file, "settings", mode), "connection-changed");
+    rmSync(t.connFile);
+    assert.throws(() => assertChangeAllowed(t.root, file, "settings", mode), (e) => e instanceof ConnectionError && e.code === "unreadable", "読めなければ前の値に戻らない");
+  } finally {
+    t.cleanup();
   }
 });

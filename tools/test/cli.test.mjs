@@ -62,13 +62,15 @@ test("version: zip が読めなければ 1 で理由を出す。--plugin-zip / -
     assert.equal(x.status, 2, opt);
     assert.match(x.stderr, /は使えない/);
   }
-  // --env は 2026-10-05 から environments.json の環境の名前（場所は指定できない。environments.json が無ければ使えない）
-  const e1 = run(["version", "--env", "x"]);
-  assert.equal(e1.status, 2);
-  assert.match(e1.stderr, /--env は作業フォルダーに environments\.json があるときだけ使える/);
-  const e2 = run(["version", "--env", "../.env"]);
-  assert.equal(e2.status, 2);
-  assert.match(e2.stderr, /ファイルの場所は指定できない/);
+  // --env は 2.0.0 からいつも断る（environments.json の形をやめた。--profile にする）。--profile は名前の形を確かめる
+  for (const v of ["x", "../.env"]) {
+    const e = run(["version", "--env", v]);
+    assert.equal(e.status, 2);
+    assert.match(e.stderr, /--env は tools 2\.0\.0 から使わない。.*--profile/);
+  }
+  const p = run(["version", "--profile", "../x"]);
+  assert.equal(p.status, 2);
+  assert.match(p.stderr, /--profile には接続のファイルの profile の名前/);
 });
 
 test("normalize / preview: 読むのは作業フォルダーの中、書くのは settings/ temp/ out/ の下だけ", () => {

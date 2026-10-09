@@ -4,24 +4,29 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as core from "../src/core.ts";
 
-test("入口は print-craft MCP が使う関数を出す（公開の約束。名前を消すときは CORE_API_VERSION を上げる）", () => {
-  assert.equal(core.CORE_API_VERSION, 1);
+test("入口は print-craft MCP が使う関数を出す（公開の約束。名前を消すときは CORE_API_VERSION を上げる。2.0.0 で 2）", () => {
+  assert.equal(core.CORE_API_VERSION, 2);
   for (const name of [
-    "createContext", "resolveRead", "resolveWrite", "assertChangeAllowed", "loadWorkspace", "appFolderOfFile", "snapshotNameOf",
-    "toolsMeta", "loadEngine", "pluginZipPath", "baseUrlFromEnv", "loadAuth", "loadAuthForEnv", "createRestClient", "normalizeKintoneBaseUrl",
+    "createContext", "resolveRead", "resolveWrite", "assertChangeAllowed", "appFolderOfFile", "snapshotNameOf",
+    "toolsMeta", "loadEngine", "pluginZipPath", "kintoneConfigPath", "baseUrlFromEnv", "loadAuth", "createRestClient", "normalizeKintoneBaseUrl",
     "normalizeSettings", "readFieldsFile", "loadPolicy", "saveNewSettings", "updateButton", "digestOf", "listButtons", "diffSettings",
     "fetchFields", "summarizeFields", "fetchRecord", "summarizeRecord", "shapeLines", "listRecordShapes", "listQueryOf", "runPreview",
-    "pullSettings", "takeInbox", "writeNewFile", "findAppDir", "listAppFolder", "assertInsideWorkspace"
+    "pullSettings", "takeInbox", "writeNewFile", "findAppDir", "listAppFolder", "assertInsideWorkspace",
+    "loadConnections", "pickProfile", "authFor", "snapshotOf", "semanticDigest", "assertSameConnection", "identityOf", "sameIdentity",
+    "modeOf", "requireProfiles", "hasLegacyConfig", "legacyBlockedError", "ensureAppFolder", "assertAppMark", "readAppMark", "markOf", "assertUsableInKintone",
+    "appFoldersOf", "unusedProfileDirs", "profileDirOf", "connectionStatusOf"
   ]) {
     assert.equal(typeof core[name], "function", name);
   }
-  for (const name of ["PathError", "PermissionError", "WorkspaceError", "InputError", "AuthError", "RestError", "QueryError", "PluginZipError", "FileExistsError", "LockBusyError"]) {
+  for (const name of ["PathError", "PermissionError", "WorkspaceError", "InputError", "AuthError", "RestError", "QueryError", "PluginZipError", "FileExistsError", "LockBusyError", "ConnectionError"]) {
     assert.ok(core[name].prototype instanceof Error, name);
   }
 });
 
 test("入口は CLI と開発用の場所の探し方（環境変数を読む）を出さない。package.json の exports は ./core と ./package.json だけ", () => {
   for (const name of ["main", "printCraftRootOf", "printCraftProdDir", "devPluginDir", "PRINT_CRAFT_ROOT"]) assert.equal(name in core, false, name);
+  // 2.0.0 で除いた environments.json の形（CORE_API_VERSION 2）
+  for (const name of ["loadWorkspace", "parseWorkspace", "pickEnv", "resolveApp", "loadAuthForEnv", "roleOfTarget", "envOfAppFolder", "WORKSPACE_FILE"]) assert.equal(name in core, false, name);
   const src = readFileSync(new URL("../src/core.ts", import.meta.url), "utf8");
   assert.ok(!/from "\.\/(cli|dev-paths)\.ts"/.test(src));
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
