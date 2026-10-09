@@ -442,7 +442,7 @@ async function buttons(args: string[]): Promise<number> {
     const ctx = context(args);
     if (!ctx.ws) throw new UsageError("buttons --app は environments.json があるときだけ。今までの形では buttons <設定 JSON>");
     const app = appOf(args, ctx);
-    const list = listAppFolder(existingAppDir(ctx, app));
+    const list = listAppFolder(existingAppDir(ctx, app), W.root);
     if (!list.snapshots.length) throw new InputError(`${shown(list.dir)} にダウンロード / pull のファイルが無い（設定画面でダウンロードして inbox/ に置き take、または pull --app ${app}${envFlag(ctx)}）`);
     settingsArg = shown(path.join(list.dir, list.snapshots[0]));
   }
@@ -488,7 +488,7 @@ async function edit(args: string[]): Promise<number> {
   let [src] = positional(args);
   if (!src) {
     const app = appOf(args, ctx);
-    const list = listAppFolder(existingAppDir(ctx, app));
+    const list = listAppFolder(existingAppDir(ctx, app), W.root);
     if (!list.snapshots.length) throw new InputError(`${shown(list.dir)} にダウンロード / pull のファイルが無い`);
     src = path.join(list.dir, list.snapshots[0]);
   }
@@ -510,7 +510,7 @@ async function files(args: string[]): Promise<number> {
   const ctx = context(args);
   if (!ctx.ws) throw new UsageError("files は environments.json があるときだけ使える");
   const app = appOf(args, ctx);
-  const l = listAppFolder(existingAppDir(ctx, app));
+  const l = listAppFolder(existingAppDir(ctx, app), W.root);
   const lines = [
     `${shown(l.dir)}（環境 ${ctx.env!.name}、${ctx.env!.baseUrl}）`,
     `fields.json: ${l.hasFields ? "あり" : `無い（npx @rex0220/print-craft-authoring-tools fields --app ${app}${envFlag(ctx)}）`}`,

@@ -16,7 +16,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { KintoneUrlError, normalizeKintoneBaseUrl } from "./kintone-url.ts";
-import { safeFileName } from "./safe-path.ts";
+import { PathError, isInside, realResolve, safeFileName } from "./safe-path.ts";
 
 export const WORKSPACE_FILE = "environments.json";
 export const KINTONE_ROOT = "kintone";
@@ -164,10 +164,21 @@ export function hostDirOf(cwd: string, env: EnvironmentDef): string {
   return path.join(cwd, KINTONE_ROOT, env.host);
 }
 
-/** 今あるアプリのフォルダー（番号で探す。無ければ null。同じ番号が 2 つあれば止まる） */
+/**
+ * フォルダーの実体（symlink を解いたもの）が作業フォルダーの中か。外なら一覧を作らずに PathError
+ * （kintone/<ホスト> や inbox が外への symlink のとき、外のファイルの名前を出さない。B1 の Codex レビュー BLOCKER 1）
+ */
+export function assertDirInside(cwd: string, dir: string): void {
+  const root = realResolve(".", cwd);
+  if (!isInside(realResolve(dir, cwd), root)) throw new PathError(`フォルダーの実体が作業フォルダーの外を指している（symlink など）: ${path.relative(cwd, dir)}`);
+}
+
+/** 今あるアプリのフォルダー（番号で探す。無ければ null。同じ番号が 2 つあれば止まる）。kintone/ とホストのフォルダーの実体が作業フォルダーの中のときだけ一覧する */
 export function findAppDir(cwd: string, env: EnvironmentDef, appId: number): string | null {
   const hostDir = hostDirOf(cwd, env);
   if (!existsSync(hostDir)) return null;
+  assertDirInside(cwd, path.join(cwd, KINTONE_ROOT));
+  assertDirInside(cwd, hostDir);
   const hits = readdirSync(hostDir, { withFileTypes: true }).filter((d) => d.isDirectory() && (d.name === String(appId) || d.name.startsWith(`${appId}-`))).map((d) => d.name);
   if (hits.length > 1) throw new WorkspaceError(`アプリ ${appId} のフォルダーが 2 つある: ${hits.join(", ")}（kintone/${env.host}/ の下を 1 つにする）`);
   return hits.length ? path.join(hostDir, hits[0]) : null;
@@ -218,7 +229,9 @@ const stampOf = (name: string): string => {
 };
 const newestFirst = (a: string, b: string): number => stampOf(b).localeCompare(stampOf(a)) || b.localeCompare(a);
 
-export function listAppFolder(dir: string): AppFolderList {
+/** アプリのフォルダーの一覧。cwd を渡すと、フォルダーと records / out の実体が作業フォルダーの中か確かめてから一覧する */
+export function listAppFolder(dir: string, cwd?: string): AppFolderList {
+  if (cwd !== undefined) for (const d of [dir, path.join(dir, "records"), path.join(dir, "out")]) if (existsSync(d)) assertDirInside(cwd, d);
   const files = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }) : [];
   const names = files.filter((d) => d.isFile() && d.name.endsWith(".json")).map((d) => d.name);
   const sub = (name: string, filter: (n: string) => boolean): string[] => {

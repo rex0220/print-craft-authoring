@@ -21,6 +21,7 @@ export {
   WorkspaceError,
   appDirFor,
   appFolderOfFile,
+  assertDirInside,
   editNameOf,
   envOfAppFolder,
   findAppDir,

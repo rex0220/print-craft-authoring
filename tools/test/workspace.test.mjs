@@ -2,13 +2,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEngine, PLUGIN_ZIP } from "./helpers.mjs";
-import { appDirFor, appFolderOfFile, EDIT_RE, editNameOf, findAppDir, folderNameOf, listAppFolder, parseWorkspace, pickEnv, resolveApp, SNAPSHOT_RE, snapshotNameOf, WorkspaceError } from "../src/workspace.ts";
+import { appDirFor, appFolderOfFile, assertDirInside, EDIT_RE, editNameOf, findAppDir, folderNameOf, listAppFolder, parseWorkspace, pickEnv, resolveApp, SNAPSHOT_RE, snapshotNameOf, WorkspaceError } from "../src/workspace.ts";
 import { AuthError, loadAuthForEnv } from "../src/env.ts";
+import { PathError } from "../src/safe-path.ts";
 import { takeInbox } from "../src/commands/take.ts";
 import { normalizeSettings } from "../src/commands/normalize.ts";
 import { FIELDS_FILE, aiSettings } from "./fixtures.mjs";
@@ -274,5 +275,58 @@ test("listAppFolder: ダウンロード / pull は新しい順、-edit.json と�
     assert.equal(l.hasFields, true);
   } finally {
     rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test("フォルダーの実体が作業フォルダーの外（symlink / junction）なら一覧しない: kintone/ とホストのフォルダー、アプリのフォルダーと records / out、inbox（B1 の Codex レビュー BLOCKER 1）", (t) => {
+  const work = makeWorkspace(WS3);
+  const outside = mkdtempSync(path.join(os.tmpdir(), "pcraft-outside-"));
+  const link = (target, at) => symlinkSync(target, at, "junction");
+  try {
+    const ws = parseWorkspace(JSON.stringify(WS3));
+    const dev = pickEnv(ws, "dev");
+    mkdirSync(path.join(outside, "x.cybozu.com", "3740-外"), { recursive: true });
+    writeFileSync(path.join(outside, "rex0220-print-craft-app3740-20261005-125115.json"), "{}");
+    writeFileSync(path.join(outside, "99.json"), "{}");
+    try {
+      link(outside, path.join(work, "kintone"));
+    } catch (e) {
+      t.skip(`symlink を作れない: ${e.message}`);
+      return;
+    }
+    assert.throws(() => findAppDir(work, dev, 3740), PathError, "kintone/ が外");
+    assert.throws(() => assertDirInside(work, path.join(work, "kintone")), /作業フォルダーの外を指している/);
+    rmSync(path.join(work, "kintone"));
+    mkdirSync(path.join(work, "kintone"));
+    link(path.join(outside, "x.cybozu.com"), path.join(work, "kintone", "x.cybozu.com"));
+    assert.throws(() => findAppDir(work, dev, 3740), PathError, "ホストのフォルダーが外");
+    rmSync(path.join(work, "kintone", "x.cybozu.com"));
+
+    const app = path.join(work, "kintone", "x.cybozu.com", "3740-見積書");
+    mkdirSync(app, { recursive: true });
+    assert.equal(findAppDir(work, dev, 3740), app, "中なら今までどおり");
+    assert.deepEqual(listAppFolder(app, work).snapshots, []);
+    link(outside, path.join(app, "records"));
+    assert.throws(() => listAppFolder(app, work), PathError, "records が外");
+    assert.ok(Array.isArray(listAppFolder(app).records), "作業フォルダーを渡さない呼び方は今までどおり（互換）");
+    const files = run(["files", "--app", "3740"], work);
+    assert.equal(files.status, 2, files.stderr);
+    assert.match(files.stderr, /作業フォルダーの外を指している/);
+    assert.ok(!files.stdout.includes("99.json") && !files.stderr.includes("99.json"), "外のファイルの名前を出さない");
+    rmSync(path.join(app, "records"));
+    link(outside, path.join(app, "out"));
+    assert.throws(() => listAppFolder(app, work), PathError, "out が外");
+    assert.throws(() => listAppFolder(outside, work), PathError, "アプリのフォルダーそのものが外");
+
+    rmSync(path.join(work, "inbox"), { recursive: true });
+    link(outside, path.join(work, "inbox"));
+    assert.throws(() => takeInbox(work, ws), PathError, "inbox が外");
+    const take = run(["take"], work);
+    assert.equal(take.status, 2, take.stderr);
+    assert.match(take.stderr, /作業フォルダーの外を指している（symlink など）: inbox/);
+    assert.ok(existsSync(path.join(outside, "rex0220-print-craft-app3740-20261005-125115.json")), "外のファイルは動かさない");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
   }
 });

@@ -11,7 +11,7 @@ test("入口は print-craft MCP が使う関数を出す（公開の約束。名
     "toolsMeta", "loadEngine", "pluginZipPath", "baseUrlFromEnv", "loadAuth", "loadAuthForEnv", "createRestClient", "normalizeKintoneBaseUrl",
     "normalizeSettings", "readFieldsFile", "loadPolicy", "saveNewSettings", "updateButton", "digestOf", "listButtons", "diffSettings",
     "fetchFields", "summarizeFields", "fetchRecord", "summarizeRecord", "shapeLines", "listRecordShapes", "listQueryOf", "runPreview",
-    "pullSettings", "takeInbox", "writeNewFile"
+    "pullSettings", "takeInbox", "writeNewFile", "findAppDir", "listAppFolder", "assertDirInside"
   ]) {
     assert.equal(typeof core[name], "function", name);
   }
