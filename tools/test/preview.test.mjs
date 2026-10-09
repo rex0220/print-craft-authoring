@@ -153,3 +153,11 @@ test("extractRecord: record コマンドの出力、API の応答、レコード
   assert.throws(() => extractRecord({ foo: 1 }));
   assert.throws(() => extractRecord(null));
 });
+
+test("検査でエラーがある設定は描かない（例外で止まらず findings のエラーを返す。不正な用紙の大きさ）", async () => {
+  const base = aiSettings();
+  const r = await run({ ...base, pluginInfos: [{ ...base.pluginInfos[0], tagsInfo: { ...base.pluginInfos[0].tagsInfo, pageSize: "X9" } }] });
+  assert.ok(r.findings.hasErrors);
+  assert.ok(r.findings.items.some((f) => f.level === "error" && /pageSize/.test(f.rule)));
+  assert.deepEqual(r.results, []);
+});

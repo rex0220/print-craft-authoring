@@ -61,7 +61,8 @@ export async function runPreview(input: PreviewInput): Promise<PreviewResult> {
   const findings = normalized.findings;
   const results: PreviewResult["results"] = [];
   const skipped: string[] = [];
-  if (!normalized.body) return { findings, results, skipped, summary: normalized.summary };
+  // 検査でエラーがあれば描かない（描くと印刷屋のコードが不正な値で例外を出す。例: 用紙の大きさ。B1 の print-craft MCP の試験で見つけた）
+  if (!normalized.body || findings.hasErrors) return { findings, results, skipped, summary: normalized.summary };
   const record = extractRecord(input.recordFile);
   const missing = missingInRecord(normalized.body, input.fields, record);
   if (missing.length) findings.warning("preview.record", "レコード", `設定が使う項目がプレビューのレコードに無い: ${missing.slice(0, 10).join(", ")}${missing.length > 10 ? ` 他 ${missing.length - 10}` : ""}（帳票では空になる。record --fields-from <この設定> で取り直す）`);
