@@ -73,7 +73,10 @@ export function hasLegacyConfig(cwd: string): boolean {
 
 /** 移行で止まっているときの誤り（kintone を使う操作と kintone/** の操作が投げる） */
 export function legacyBlockedError(): ConnectionError {
-  return new ConnectionError(`${LEGACY_WORKSPACE_FILE} は tools 2.0.0 から使わない。kintone の接続のファイル（ksql.config.json と同じ形）を書いて PCRAFT_KINTONE_CONFIG に設定し、${LEGACY_WORKSPACE_FILE} を消す（バージョンアップ手順）`, "legacy-config-present");
+  return new ConnectionError(
+    `${LEGACY_WORKSPACE_FILE} は tools 2.0.0 から使わない。kintone の接続のファイル（ksql.config.json と同じ形）を書いて設定し（CLI は PCRAFT_KINTONE_CONFIG、print-craft MCP は設定の「kintone の接続のファイル」）、${LEGACY_WORKSPACE_FILE} を消す（バージョンアップ手順）`,
+    "legacy-config-present"
+  );
 }
 
 /**
