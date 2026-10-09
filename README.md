@@ -155,7 +155,7 @@ git commit -m "テンプレートの更新を取り込む"
 - テンプレートのファイルを自分で直していた場合、その変更は消えます。Claude Code の許可を足すなら `.claude/settings.local.json`、git で無視するファイルを足すなら `.git/info/exclude` に書いてください。テンプレートで消えたファイルは残るので、気になれば消してください
 - `git merge template/main --allow-unrelated-histories` では取り込まないでください。テンプレートから作ったリポジトリはテンプレートと履歴がつながっていないので、手を入れていないファイルまで衝突し、`-X theirs` で解くと自分の `policy/authoring-policy.json` の承認がテンプレートの空のものに戻ります
 - テンプレート側は `settings/` に README.md 以外、`requirements/` に example.md 以外、`policy/` に README.md と空の `authoring-policy.json` 以外のファイルを追加しません
-- tools の版は印刷屋プラグインの版とは別です。tools が扱う印刷屋の版は `npx @rex0220/print-craft-authoring-tools version` に出ます（tools 1.1.0 は「扱う印刷屋 Ver.6 以降、API 1, 2」）。印刷屋を上げたら `.env` の zip も入れ替え、`npx @rex0220/print-craft-authoring-tools version --expect <印刷屋の版>` で確かめます。「authoring API の版 … には対応していない」と出たら tools を新しい版にします
+- tools の版は印刷屋プラグインの版とは別です。tools が扱う印刷屋の版は `npx @rex0220/print-craft-authoring-tools version` に出ます（tools 1.1.0 以降は「扱う印刷屋 Ver.6 以降、API 1, 2」）。印刷屋を上げたら `.env` の zip も入れ替え、`npx @rex0220/print-craft-authoring-tools version --expect <印刷屋の版>` で確かめます。「authoring API の版 … には対応していない」と出たら tools を新しい版にします
 
 ## ドキュメント
 
