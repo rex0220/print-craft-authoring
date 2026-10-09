@@ -8,7 +8,7 @@
 import { existsSync, readdirSync, readFileSync, unlinkSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { readJsonLimited } from "./normalize.ts";
-import { resolveRead, resolveWrite, WRITE_ROOTS } from "../safe-path.ts";
+import { realResolve, resolveRead, resolveWrite, WRITE_ROOTS } from "../safe-path.ts";
 import { appDirFor, INBOX, type EnvironmentDef, type Workspace } from "../workspace.ts";
 
 /** 印刷屋の設定の封筒の pluginID（印刷屋の PLUGIN_ID_NAME と同じ。engine の api.pluginId で確かめている） */
@@ -29,7 +29,9 @@ function envFor(ws: Workspace, appId: number, envName?: string): EnvironmentDef 
   return `アプリ ${appId} は environments.json の apps に無く、環境が 2 つ以上ある。apps に足すか --env で選ぶ`;
 }
 
-export function takeInbox(cwd: string, ws: Workspace, envName?: string): TakeResult {
+export function takeInbox(cwdIn: string, ws: Workspace, envName?: string): TakeResult {
+  // 作業フォルダーを最初に実際のパスに直す（移した先は実際のパスなので、相対パスの表示がずれないように。macOS の /var → /private/var）
+  const cwd = realResolve(".", cwdIn);
   const result: TakeResult = { moved: [], skipped: [] };
   const inbox = path.join(cwd, INBOX);
   if (!existsSync(inbox)) return result;

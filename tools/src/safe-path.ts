@@ -31,7 +31,7 @@ function norm(p: string): string {
  * 存在する最も深い親の realpath に残りを足した絶対パス。
  * 親を探すのは lstat で「本当に無い」（ENOENT / ENOTDIR）ときだけ上がり、リンク切れ・ループ・アクセス不能は止める（fail closed。再レビュー MAJOR 5）
  */
-export function realResolve(target: string, cwd = process.cwd()): string {
+export function realResolve(target: string, cwd: string): string {
   const abs = path.resolve(cwd, target);
   let dir = abs;
   const rest: string[] = [];
@@ -67,7 +67,7 @@ export function isInside(child: string, parent: string): boolean {
 }
 
 /** 読む入力（設定 JSON、fields、record）: cwd の中。.env と node_modules と .git は読まない */
-export function resolveRead(target: string, cwd = process.cwd()): string {
+export function resolveRead(target: string, cwd: string): string {
   if (!target || typeof target !== "string") throw new PathError("ファイルのパスが要る");
   const real = realResolve(target, cwd);
   const cwdReal = realResolve(".", cwd);
@@ -78,7 +78,7 @@ export function resolveRead(target: string, cwd = process.cwd()): string {
 }
 
 /** 書き込み先: cwd の中の roots のどれかの下（root そのものではない）。返すのは絶対パス */
-export function resolveWrite(target: string, roots: readonly string[], cwd = process.cwd()): string {
+export function resolveWrite(target: string, roots: readonly string[], cwd: string): string {
   if (!target || typeof target !== "string") throw new PathError("書き込み先のパスが要る");
   const real = realResolve(target, cwd);
   const cwdReal = realResolve(".", cwd);
@@ -94,7 +94,7 @@ export function resolveWrite(target: string, roots: readonly string[], cwd = pro
 }
 
 /** 書き込み先のフォルダー（preview の --out-dir）: cwd の中の roots のどれか、またはその下 */
-export function resolveWriteDir(target: string, roots: readonly string[], cwd = process.cwd()): string {
+export function resolveWriteDir(target: string, roots: readonly string[], cwd: string): string {
   if (!target || typeof target !== "string") throw new PathError("フォルダーのパスが要る");
   const real = realResolve(target, cwd);
   const cwdReal = realResolve(".", cwd);

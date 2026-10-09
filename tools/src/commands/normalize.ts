@@ -184,8 +184,8 @@ export async function readFieldsFile(file: string): Promise<FieldsFile> {
   return fields;
 }
 
-export function relativeSettingsPath(file: string): string {
-  const rel = path.relative(process.cwd(), path.resolve(file));
+export function relativeSettingsPath(file: string, cwd: string): string {
+  const rel = path.relative(cwd, path.resolve(cwd, file));
   return rel.startsWith("..") ? file : rel.replace(/\\/g, "/");
 }
 

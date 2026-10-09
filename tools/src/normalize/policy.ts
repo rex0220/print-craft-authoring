@@ -143,8 +143,8 @@ export function isExternalRefsAllowed(policy: Policy, settingsFile?: string): bo
 }
 
 /** リポジトリ（cwd）の policy/authoring-policy.json を読む。無ければ承認なし */
-export function loadPolicy(opt: { cwd?: string } = {}): Policy {
-  const file = path.join(opt.cwd ?? process.cwd(), POLICY_FILE);
+export function loadPolicy(opt: { cwd: string }): Policy {
+  const file = path.join(opt.cwd, POLICY_FILE);
   if (!existsSync(file)) return { allowExternal: [] };
   if (statSync(file).size > MAX_POLICY_BYTES) throw new PolicyError(`${file} が大きすぎる（${MAX_POLICY_BYTES} バイトまで）`);
   return parsePolicy(readFileSync(file, "utf8"), file);

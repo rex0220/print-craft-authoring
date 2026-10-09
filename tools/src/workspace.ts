@@ -114,7 +114,7 @@ export function parseWorkspace(text: string, where = WORKSPACE_FILE): Workspace 
 }
 
 /** 作業フォルダーの environments.json（無ければ null = 今までの形） */
-export function loadWorkspace(cwd = process.cwd()): Workspace | null {
+export function loadWorkspace(cwd: string): Workspace | null {
   const file = path.join(cwd, WORKSPACE_FILE);
   if (!existsSync(file)) return null;
   const size = statSync(file).size;

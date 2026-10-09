@@ -46,14 +46,16 @@ export function parseDotEnv(text: string): Record<string, string> {
 export interface LoadAuthOptions {
   /** テスト用。CLI からは渡さない（.env は cwd のものだけ） */
   envFile?: string;
-  cwd?: string;
-  env?: Record<string, string | undefined>;
+  /** 作業フォルダー（.env の場所。WorkContext.root） */
+  cwd: string;
+  /** 環境変数（WorkContext.env）。中核は process.env を直接読まない */
+  env: Readonly<Record<string, string | undefined>>;
 }
 
 export class AuthError extends Error {}
 
 function picker(opt: LoadAuthOptions): (names: readonly string[]) => string | undefined {
-  const osEnv = opt.env ?? process.env;
+  const osEnv = opt.env;
   const file = envFileOf(opt);
   const fromFile = existsSync(file) ? parseDotEnv(readFileSync(file, "utf8")) : {};
   return (names) => {
@@ -68,11 +70,11 @@ function picker(opt: LoadAuthOptions): (names: readonly string[]) => string | un
 }
 
 export function envFileOf(opt: LoadAuthOptions): string {
-  return opt.envFile ?? path.join(opt.cwd ?? process.cwd(), ".env");
+  return opt.envFile ?? path.join(opt.cwd, ".env");
 }
 
 /** 接続先の URL（検証済み。無ければ undefined） */
-export function baseUrlFromEnv(opt: LoadAuthOptions = {}): string | undefined {
+export function baseUrlFromEnv(opt: LoadAuthOptions): string | undefined {
   const raw = picker(opt)(NAMES.baseUrl);
   if (!raw) return undefined;
   try {
@@ -82,7 +84,7 @@ export function baseUrlFromEnv(opt: LoadAuthOptions = {}): string | undefined {
   }
 }
 
-export function loadAuth(opt: LoadAuthOptions = {}): KintoneAuth {
+export function loadAuth(opt: LoadAuthOptions): KintoneAuth {
   const pick = picker(opt);
   const file = envFileOf(opt);
   const baseUrl = baseUrlFromEnv(opt);
@@ -99,7 +101,7 @@ export function loadAuth(opt: LoadAuthOptions = {}): KintoneAuth {
  * 場所は environments.json の値だけで、CLI から指定できない）だけから読む。OS の KINTONE_* / KSQL_* は読まない（開発と本番の取り違えを防ぐ。
  * OS に本番の KINTONE_BASE_URL があっても開発の環境で使わない）。envFile に KINTONE_BASE_URL があり environments.json と違えば止まる
  */
-export function loadAuthForEnv(env: { name: string; baseUrl: string; envFile: string }, cwd = process.cwd()): KintoneAuth {
+export function loadAuthForEnv(env: { name: string; baseUrl: string; envFile: string }, cwd: string): KintoneAuth {
   const file = path.join(cwd, env.envFile);
   if (!existsSync(file)) throw new AuthError(`環境「${env.name}」の認証のファイルが無い: ${env.envFile}（${env.envFile === ".env" ? ".env.example を写して作る" : "env/ に作る。.env と同じ書き方"}）`);
   const vars = parseDotEnv(readFileSync(file, "utf8"));
@@ -125,7 +127,7 @@ export function loadAuthForEnv(env: { name: string; baseUrl: string; envFile: st
 }
 
 /** 印刷屋の zip の場所（OS の環境変数か .env の PCRAFT_PLUGIN_ZIP。無ければ undefined = 開発中の print-craft を探す） */
-export function pluginZipPath(opt: LoadAuthOptions = {}): string | undefined {
+export function pluginZipPath(opt: LoadAuthOptions): string | undefined {
   const v = picker(opt)(NAMES.pluginZip);
   if (!v) return undefined;
   return path.resolve(path.dirname(envFileOf(opt)), v);
