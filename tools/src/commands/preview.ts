@@ -11,7 +11,7 @@ import { missingInRecord, type KintoneRecord, type RecordFile } from "./record.t
 import { isAllowed, type Policy } from "../normalize/policy.ts";
 import { Findings } from "../normalize/findings.ts";
 import { buildModel } from "../normalize/model.ts";
-import { normalizeSettings } from "./normalize.ts";
+import { InputError, normalizeSettings } from "./normalize.ts";
 import { renderButton, type RenderedButton } from "../preview/render.ts";
 import { safeFileName } from "../safe-path.ts";
 import type { MenuRow } from "print-craft/src/config/schema.ts";
@@ -35,14 +35,14 @@ export interface PreviewResult {
   summary: string;
 }
 
-/** レコードの形を 3 通り受ける */
+/** レコードの形を 3 通り受ける。形が違えば InputError（決まった文。レコードの値を含まない。print-craft MCP は描画の中の想定外の誤りと分ける） */
 export function extractRecord(file: unknown): KintoneRecord {
-  if (!file || typeof file !== "object") throw new Error("レコードの JSON がオブジェクトでない");
+  if (!file || typeof file !== "object") throw new InputError("レコードの JSON がオブジェクトでない");
   const o = file as Record<string, unknown>;
   if (o.record && typeof o.record === "object") return (o as unknown as RecordFile).record;
   const values = Object.values(o);
   if (values.length && values.every((v) => v && typeof v === "object" && "type" in (v as object) && "value" in (v as object))) return o as KintoneRecord;
-  throw new Error("レコードの JSON の形が分からない（record コマンドの出力か、/k/v1/record の応答か、{ 項目: { type, value } } の形）");
+  throw new InputError("レコードの JSON の形が分からない（record コマンドの出力か、/k/v1/record の応答か、{ 項目: { type, value } } の形）");
 }
 
 /** ボタン名 → 出力ファイル名（重複は -2、-3 …） */

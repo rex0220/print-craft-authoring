@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadEngine } from "./helpers.mjs";
 import { runPreview, extractRecord } from "../src/commands/preview.ts";
+import { InputError } from "../src/commands/normalize.ts";
 import { PREVIEW_CSP, escapeHtml } from "../src/preview/render.ts";
 import { FIELDS_FILE, aiSettings } from "./fixtures.mjs";
 
@@ -150,8 +151,8 @@ test("extractRecord: record コマンドの出力、API の応答、レコード
   assert.equal(extractRecord(recordFile), RECORD);
   assert.equal(extractRecord({ record: RECORD }), RECORD);
   assert.equal(extractRecord(RECORD), RECORD);
-  assert.throws(() => extractRecord({ foo: 1 }));
-  assert.throws(() => extractRecord(null));
+  assert.throws(() => extractRecord({ foo: 1 }), (e) => e instanceof InputError && /形が分からない/.test(e.message), "入力の誤り（決まった文）");
+  assert.throws(() => extractRecord(null), InputError);
 });
 
 test("検査でエラーがある設定は描かない（例外で止まらず findings のエラーを返す。不正な用紙の大きさ）", async () => {
