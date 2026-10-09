@@ -17,9 +17,9 @@ Projects/
 
 ## 構成
 
-- `src/cli.ts` … `pcraft-authoring <command>`（version / fields / record / pull / normalize / preview / diff / buttons。pull は API ラボのプラグインの設定の GET。fields と record の `--summary` は取得済みのファイルの要約で通信しない。record の要約は値を出さない）。読むのは cwd の中、書くのは fields/ records/ settings/ temp/ out/ kintone/ の下だけ（`src/safe-path.ts`。kintone/ の下は `src/permission.ts` の許可も）。`.env` / policy / zip の場所は固定
+- `src/cli.ts` … `pcraft-authoring <command>`（version / fields / record / pull / normalize / preview / diff / buttons、environments.json があるときの take / edit / files。pull は API ラボのプラグインの設定の GET。fields と record の `--summary` は取得済みのファイルの要約で通信しない。record の要約は値を出さない）。読むのは cwd の中、書くのは fields/ records/ settings/ temp/ out/ kintone/ の下だけ（`src/safe-path.ts`。kintone/ の下は `src/permission.ts` の許可も）。`.env` / policy / zip の場所は固定
 - `src/plugin-zip.ts` … 印刷屋の zip（contents.zip の 2 層）を Node の zlib だけで読む。大きさ・entry 数・展開後の上限、CRC-32、名前の一致、重複を検査
-- `src/engine.ts` … zip のエンジンと authoring API を happy-dom + スタブで動かす。照合（プラグイン ID、印刷屋の版、API の版と pluginVersion、API のキーと型）。止まるときの `PluginZipError` は `code`（読めない・合わない・変わったの種類）と、分かっていれば印刷屋の版と API の版（`info`）を持つ。1 プロセスに 1 つ: 読み込んだ後に別の zip や変わった zip（実体のパス・大きさ・更新日時）を渡されたら `zip-changed` で止まる
+- `src/engine.ts` … zip のエンジンと authoring API を happy-dom + スタブで動かす。照合（プラグイン ID、印刷屋の版、API の版と pluginVersion、API のキーと型）。止まるときの `PluginZipError` は `code`（読めない・合わない・変わったの種類）と、分かっていれば印刷屋の版と API の版（`info`）を持つ。1 プロセスに 1 つ: 読み込んだ後に別の zip や変わった zip（実体のパス・大きさ・更新日時。開発中の `prod/` はフォルダーの実体）を渡されたら `zip-changed` で止まる。zip のコードを動かし始めた後に読み込みが失敗したら、そのプロセスでは読み込み直さない（`restart-required`。失敗した zip のグローバルを残したまま次を読まない）
 - `src/kintone-url.ts` … 接続先の検証（`*.cybozu.com` / `*.kintone.com` / `*.cybozu.cn`、ユーザー情報・パス・ポート無し）
 - `src/context.ts` … 作業の文脈（作業フォルダーの実際のパスと環境変数）。CLI は起動時に一度だけ作り、中核には引数で渡す（print-craft MCP も同じ中核を呼ぶ）
 - `src/core.ts` … 共通の中核の入口（npm の `@rex0220/print-craft-authoring-tools/core`。print-craft MCP が使う。2026-10-09 Takashi「B」: 別のパッケージにしない。版は CLI と同じ）。`scripts/build.mjs` が `dist/core.mjs`（ESM。happy-dom は依存のまま）と `dist/types/`（型。印刷屋の型は代わりの型 `scripts/types-stub/` に置き換える。型の検査は本物の型で行う）を作る。CLI と `dev-paths.ts` は出さない。出す名前を消すときは `CORE_API_VERSION` を上げる

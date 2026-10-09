@@ -10,7 +10,7 @@
 
 | 対象 | 報告先 |
 | :--- | :--- |
-| tools（`pcraft-authoring` の fields / record / pull / normalize / preview / diff / buttons / version）、テンプレート（CLAUDE.md、`.claude/settings.json`、`.mcp.json`、docs） | このリポジトリ |
+| tools（`pcraft-authoring` の fields / record / pull / normalize / preview / diff / buttons / version / take / edit / files）、テンプレート（CLAUDE.md、`.claude/settings.json`、`.mcp.json`、docs） | このリポジトリ |
 | 印刷屋プラグイン本体（zip の中の計算式エンジン、設定画面、帳票の生成） | 印刷屋プラグインの配布元（製品紹介: https://qiita.com/rex0220/items/9be2d9b20a3a1f016c76 ） |
 | kintone 公式 MCP サーバー（`@kintone/mcp-server`） | [kintone/mcp-server](https://github.com/kintone/mcp-server) |
 

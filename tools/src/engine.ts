@@ -12,15 +12,17 @@
  *   - 開発中に隣の print-craft の prod/ から読む経路は、**ソースから動かしていて（mode dev）かつ PCRAFT_ALLOW_DEV_PLUGIN=1 のときだけ**。
  *     公開ビルド（mode build）では zip 以外から読まない（再レビュー BLOCKER 1: 利用者の node_modules に置いたファイルを実行しない）
  * zip の中のコードはこのプロセス（Node を起動した OS ユーザーと同じ権限）で動く。sandbox ではない。
- * 1 プロセスに 1 回だけ読む（グローバルを使うため）。読み込んだ後に別の zip（実体のパス・大きさ・更新日時が違う）を渡されたら止める（zip-changed。
- * 前は黙って最初のエンジンを返していた。print-craft MCP は作業フォルダーごとに zip を選べる。B1 の Codex 再レビュー MAJOR 2）。
+ * 1 プロセスに 1 回だけ読む（グローバルを使うため）。読み込んだ後に別の読み込み元（zip は実体のパス・大きさ・更新日時、dev はフォルダーの実体のパス）を
+ * 渡されたら止める（zip-changed。前は黙って最初のエンジンを返していた。print-craft MCP は作業フォルダーごとに zip を選べる。B1 の Codex 再レビュー MAJOR 2、3 回目 MINOR 3）。
+ * zip のコードを動かし始めた後（グローバルの DOM・kintone のスタブを置いた後）に読み込みが失敗したら、このプロセスでは読み込み直さない
+ * （restart-required。失敗した zip のグローバルが残ったまま次の zip を読むと混ざる。B1 の Codex 3 回目 MAJOR 1）。その前の失敗（無い・読めない・別のプラグイン・版）はやり直せる。
  */
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import type { PrintCraftAuthoringApi } from "print-craft/src/authoring/api.ts";
 import { MOMENT_FILE } from "./paths.ts";
-import { API_ENTRY, BIGNUMBER_ENTRY, ENGINE_ENTRY, MANIFEST_ENTRY, MOMENT_TZ_ENTRY, PluginZipError, readPluginZip, sha256Hex, type PluginSources } from "./plugin-zip.ts";
+import { API_ENTRY, BIGNUMBER_ENTRY, ENGINE_ENTRY, MANIFEST_ENTRY, MOMENT_TZ_ENTRY, PluginZipError, readPluginZip, sha256Hex, type PluginSources, type PluginZipErrorInfo } from "./plugin-zip.ts";
 import { isSupportedPluginVersion, MIN_PLUGIN_VERSION, PRINT_CRAFT_PLUGIN_ID, REQUIRED_API, SUPPORTED_API_VERSIONS, toolsMeta } from "./meta.ts";
 
 /** 計算式のインスタンス（print-craft の config/libs.ts の KintoneFormula と同じ形） */
@@ -90,26 +92,37 @@ export const DEFAULT_CONTEXT_BASE_URL = "https://example.cybozu.com";
 const DEFAULT_USER: LoginUser = { id: "1", code: "authoring", name: "authoring", email: "", language: "ja" };
 
 let loaded: Engine | null = null;
-/** 読み込んだ zip の実体のパス・大きさ・更新日時（dev から読んだときは null） */
-let loadedStamp: ZipStamp | null = null;
+/** 読み込んだ元（zip は実体のパス・大きさ・更新日時、dev はフォルダーの実体のパス） */
+let loadedStamp: SourceStamp | null = null;
 /** 読み込みの途中（同時の呼び出しは、これが終わるのを待ってから照合する） */
 let loading: Promise<Engine> | null = null;
+/** zip のコードを動かし始めた後の読み込みの失敗（このプロセスでは読み込み直さない） */
+let poisoned: { code: string; info: PluginZipErrorInfo } | null = null;
 
-interface ZipStamp {
+interface SourceStamp {
+  kind: "zip" | "dev";
   real: string;
-  size: number;
-  mtimeMs: number;
+  size?: number;
+  mtimeMs?: number;
 }
 
-function stampOf(zip: string): ZipStamp | null {
+/** 呼び出しが求める読み込み元（resolvePluginSources と同じ順: zip、無ければ dev）。どちらも渡さなければ undefined、在るはずのものが無ければ null */
+function requestedStamp(opt: LoadEngineOptions): SourceStamp | null | undefined {
   try {
-    const real = realpathSync(zip);
-    const st = statSync(real);
-    return { real, size: st.size, mtimeMs: st.mtimeMs };
+    if (opt.pluginZip) {
+      const real = realpathSync(opt.pluginZip);
+      const st = statSync(real);
+      return { kind: "zip", real, size: st.size, mtimeMs: st.mtimeMs };
+    }
+    if (opt.devPluginDir) return { kind: "dev", real: realpathSync(opt.devPluginDir) };
+    return undefined;
   } catch {
     return null;
   }
 }
+
+const sameStamp = (a: SourceStamp | null | undefined, b: SourceStamp | null): boolean =>
+  !!a && !!b && a.kind === b.kind && a.real === b.real && a.size === b.size && a.mtimeMs === b.mtimeMs;
 
 /** 読み込み元を決める: zip（引数 → 環境変数）。開発中（mode dev + PCRAFT_ALLOW_DEV_PLUGIN=1）だけ隣の print-craft の prod/ */
 export function resolvePluginSources(opt: LoadEngineOptions = {}, mode: "build" | "dev" = opt.mode ?? toolsMeta().mode): PluginSources & { kind: "zip" | "dev" } {
@@ -147,6 +160,13 @@ export function resolvePluginSources(opt: LoadEngineOptions = {}, mode: "build" 
 export async function loadEngine(opt: LoadEngineOptions = {}): Promise<Engine> {
   while (loading) await loading.catch(() => undefined);
   if (loaded) return sameEngine(loaded, opt);
+  if (poisoned) {
+    throw new PluginZipError(
+      `印刷屋の zip の読み込みに一度失敗した（${poisoned.code}）。そのコードとグローバルがこのプロセスに残っているので、読み込み直せない（起動し直す）`,
+      "restart-required",
+      { ...poisoned.info, previous: poisoned.code }
+    );
+  }
   const run = loadOnce(opt);
   loading = run;
   try {
@@ -156,14 +176,13 @@ export async function loadEngine(opt: LoadEngineOptions = {}): Promise<Engine> {
   }
 }
 
-/** 読み込んだ後の呼び出し: zip を渡されたら、読み込んだものと同じ実体・大きさ・更新日時のときだけ返す */
+/** 読み込んだ後の呼び出し: 読み込み元を渡されたら、読み込んだものと同じとき（zip は実体・大きさ・更新日時、dev はフォルダーの実体）だけ返す。渡さなければ読み込んだもの */
 function sameEngine(engine: Engine, opt: LoadEngineOptions): Engine {
-  if (opt.pluginZip === undefined) return engine;
-  const now = stampOf(opt.pluginZip);
-  const was = loadedStamp;
-  if (!now || !was || now.real !== was.real || now.size !== was.size || now.mtimeMs !== was.mtimeMs) {
+  const want = requestedStamp(opt);
+  if (want === undefined) return engine;
+  if (!sameStamp(want, loadedStamp)) {
     throw new PluginZipError(
-      `印刷屋の zip が、読み込んだもの（${path.basename(was?.real ?? engine.source.from)}）と違う、または読み込んだ後に変わった: ${opt.pluginZip}。1 つのプロセスで読める zip は 1 つ（起動し直す）`,
+      `印刷屋の zip（読み込み元）が、読み込んだもの（${path.basename(loadedStamp?.real ?? engine.source.from)}）と違う、または読み込んだ後に変わった: ${opt.pluginZip ?? opt.devPluginDir}。1 つのプロセスで読める zip は 1 つ（起動し直す）`,
       "zip-changed",
       { pluginVersion: engine.source.pluginVersion }
     );
@@ -173,7 +192,7 @@ function sameEngine(engine: Engine, opt: LoadEngineOptions): Engine {
 
 async function loadOnce(opt: LoadEngineOptions): Promise<Engine> {
   const meta = toolsMeta();
-  const stamp = opt.pluginZip ? stampOf(opt.pluginZip) : null;
+  const stamp = requestedStamp(opt) ?? null;
   const src = resolvePluginSources(opt, opt.mode ?? meta.mode);
   const known = { pluginVersion: src.pluginVersion };
   const warnings: string[] = [];
@@ -186,7 +205,17 @@ async function loadOnce(opt: LoadEngineOptions): Promise<Engine> {
     throw new PluginZipError(`印刷屋プラグインの版 ${src.pluginVersion || "不明"}（${src.from}）には対応していない。tools が扱うのは Ver.${MIN_PLUGIN_VERSION} 以降`, "unsupported-version", known);
   }
   if (!src.api) throw new PluginZipError(`印刷屋の zip に ${API_ENTRY} が無い（Ver.${MIN_PLUGIN_VERSION} 以降の zip が要る）: ${src.from}`, "no-api", known);
+  if (!existsSync(MOMENT_FILE)) throw new Error(`moment が無い: ${MOMENT_FILE}（tools の npm install 時に取る。手で取るなら npm run vendor）`);
+  // ここから先はグローバルを書き換え、zip のコードを動かす。失敗したら、このプロセスでは読み込み直さない（restart-required）
+  try {
+    return await startEngine({ ...src, api: src.api }, known, warnings, stamp);
+  } catch (e) {
+    poisoned = { code: e instanceof PluginZipError ? e.code : "unexpected", info: e instanceof PluginZipError ? e.info : known };
+    throw e;
+  }
+}
 
+async function startEngine(src: PluginSources & { kind: "zip" | "dev"; api: string }, known: PluginZipErrorInfo, warnings: string[], stamp: SourceStamp | null): Promise<Engine> {
   const g = globalThis as Record<string, unknown>;
   const { Window } = (await import("happy-dom")) as unknown as { Window: new (opt: { url: string }) => Record<string, unknown> };
   const ctx: KintoneContext = { baseUrl: DEFAULT_CONTEXT_BASE_URL, appId: 1, loginUser: { ...DEFAULT_USER } };
@@ -220,7 +249,6 @@ async function loadOnce(opt: LoadEngineOptions): Promise<Engine> {
   window.cybozu = g.cybozu;
   window.rex0220_users_info3 = g.rex0220_users_info3;
 
-  if (!existsSync(MOMENT_FILE)) throw new Error(`moment が無い: ${MOMENT_FILE}（tools の npm install 時に取る。手で取るなら npm run vendor）`);
   const runScript = (code: string, filename: string, entry?: string): void => {
     try {
       vm.runInThisContext(code, { filename });
@@ -264,6 +292,6 @@ async function loadOnce(opt: LoadEngineOptions): Promise<Engine> {
     runner: (pp, record) => new Ctor("formula", pp, record, true),
     functionNames: () => Object.keys(new Ctor("formula", {}, {}, true, true).funs).sort()
   };
-  loadedStamp = src.kind === "zip" ? stamp : null;
+  loadedStamp = stamp;
   return loaded;
 }

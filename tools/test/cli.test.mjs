@@ -111,3 +111,21 @@ test("normalize / preview: 読むのは作業フォルダーの中、書くの�
     rmSync(work, { recursive: true, force: true });
   }
 });
+
+test("preview: レコードの形が分からないときは決まった文で終了コード 1（中核の InputError。B1 の Codex 3 回目）", () => {
+  const work = mkdtempSync(path.join(os.tmpdir(), "pcraft-cli-"));
+  try {
+    mkdirSync(path.join(work, "settings"));
+    mkdirSync(path.join(work, "fields"));
+    mkdirSync(path.join(work, "records"));
+    writeFileSync(path.join(work, "fields", "3740.json"), JSON.stringify(FIELDS_FILE));
+    writeFileSync(path.join(work, "settings", "a.json"), JSON.stringify(aiSettings()));
+    writeFileSync(path.join(work, "records", "bad.json"), JSON.stringify({ foo: 1 }));
+    const r = run(["preview", "settings/a.json", "--fields", "fields/3740.json", "--record", "records/bad.json"], { cwd: work });
+    assert.equal(r.status, 1, r.stderr + r.stdout);
+    assert.match(r.stderr, /レコードの JSON の形が分からない/);
+    assert.ok(!existsSync(path.join(work, "out")), "描かない");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});

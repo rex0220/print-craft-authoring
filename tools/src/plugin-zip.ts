@@ -23,7 +23,8 @@ const SIG_LOCAL = 0x04034b50;
  *   not-print-craft: プラグイン ID が印刷屋のものでない / unsupported-version: 印刷屋の版が対応外 / no-api: authoring API が無い
  *   engine-unreadable: zip のコードを実行できない、計算式エンジンが無い / api-unreadable: authoring API が読めない / api-unsupported: authoring API の版が対応外
  *   api-mismatch: authoring API の印刷屋の版が manifest と違う（組み替えられた zip） / api-incomplete: authoring API に tools が使うものが無い
- *   zip-changed: 読み込んだ後に別の zip を渡された、または zip が変わった（1 プロセスに 1 つ）
+ *   zip-changed: 読み込んだ後に別の zip（読み込み元）を渡された、または zip が変わった（1 プロセスに 1 つ）
+ *   restart-required: zip のコードを動かし始めた後に読み込みが失敗した（グローバルが残るので、このプロセスでは読み込み直さない。info.previous が前の誤り）
  */
 export type PluginZipErrorCode =
   | "not-configured"
@@ -37,12 +38,14 @@ export type PluginZipErrorCode =
   | "api-unsupported"
   | "api-mismatch"
   | "api-incomplete"
-  | "zip-changed";
+  | "zip-changed"
+  | "restart-required";
 
-/** 誤りの時点で分かっている印刷屋の版（manifest）と authoring API の版 */
+/** 誤りの時点で分かっている印刷屋の版（manifest）と authoring API の版。restart-required は前の誤りの種類（previous） */
 export interface PluginZipErrorInfo {
   pluginVersion?: string;
   apiVersion?: unknown;
+  previous?: string;
 }
 
 export class PluginZipError extends Error {
