@@ -178,6 +178,11 @@ test("take: inbox のダウンロードを、封筒の appId で profile（--pro
     const c = takeInbox(t.root, t.mode());
     assert.match(c.skipped.find((s) => s.file.endsWith(dl2)).reason, /別の接続/);
     assert.ok(!existsSync(path.join(dir, dl2)));
+    // 印が合わないフォルダーの中は、同じ中身かも比べない（同じものとして inbox から消さない。15.5）
+    writeFileSync(path.join(inbox, DL), text);
+    const d = takeInbox(t.root, t.mode());
+    assert.match(d.skipped.find((s) => s.file.endsWith(DL)).reason, /別の接続/);
+    assert.ok(existsSync(path.join(inbox, DL)), "inbox に残す");
     assert.throws(() => takeInbox(t.root, { kind: "single" }), code("not-configured"));
   } finally {
     t.cleanup();

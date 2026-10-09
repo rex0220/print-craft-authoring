@@ -13,7 +13,7 @@ import { realResolve, resolveRead, resolveWrite, WRITE_ROOTS } from "../safe-pat
 import { assertChangeAllowed, PermissionError } from "../permission.ts";
 import { FileExistsError, withRetry, writeNewFile } from "../commit-file.ts";
 import { ConnectionError, pickProfile } from "../connections.ts";
-import { appDirFor, assertInsideWorkspace, ensureAppFolder, INBOX, requireProfiles, SNAPSHOT_RE, type WorkspaceMode } from "../workspace.ts";
+import { appDirFor, assertAppMark, assertInsideWorkspace, ensureAppFolder, INBOX, requireProfiles, SNAPSHOT_RE, type WorkspaceMode } from "../workspace.ts";
 
 /** 印刷屋の設定の封筒の pluginID（印刷屋の PLUGIN_ID_NAME と同じ。engine の api.pluginId で確かめている） */
 export const PRINT_CRAFT_PLUGIN_ID = "rex0220 Print craft plugin";
@@ -80,6 +80,16 @@ export function takeInbox(cwdIn: string, mode: WorkspaceMode, profile?: string):
     const dir = appDirFor(cwd, def.profile, appId, typeof data.appName === "string" ? data.appName : "");
     const dest = resolveWrite(path.join(dir, name), WRITE_ROOTS.kintone, cwd);
     const text = readFileSync(src, "utf8");
+    // 今あるフォルダーは、中のファイルを読む（同じ中身か比べる）前に印を確かめる（印の無い・合わないフォルダーの中は読まない。15.5）
+    if (existsSync(dir)) {
+      try {
+        assertAppMark(dir, def, appId);
+      } catch (e) {
+        if (!(e instanceof ConnectionError)) throw e;
+        result.skipped.push({ file: rel, reason: e.message });
+        continue;
+      }
+    }
     if (existsSync(dest)) {
       if (readFileSync(dest, "utf8") !== text) {
         result.skipped.push({ file: rel, reason: `行き先に同じ名前の別の中身がある: ${path.relative(cwd, dest)}` });
