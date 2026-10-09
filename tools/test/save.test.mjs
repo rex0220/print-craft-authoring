@@ -1,12 +1,12 @@
 /** 保存の約束（段階 0-2 の段 5。print-craft-authoring-mcp の実装案 5.3。pcraft_save_settings / pcraft_update_button の本体） */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { loadEngine } from "./helpers.mjs";
 import { FIELDS_FILE, aiSettings } from "./fixtures.mjs";
-import { digestOf, saveNewSettings, updateButton } from "../src/commands/save.ts";
+import { MAX_SAVE_INPUT_BYTES, digestOf, saveNewSettings, updateButton } from "../src/commands/save.ts";
 import { realResolve } from "../src/safe-path.ts";
 
 const engine = await loadEngine();
@@ -20,13 +20,22 @@ function makeWork(envs) {
   if (envs) writeFileSync(path.join(root, "environments.json"), JSON.stringify(envs));
   return root;
 }
+/** normalize の前（setContext）で onSet を呼ぶエンジン。確かめてから確定までの間にファイルが変わる場合を作る */
+const racing = (onSet) =>
+  new Proxy(engine, {
+    get(t, k) {
+      if (k === "setContext") return (c) => (onSet(), t.setContext(c));
+      const v = t[k];
+      return typeof v === "function" ? v.bind(t) : v;
+    }
+  });
 const noTmp = (dir) => assert.deepEqual(readdirSync(dir).filter((n) => n.endsWith(".tmp")), [], "一時ファイルを残さない");
 
 test("saveNewSettings: normalize を通ったときだけ確定する。同じ名前があれば conflict、エラーがあれば invalid で書かない", async () => {
   const root = makeWork();
   const ctx = { root, engine, policy };
   try {
-    const r = await saveNewSettings(ctx, { path: "settings/見積書.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json" });
+    const r = await saveNewSettings(ctx, { path: "settings/見積書.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json", expectedAbsent: true });
     assert.equal(r.status, "ok", r.message);
     assert.equal(r.path, "settings/見積書.json");
     const file = path.join(root, "settings", "見積書.json");
@@ -35,11 +44,11 @@ test("saveNewSettings: normalize を通ったときだけ確定する。同じ�
     assert.ok(out.usedFields && out.pluginInfos[0].id && out.pluginInfos[0].tagsInfo.fieldsInfo[2].formula, "派生値（usedFields、id、formula）を作って書いた（normalize の出力）");
     noTmp(path.join(root, "settings"));
 
-    const again = await saveNewSettings(ctx, { path: "settings/見積書.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json" });
+    const again = await saveNewSettings(ctx, { path: "settings/見積書.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json", expectedAbsent: true });
     assert.equal(again.status, "conflict");
     assert.equal(digestOf(readFileSync(file)), r.digest, "上書きしない");
 
-    const bad = await saveNewSettings(ctx, { path: "settings/壊れた.json", content: JSON.stringify(aiSettings({ pluginID: "other" })), fields: "fields/3740.json" });
+    const bad = await saveNewSettings(ctx, { path: "settings/壊れた.json", content: JSON.stringify(aiSettings({ pluginID: "other" })), fields: "fields/3740.json", expectedAbsent: true });
     assert.equal(bad.status, "invalid");
     assert.ok(bad.findings.some((f) => f.level === "error"));
     assert.ok(!existsSync(path.join(root, "settings", "壊れた.json")), "エラーがあれば書かない");
@@ -55,16 +64,16 @@ test("saveNewSettings: 作業フォルダーの外・書けない場所・ダウ
   const content = JSON.stringify(aiSettings());
   try {
     for (const p of ["../x.json", ".env", "policy/authoring-policy.json", "settings/rex0220-print-craft-app3740-20261005-125115.json"]) {
-      const r = await saveNewSettings(ctx, { path: p, content, fields: "fields/3740.json" });
+      const r = await saveNewSettings(ctx, { path: p, content, fields: "fields/3740.json", expectedAbsent: true });
       assert.equal(r.status, "denied", p);
     }
     const prodDir = path.join(root, "kintone", "x.cybozu.com", "3740-見積書");
     mkdirSync(prodDir, { recursive: true });
     writeFileSync(path.join(prodDir, "fields.json"), JSON.stringify(FIELDS_FILE));
-    const prod = await saveNewSettings(ctx, { path: "kintone/x.cybozu.com/3740-見積書/新しい帳票.json", content });
+    const prod = await saveNewSettings(ctx, { path: "kintone/x.cybozu.com/3740-見積書/新しい帳票.json", content, expectedAbsent: true });
     assert.equal(prod.status, "denied");
     assert.match(prod.message, /本番/);
-    const noFields = await saveNewSettings(ctx, { path: "settings/a.json", content });
+    const noFields = await saveNewSettings(ctx, { path: "settings/a.json", content, expectedAbsent: true });
     assert.equal(noFields.status, "denied");
     assert.match(noFields.message, /fields/);
   } finally {
@@ -76,7 +85,7 @@ test("updateButton: digest を照合してボタン 1 つを差し替える。�
   const root = makeWork();
   const ctx = { root, engine, policy };
   try {
-    const saved = await saveNewSettings(ctx, { path: "settings/見積書.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json" });
+    const saved = await saveNewSettings(ctx, { path: "settings/見積書.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json", expectedAbsent: true });
     assert.equal(saved.status, "ok", saved.message);
     const row = { ...aiSettings().pluginInfos[0], desc: "見積書の PDF を作ります" };
 
@@ -113,6 +122,102 @@ test("updateButton: ダウンロード / pull のファイルは書き換えな�
     assert.equal(r.status, "denied");
     const none = await updateButton(ctx, { path: "settings/無い.json", button: "見積書", expectedDigest: "x", replacement: "{}", fields: "fields/3740.json" });
     assert.notEqual(none.status, "ok");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("saveNewSettings: expectedAbsent: true が無い・大きすぎる入力は invalid。updateButton も大きすぎる replacement は invalid", async () => {
+  const root = makeWork();
+  const ctx = { root, engine, policy };
+  try {
+    const content = JSON.stringify(aiSettings());
+    const noFlag = await saveNewSettings(ctx, { path: "settings/a.json", content, fields: "fields/3740.json" });
+    assert.equal(noFlag.status, "invalid");
+    assert.match(noFlag.message, /expectedAbsent/);
+    const big = "x".repeat(MAX_SAVE_INPUT_BYTES - 10) + "あああああ"; // 文字数は上限より少ないが UTF-8 のバイト数で超える
+    const tooBig = await saveNewSettings(ctx, { path: "settings/a.json", content: big, fields: "fields/3740.json", expectedAbsent: true });
+    assert.equal(tooBig.status, "invalid");
+    assert.match(tooBig.message, /バイトまで/);
+    assert.ok(!existsSync(path.join(root, "settings", "a.json")));
+    const saved = await saveNewSettings(ctx, { path: "settings/a.json", content, fields: "fields/3740.json", expectedAbsent: true });
+    assert.equal(saved.status, "ok", saved.message);
+    const r = await updateButton(ctx, { path: "settings/a.json", button: "見積書", expectedDigest: saved.digest, replacement: big, fields: "fields/3740.json" });
+    assert.equal(r.status, "invalid");
+    assert.match(r.message, /バイトまで/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("アプリのフォルダーの中は同じフォルダーの fields.json で検査する。別の fields を渡すと denied（Codex レビュー MAJOR 4）", async () => {
+  const root = makeWork({ environments: { dev: { baseUrl: "https://dev-x.cybozu.com", role: "development" } } });
+  const ctx = { root, engine, policy };
+  const content = JSON.stringify(aiSettings());
+  try {
+    const dir = path.join(root, "kintone", "dev-x.cybozu.com", "3740-見積書");
+    mkdirSync(dir, { recursive: true });
+    const other = await saveNewSettings(ctx, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", content, fields: "fields/3740.json", expectedAbsent: true });
+    assert.equal(other.status, "denied");
+    writeFileSync(path.join(dir, "fields.json"), JSON.stringify(FIELDS_FILE));
+    const stillOther = await saveNewSettings(ctx, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", content, fields: "fields/3740.json", expectedAbsent: true });
+    assert.equal(stillOther.status, "denied");
+    assert.match(stillOther.message, /同じフォルダーの fields\.json/);
+    assert.ok(!existsSync(path.join(dir, "a.json")));
+    const own = await saveNewSettings(ctx, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", content, expectedAbsent: true });
+    assert.equal(own.status, "ok", own.message);
+    const same = await saveNewSettings(ctx, { path: "kintone/dev-x.cybozu.com/3740-見積書/b.json", content, fields: "kintone/dev-x.cybozu.com/3740-見積書/fields.json", expectedAbsent: true });
+    assert.equal(same.status, "ok", same.message);
+    const upd = await updateButton(ctx, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", button: "見積書", expectedDigest: own.digest, replacement: JSON.stringify(aiSettings().pluginInfos[0]), fields: "fields/3740.json" });
+    assert.equal(upd.status, "denied");
+    noTmp(dir);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("確かめてから確定までの間に作られた・変えられたファイルは上書きしない（conflict。Codex レビュー MAJOR 5）", async () => {
+  const root = makeWork();
+  const content = JSON.stringify(aiSettings());
+  const file = path.join(root, "settings", "見積書.json");
+  try {
+    const created = await saveNewSettings({ root, engine: racing(() => writeFileSync(file, "人が書いた")), policy }, { path: "settings/見積書.json", content, fields: "fields/3740.json", expectedAbsent: true });
+    assert.equal(created.status, "conflict");
+    assert.equal(readFileSync(file, "utf8"), "人が書いた", "後から作られたファイルを上書きしない");
+    rmSync(file);
+
+    const saved = await saveNewSettings({ root, engine, policy }, { path: "settings/見積書.json", content, fields: "fields/3740.json", expectedAbsent: true });
+    assert.equal(saved.status, "ok", saved.message);
+    const row = JSON.stringify({ ...aiSettings().pluginInfos[0], desc: "変えた" });
+    const changed = await updateButton({ root, engine: racing(() => writeFileSync(file, "人が直した")), policy }, { path: "settings/見積書.json", button: "見積書", expectedDigest: saved.digest, replacement: row, fields: "fields/3740.json" });
+    assert.equal(changed.status, "conflict");
+    assert.equal(readFileSync(file, "utf8"), "人が直した");
+    noTmp(path.join(root, "settings"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("同じファイルへの保存はロックで重ねない。60 秒より古いロックは外して進む。終わればロックを消す", async () => {
+  const root = makeWork();
+  const ctx = { root, engine, policy };
+  const lockFile = path.join(root, "settings", ".見積書.json.pcraft-lock");
+  try {
+    const saved = await saveNewSettings(ctx, { path: "settings/見積書.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json", expectedAbsent: true });
+    assert.equal(saved.status, "ok", saved.message);
+    assert.ok(!existsSync(lockFile), "ロックを残さない");
+    const row = JSON.stringify({ ...aiSettings().pluginInfos[0], desc: "変えた" });
+    writeFileSync(lockFile, "1");
+    const busy = await updateButton(ctx, { path: "settings/見積書.json", button: "見積書", expectedDigest: saved.digest, replacement: row, fields: "fields/3740.json" });
+    assert.equal(busy.status, "conflict");
+    assert.match(busy.message, /進行中/);
+    assert.equal(digestOf(readFileSync(path.join(root, "settings", "見積書.json"))), saved.digest);
+    const old = new Date(Date.now() - 120_000);
+    utimesSync(lockFile, old, old);
+    const r = await updateButton(ctx, { path: "settings/見積書.json", button: "見積書", expectedDigest: saved.digest, replacement: row, fields: "fields/3740.json" });
+    assert.equal(r.status, "ok", r.message);
+    assert.ok(!existsSync(lockFile));
+    noTmp(path.join(root, "settings"));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -15,7 +15,7 @@ import { NotAllowedError, RestError, createRestClient } from "./kintone-rest.ts"
 import { KintoneUrlError } from "./kintone-url.ts";
 import { fetchFields, listFields, summarizeFields } from "./commands/fields.ts";
 import { describeRecord, fetchRecord, summarizeRecord, usedFieldCodes, type RecordFile } from "./commands/record.ts";
-import { InputError, loadPolicy, normalizeSettings, readFieldsFile, readJsonLimited, readTextLimited, relativeSettingsPath } from "./commands/normalize.ts";
+import { InputError, MAX_INPUT_BYTES, loadPolicy, normalizeSettings, readFieldsFile, readJsonLimited, readTextLimited, relativeSettingsPath } from "./commands/normalize.ts";
 import { diffSettings } from "./commands/diff.ts";
 import { ButtonNotFoundError, listButtons } from "./commands/buttons.ts";
 import { defaultPullName, pullSettings } from "./commands/pull.ts";
@@ -430,12 +430,21 @@ async function buttons(args: string[]): Promise<number> {
   const button = option(args, "button");
   if (args.includes("--button") && !button) throw new UsageError("--button にはボタン名を続ける");
   const file = resolveRead(settingsArg);
-  const settings = readJsonLimited(file);
+  // ファイルは 1 回だけ読み、同じ中身から一覧と digest を作る（読み直すと、その間に変わったとき digest と一覧がずれる。Codex レビュー MAJOR 5）
+  const bytes = readFileSync(file);
+  if (bytes.length > MAX_INPUT_BYTES) throw new InputError(`${shown(file)} が大きすぎる（${bytes.length.toLocaleString()} バイト。上限 ${MAX_INPUT_BYTES.toLocaleString()}）`);
+  let settings: Record<string, unknown>;
+  try {
+    settings = JSON.parse(bytes.toString("utf8")) as Record<string, unknown>;
+  } catch (e) {
+    throw new InputError(`${shown(file)} を JSON として読めない: ${(e as Error).message}`);
+  }
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) throw new InputError(`${shown(file)} の最上位はオブジェクト`);
   const text = listButtons(settings, { file: settingsArg, button });
   if (flag(args, "json")) {
     // 直すときの照合に使う digest（ファイルのバイト列の sha256）と、ボタンの名前（menu。設定の中で一意）
     const menus = (Array.isArray(settings.pluginInfos) ? settings.pluginInfos : []).map((r) => String((r as { menu?: unknown }).menu ?? ""));
-    console.log(JSON.stringify({ file: shown(file), digest: digestOf(readFileSync(file)), menus, text }, null, 2));
+    console.log(JSON.stringify({ file: shown(file), digest: digestOf(bytes), menus, text }, null, 2));
   } else {
     console.log(text);
   }
