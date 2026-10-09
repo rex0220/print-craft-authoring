@@ -74,7 +74,8 @@ test("saveNewSettings: 作業フォルダーの外・書けない場所・ダウ
     assert.equal(prod.status, "denied");
     assert.match(prod.message, /本番/);
     const noFields = await saveNewSettings(ctx, { path: "settings/a.json", content, expectedAbsent: true });
-    assert.equal(noFields.status, "denied");
+    assert.equal(noFields.status, "invalid", "fields が無いのは入力の誤り（0-3b で denied から変えた）");
+    assert.equal(noFields.code, "InputError");
     assert.match(noFields.message, /fields/);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -158,7 +159,8 @@ test("アプリのフォルダーの中は同じフォルダーの fields.json �
     const dir = path.join(root, "kintone", "dev-x.cybozu.com", "3740-見積書");
     mkdirSync(dir, { recursive: true });
     const other = await saveNewSettings(ctx, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", content, fields: "fields/3740.json", expectedAbsent: true });
-    assert.equal(other.status, "denied");
+    assert.equal(other.status, "invalid", "アプリのフォルダーに fields.json がまだ無い（入力の誤り）");
+    assert.match(other.message, /fields\.json が無い/);
     writeFileSync(path.join(dir, "fields.json"), JSON.stringify(FIELDS_FILE));
     const stillOther = await saveNewSettings(ctx, { path: "kintone/dev-x.cybozu.com/3740-見積書/a.json", content, fields: "fields/3740.json", expectedAbsent: true });
     assert.equal(stillOther.status, "denied");
@@ -286,6 +288,48 @@ test("確定の後に一時ファイル・ロックを消せなくても ok（�
     assert.match(r.message, /確定したが、一時ファイルかロックを消せなかった/);
   } finally {
     chmodSync(dir, 0o755);
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("書く先のフォルダーが無ければ作る（settings/ がまだ無い作業フォルダー。0-3b の試作で見つけた）", async () => {
+  const root = makeWork();
+  rmSync(path.join(root, "settings"), { recursive: true });
+  try {
+    const r = await saveNewSettings({ root, engine, policy }, { path: "settings/見積書.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json", expectedAbsent: true });
+    assert.equal(r.status, "ok", r.message);
+    assert.equal(r.digest, digestOf(readFileSync(path.join(root, "settings", "見積書.json"))));
+    const t = await saveNewSettings({ root, engine, policy }, { path: "temp/新しい/a.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json", expectedAbsent: true });
+    assert.equal(t.status, "ok", "temp/ の下の新しいフォルダーも");
+    const outside = await saveNewSettings({ root, engine, policy }, { path: "docs/a.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json", expectedAbsent: true });
+    assert.equal(outside.status, "denied", "書けない場所にはフォルダーも作らない");
+    assert.ok(!existsSync(path.join(root, "docs")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("状態の分け方: 項目定義のファイルが無いは invalid、想定外の失敗（書き込みの失敗）は failed（denied にしない）。code に誤りの種類", async () => {
+  const root = makeWork();
+  try {
+    const missing = await saveNewSettings({ root, engine, policy }, { path: "settings/a.json", content: JSON.stringify(aiSettings()), fields: "fields/9999.json", expectedAbsent: true });
+    assert.deepEqual([missing.status, missing.code], ["invalid", "InputError"]);
+    assert.match(missing.message, /項目定義のファイルが無い/);
+    const outside = await saveNewSettings({ root, engine, policy }, { path: "../a.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json", expectedAbsent: true });
+    assert.deepEqual([outside.status, outside.code], ["denied", "PathError"]);
+    const snap = await saveNewSettings({ root, engine, policy }, { path: "settings/rex0220-print-craft-app3740-20261005-125115.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json", expectedAbsent: true });
+    assert.deepEqual([snap.status, snap.code], ["denied", "PermissionError"]);
+    if (!NO_CHMOD) {
+      chmodSync(path.join(root, "settings"), 0o555);
+      try {
+        const io = await saveNewSettings({ root, engine, policy }, { path: "settings/b.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json", expectedAbsent: true });
+        assert.equal(io.status, "failed", io.message);
+        assert.equal(io.code, "Error");
+      } finally {
+        chmodSync(path.join(root, "settings"), 0o755);
+      }
+    }
+  } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });

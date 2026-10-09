@@ -6,28 +6,31 @@
  *   - 項目定義: アプリのフォルダーの中なら常に同じフォルダーの fields.json（別のファイルを渡されたら拒否。Codex レビュー MAJOR 4）。
  *     それ以外は引数の fields が要る
  *   - 入力の大きさ: content / replacement は 256 KiB まで（印刷屋の保存値の上限に合わせる）
- *   - 確定の仕方: normalize（エラーが 1 つでもあれば確定しない）→ 確定先と同じフォルダーに一時ファイル → ロックを取る →
+ *   - 確定の仕方: normalize（エラーが 1 つでもあれば確定しない）→ 書ける場所・role・ダウンロードのファイルを確かめ、書く先のフォルダーが無ければ作る →
+ *     確定先と同じフォルダーに一時ファイル → ロックを取る →
  *     書ける場所・environments.json の role・ダウンロードのファイル・digest・ロックがまだ自分のものかをもう一度確かめる → 確定 → 片付け。
  *     新しい設定はハードリンクで確定し（同じ名前があれば失敗する = 上書きしない）、既存の設定は名前の付け替えで確定する
  *     （Codex レビュー MAJOR 5: 確かめてから確定までの間に作られた・変えられたファイルを上書きしない）
  *   - ロックと片付けは commit-file.ts（所有者の印付きのロック、60 秒より古いロックの回収。一時ファイルとロックの片付けは別々に試し、
  *     確定の後の片付けの失敗は確定の失敗にしない＝ ok に cleanup の文を添える。Codex 再レビュー MAJOR 3、4）
  *   - 警告は確定を止めない（findings で返す）
+ *   - 状態: ok / invalid（normalize のエラー、入力の誤り）/ conflict（同じ名前がある、digest が違う、競合）/ denied（書けない場所、本番、
+ *     ダウンロードのファイル、作業フォルダーの外）/ failed（読み書きの失敗など想定外）。code に誤りの種類（print-craft MCP の 5.2 の約束）
  * パスは作業フォルダーからの相対で受け取る（..・絶対パス・ドライブ名は safe-path.ts が止める）。
  */
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { Engine } from "../engine.ts";
 import type { Policy } from "../normalize/policy.ts";
 import type { Finding } from "../normalize/findings.ts";
-import { WRITE_ROOTS, resolveRead, resolveWrite } from "../safe-path.ts";
-import { assertChangeAllowed } from "../permission.ts";
+import { PathError, WRITE_ROOTS, resolveRead, resolveWrite } from "../safe-path.ts";
+import { PermissionError, assertChangeAllowed } from "../permission.ts";
 import { SNAPSHOT_RE, appFolderOfFile } from "../workspace.ts";
-import { normalizeSettings, readFieldsFile } from "./normalize.ts";
+import { InputError, normalizeSettings, readFieldsFile } from "./normalize.ts";
 import { FileExistsError, LockBusyError, acquireLock, cleanupAll, placeNew, tempPathFor, withRetry, type Lock } from "../commit-file.ts";
 
-export type SaveStatus = "ok" | "invalid" | "conflict" | "denied";
+export type SaveStatus = "ok" | "invalid" | "conflict" | "denied" | "failed";
 
 export interface SaveResult {
   status: SaveStatus;
@@ -38,6 +41,8 @@ export interface SaveResult {
   findings: Finding[];
   /** status が ok でないときの理由（決まった文） */
   message?: string;
+  /** status が ok でないときの誤りの種類（ConflictError、PermissionError、PathError、InputError など。想定外の失敗は Error） */
+  code?: string;
   /** ok だが、確定の後に一時ファイルかロックを消せなかった（確定はしている。利用者に伝えて消してもらう） */
   cleanup?: string[];
 }
@@ -71,11 +76,14 @@ function fieldsFileFor(ctx: SaveContext, target: string, fields: string | undefi
   const folder = appFolderOfFile(ctx.root, target);
   if (folder) {
     const own = resolveRead(path.join(folder.dir, "fields.json"), ctx.root);
+    if (!existsSync(own)) throw new InputError(`アプリのフォルダーに fields.json が無い: ${rel(ctx.root, own)}（fields コマンドか pcraft_fields で取る）`);
     if (fields !== undefined && resolveRead(fields, ctx.root) !== own) throw new SaveDenied(`アプリのフォルダーの中の設定は、同じフォルダーの fields.json で検査する（fields は渡さないか、${rel(ctx.root, own)} にする）`);
     return own;
   }
-  if (!fields) throw new SaveDenied("fields（項目定義のファイル）が要る（アプリのフォルダー kintone/<ホスト名>/<番号>-…/ の中なら同じフォルダーの fields.json を使う）");
-  return resolveRead(fields, ctx.root);
+  if (!fields) throw new InputError("fields（項目定義のファイル）が要る（アプリのフォルダー kintone/<ホスト名>/<番号>-…/ の中なら同じフォルダーの fields.json を使う）");
+  const file = resolveRead(fields, ctx.root);
+  if (!existsSync(file)) throw new InputError(`項目定義のファイルが無い: ${rel(ctx.root, file)}（fields コマンドか pcraft_fields で取る）`);
+  return file;
 }
 
 function tooLarge(text: string): boolean {
@@ -97,6 +105,8 @@ function commit(ctx: SaveContext, target: string, text: string, mode: "new" | "r
   try {
     // 一時ファイルとロックを作る前にも（normalize の間に本番に変わったフォルダー・差し替えられたフォルダーに何も作らない。Codex 再々レビュー MAJOR 1）
     checkTarget();
+    // 書く先のフォルダー（まだ settings/ が無い作業フォルダーなど）を作る。書ける場所と許可を確かめた後だけ（0-3b の試作で見つけた）
+    mkdirSync(path.dirname(target), { recursive: true });
     writeFileSync(tmp, text, { encoding: "utf8", flag: "wx" });
     lock = acquireLock(target);
     // 確定の直前にもう一度。digest / 無いことも
@@ -122,8 +132,25 @@ async function normalizeText(ctx: SaveContext, target: string, text: string, fie
   return normalizeSettings({ settingsText: text, settingsFile: rel(ctx.root, target), fields: fieldsData, engine: ctx.engine, policy: ctx.policy, baseUrl: ctx.baseUrl });
 }
 
-function deniedResult(root: string, target: string, e: unknown): SaveResult {
-  return { status: "denied", path: rel(root, target), findings: [], message: e instanceof Error ? e.message : String(e) };
+/**
+ * 誤りを状態に分ける（print-craft MCP の 5.2 の約束）: 競合は conflict、書けない場所・本番・ダウンロードのファイル・作業フォルダーの外は denied、
+ * 入力（項目定義のファイル、JSON）の誤りは invalid、それ以外（読み書きの失敗など想定外）は failed。以前は失敗をすべて denied にしていた
+ */
+function statusOf(e: unknown): Exclude<SaveStatus, "ok"> {
+  if (e instanceof ConflictError || e instanceof FileExistsError || e instanceof LockBusyError) return "conflict";
+  if (e instanceof SaveDenied || e instanceof PermissionError || e instanceof PathError) return "denied";
+  if (e instanceof InputError || e instanceof SyntaxError) return "invalid";
+  return "failed";
+}
+
+function codeOf(e: unknown): string {
+  if (e instanceof ConflictError || e instanceof FileExistsError || e instanceof LockBusyError) return "ConflictError";
+  if (e instanceof SaveDenied || e instanceof PermissionError) return "PermissionError";
+  return e instanceof Error ? e.constructor.name : "Error";
+}
+
+function errorResult(root: string, target: string, e: unknown, findings: Finding[] = []): SaveResult {
+  return { status: statusOf(e), code: codeOf(e), path: rel(root, target), findings, message: e instanceof Error ? e.message : String(e) };
 }
 
 function finish(ctx: SaveContext, target: string, findings: Finding[], run: () => { digest: string; cleanup: string[] }): SaveResult {
@@ -131,31 +158,30 @@ function finish(ctx: SaveContext, target: string, findings: Finding[], run: () =
     const { digest, cleanup } = run();
     return { status: "ok", path: rel(ctx.root, target), digest, findings, ...(cleanup.length ? { cleanup, message: `確定したが、一時ファイルかロックを消せなかった（.${path.basename(target)}.* を消してよい）` } : {}) };
   } catch (e) {
-    if (e instanceof ConflictError || e instanceof FileExistsError || e instanceof LockBusyError) return { status: "conflict", path: rel(ctx.root, target), findings, message: e.message };
-    return deniedResult(ctx.root, target, e);
+    return errorResult(ctx.root, target, e, findings);
   }
 }
 
 /** 新しい設定を保存する（expectedAbsent: true が要る。同じ名前のファイルがあれば conflict） */
 export async function saveNewSettings(ctx: SaveContext, opt: { path: string; content: string; fields?: string; expectedAbsent: true }): Promise<SaveResult> {
-  if (opt.expectedAbsent !== true) return { status: "invalid", path: opt.path, findings: [], message: "新しい設定の保存は expectedAbsent: true が要る（既存のファイルを直すなら pcraft_update_button）" };
-  if (tooLarge(opt.content)) return { status: "invalid", path: opt.path, findings: [], message: `content は ${MAX_SAVE_INPUT_BYTES} バイトまで` };
+  if (opt.expectedAbsent !== true) return { status: "invalid", code: "InputError", path: opt.path, findings: [], message: "新しい設定の保存は expectedAbsent: true が要る（既存のファイルを直すなら pcraft_update_button）" };
+  if (tooLarge(opt.content)) return { status: "invalid", code: "InputError", path: opt.path, findings: [], message: `content は ${MAX_SAVE_INPUT_BYTES} バイトまで` };
   let target: string;
   try {
     target = resolveWrite(opt.path, WRITE_ROOTS.settings, ctx.root);
     if (SNAPSHOT_RE.test(path.basename(target))) throw new SaveDenied("ダウンロード / pull の名前（rex0220-print-craft-app<番号>-<日時>.json）では新しく保存しない");
     assertChangeAllowed(ctx.root, target, "settings");
   } catch (e) {
-    return deniedResult(ctx.root, path.resolve(ctx.root, opt.path), e);
+    return errorResult(ctx.root, path.resolve(ctx.root, opt.path), e);
   }
-  if (existsSync(target)) return { status: "conflict", path: rel(ctx.root, target), findings: [], message: "同じ名前のファイルがある（新しい設定の保存は上書きしない。直すなら pcraft_update_button）" };
+  if (existsSync(target)) return { status: "conflict", code: "ConflictError", path: rel(ctx.root, target), findings: [], message: "同じ名前のファイルがある（新しい設定の保存は上書きしない。直すなら pcraft_update_button）" };
   let result;
   try {
     result = await normalizeText(ctx, target, opt.content, opt.fields);
   } catch (e) {
-    return deniedResult(ctx.root, target, e);
+    return errorResult(ctx.root, target, e);
   }
-  if (!result.output) return { status: "invalid", path: rel(ctx.root, target), findings: result.findings.items, message: "normalize のエラーがあるので保存しない" };
+  if (!result.output) return { status: "invalid", code: "NormalizeError", path: rel(ctx.root, target), findings: result.findings.items, message: "normalize のエラーがあるので保存しない" };
   const text = JSON.stringify(result.output, null, 2) + "\n";
   return finish(ctx, target, result.findings.items, () =>
     commit(ctx, target, text, "new", () => {
@@ -169,7 +195,7 @@ export async function saveNewSettings(ctx: SaveContext, opt: { path: string; con
  * replacement はボタン 1 つ（pluginInfos の 1 行）の JSON。その menu が button と違えば invalid
  */
 export async function updateButton(ctx: SaveContext, opt: { path: string; button: string; expectedDigest: string; replacement: string; fields?: string }): Promise<SaveResult> {
-  if (tooLarge(opt.replacement)) return { status: "invalid", path: opt.path, findings: [], message: `replacement は ${MAX_SAVE_INPUT_BYTES} バイトまで` };
+  if (tooLarge(opt.replacement)) return { status: "invalid", code: "InputError", path: opt.path, findings: [], message: `replacement は ${MAX_SAVE_INPUT_BYTES} バイトまで` };
   let target: string;
   try {
     target = resolveRead(opt.path, ctx.root);
@@ -177,21 +203,21 @@ export async function updateButton(ctx: SaveContext, opt: { path: string; button
     if (SNAPSHOT_RE.test(path.basename(target))) throw new SaveDenied("ダウンロード / pull のファイルは書き換えない。edit で -edit.json に写して直す");
     assertChangeAllowed(ctx.root, target, "settings");
   } catch (e) {
-    return deniedResult(ctx.root, path.resolve(ctx.root, opt.path), e);
+    return errorResult(ctx.root, path.resolve(ctx.root, opt.path), e);
   }
-  if (!existsSync(target)) return { status: "conflict", path: rel(ctx.root, target), findings: [], message: "ファイルが無い（新しい設定なら pcraft_save_settings）" };
+  if (!existsSync(target)) return { status: "conflict", code: "ConflictError", path: rel(ctx.root, target), findings: [], message: "ファイルが無い（新しい設定なら pcraft_save_settings）" };
   const current = readFileSync(target);
-  if (digestOf(current) !== opt.expectedDigest) return { status: "conflict", path: rel(ctx.root, target), findings: [], message: "読んだ後にファイルが変わった（digest が違う）。pcraft_buttons で読み直す" };
+  if (digestOf(current) !== opt.expectedDigest) return { status: "conflict", code: "ConflictError", path: rel(ctx.root, target), findings: [], message: "読んだ後にファイルが変わった（digest が違う）。pcraft_buttons で読み直す" };
   let settings: Record<string, unknown>;
   let replacement: Record<string, unknown>;
   try {
     settings = JSON.parse(current.toString("utf8")) as Record<string, unknown>;
     replacement = JSON.parse(opt.replacement) as Record<string, unknown>;
   } catch (e) {
-    return { status: "invalid", path: rel(ctx.root, target), findings: [], message: `JSON として読めない: ${(e as Error).message}` };
+    return { status: "invalid", code: "InputError", path: rel(ctx.root, target), findings: [], message: `JSON として読めない: ${(e as Error).message}` };
   }
   if (!replacement || typeof replacement !== "object" || Array.isArray(replacement) || replacement.menu !== opt.button) {
-    return { status: "invalid", path: rel(ctx.root, target), findings: [], message: "replacement はボタン 1 つ（pluginInfos の 1 行）のオブジェクトで、menu が button と同じ" };
+    return { status: "invalid", code: "InputError", path: rel(ctx.root, target), findings: [], message: "replacement はボタン 1 つ（pluginInfos の 1 行）のオブジェクトで、menu が button と同じ" };
   }
   const rows = Array.isArray(settings.pluginInfos) ? [...(settings.pluginInfos as Array<Record<string, unknown>>)] : [];
   const i = rows.findIndex((r) => r && r.menu === opt.button);
@@ -201,9 +227,9 @@ export async function updateButton(ctx: SaveContext, opt: { path: string; button
   try {
     result = await normalizeText(ctx, target, JSON.stringify({ ...settings, pluginInfos: rows }), opt.fields);
   } catch (e) {
-    return deniedResult(ctx.root, target, e);
+    return errorResult(ctx.root, target, e);
   }
-  if (!result.output) return { status: "invalid", path: rel(ctx.root, target), findings: result.findings.items, message: "normalize のエラーがあるので保存しない" };
+  if (!result.output) return { status: "invalid", code: "NormalizeError", path: rel(ctx.root, target), findings: result.findings.items, message: "normalize のエラーがあるので保存しない" };
   const text = JSON.stringify(result.output, null, 2) + "\n";
   return finish(ctx, target, result.findings.items, () =>
     commit(ctx, target, text, "replace", () => {
