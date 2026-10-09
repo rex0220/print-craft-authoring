@@ -10,7 +10,7 @@ import path from "node:path";
 import { makePluginZip, stubInnerEntries } from "./zip-helper.mjs";
 import { PluginZipError } from "../src/plugin-zip.ts";
 import { loadEngine, resolvePluginSources } from "../src/engine.ts";
-import { devPluginDir } from "../src/paths.ts";
+import { devPluginDir } from "../src/dev-paths.ts";
 
 // OS の環境変数（開発者の PC に入っていることがある）に左右されないようにする
 delete process.env.PCRAFT_PLUGIN_ZIP;
@@ -18,10 +18,11 @@ delete process.env.PCRAFT_ALLOW_DEV_PLUGIN;
 
 const dir = mkdtempSync(path.join(os.tmpdir(), "pcraft-contract-"));
 
-test("zip の指定が無いとき: 公開ビルド（mode build）は隣の print-craft があっても読まない。ソース実行（dev）も allowDevPlugin（CLI では PCRAFT_ALLOW_DEV_PLUGIN=1）が無ければ読まない", () => {
+test("zip の指定が無いとき: 公開ビルド（mode build）は隣の print-craft があっても読まない。ソース実行（dev）も devPluginDir（CLI では PCRAFT_ALLOW_DEV_PLUGIN=1 のときだけ渡す）が無ければ読まない", () => {
   assert.throws(() => resolvePluginSources({}, "build"), (e) => e instanceof PluginZipError && /zip の場所が分からない/.test(e.message) && !/PCRAFT_ALLOW_DEV_PLUGIN/.test(e.message));
   assert.throws(() => resolvePluginSources({}, "dev"), (e) => e instanceof PluginZipError && /PCRAFT_ALLOW_DEV_PLUGIN=1/.test(e.message));
-  assert.throws(() => resolvePluginSources({ allowDevPlugin: true }, "build"), /zip の場所が分からない/, "build では解除できない");
+  assert.throws(() => resolvePluginSources({ devPluginDir: devPluginDir() ?? dir }, "build"), /zip の場所が分からない/, "build では解除できない");
+  assert.throws(() => resolvePluginSources({ devPluginDir: dir }, "dev"), (e) => e instanceof PluginZipError && /prod\/ が無い/.test(e.message), "渡されたフォルダーにエンジンが無ければ止まる");
   process.env.PCRAFT_PLUGIN_ZIP = "/nonexistent/print-craft.zip";
   process.env.PCRAFT_ALLOW_DEV_PLUGIN = "1";
   try {
@@ -31,7 +32,7 @@ test("zip の指定が無いとき: 公開ビルド（mode build）は隣の pri
     delete process.env.PCRAFT_ALLOW_DEV_PLUGIN;
   }
   if (devPluginDir()) {
-    const s = resolvePluginSources({ allowDevPlugin: true }, "dev");
+    const s = resolvePluginSources({ devPluginDir: devPluginDir() }, "dev");
     assert.equal(s.kind, "dev");
     assert.ok(Number(s.pluginVersion) >= 6, `隣の print-craft の prod/ の版: ${s.pluginVersion}`);
   }

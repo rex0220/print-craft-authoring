@@ -1,7 +1,7 @@
 /** 保存の約束（段階 0-2 の段 5。print-craft-authoring-mcp の実装案 5.3。pcraft_save_settings / pcraft_update_button の本体） */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { loadEngine } from "./helpers.mjs";
@@ -218,6 +218,24 @@ test("同じファイルへの保存はロックで重ねない。60 秒より�
     assert.equal(r.status, "ok", r.message);
     assert.ok(!existsSync(lockFile));
     noTmp(path.join(root, "settings"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("確かめてから確定までの間に、書く先のフォルダーが symlink に差し替えられたら確定しない（denied）", async () => {
+  const root = makeWork();
+  mkdirSync(path.join(root, "temp"));
+  const content = JSON.stringify(aiSettings());
+  try {
+    const swap = () => {
+      renameSync(path.join(root, "settings"), path.join(root, "settings-old"));
+      symlinkSync(path.join(root, "temp"), path.join(root, "settings"));
+    };
+    const r = await saveNewSettings({ root, engine: racing(swap), policy }, { path: "settings/見積書.json", content, fields: "fields/3740.json", expectedAbsent: true });
+    assert.equal(r.status, "denied", r.message);
+    assert.match(r.message, /途中で変わった/);
+    assert.deepEqual(readdirSync(path.join(root, "temp")), [], "差し替えた先に何も書かない（一時ファイルも残さない）");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

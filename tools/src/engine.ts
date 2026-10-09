@@ -18,7 +18,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import type { PrintCraftAuthoringApi } from "print-craft/src/authoring/api.ts";
-import { devPluginDir, MOMENT_FILE } from "./paths.ts";
+import { MOMENT_FILE } from "./paths.ts";
 import { API_ENTRY, BIGNUMBER_ENTRY, ENGINE_ENTRY, MANIFEST_ENTRY, MOMENT_TZ_ENTRY, PluginZipError, readPluginZip, sha256Hex, type PluginSources } from "./plugin-zip.ts";
 import { isSupportedPluginVersion, MIN_PLUGIN_VERSION, PRINT_CRAFT_PLUGIN_ID, REQUIRED_API, SUPPORTED_API_VERSIONS, toolsMeta } from "./meta.ts";
 
@@ -78,8 +78,8 @@ export interface LoadEngineOptions {
    * 決めて渡す。print-craft MCP は設定項目から渡す）
    */
   pluginZip?: string;
-  /** 開発中（mode dev）に隣の print-craft の prod/ を読んでよいか。CLI は環境変数 PCRAFT_ALLOW_DEV_PLUGIN=1 のとき true を渡す */
-  allowDevPlugin?: boolean;
+  /** 開発中（mode dev）の読み込み元（隣の print-craft の prod/）。CLI は環境変数 PCRAFT_ALLOW_DEV_PLUGIN=1 のときだけ dev-paths.ts の printCraftProdDir で決めて渡す */
+  devPluginDir?: string;
   /** テスト用。省略時は toolsMeta().mode（ソースから動かすと dev、ビルドした bundle は build） */
   mode?: "build" | "dev";
 }
@@ -97,12 +97,12 @@ export function resolvePluginSources(opt: LoadEngineOptions = {}, mode: "build" 
     if (!existsSync(zip)) throw new PluginZipError(`印刷屋の zip が無い: ${zip}（.env の PCRAFT_PLUGIN_ZIP）`);
     return { ...readPluginZip(zip), kind: "zip" };
   }
-  const devAllowed = mode === "dev" && opt.allowDevPlugin === true;
+  const dev = opt.devPluginDir;
+  const devAllowed = mode === "dev" && !!dev;
   if (!devAllowed) {
     throw new PluginZipError(`印刷屋の zip の場所が分からない。.env に PCRAFT_PLUGIN_ZIP=<印刷屋プラグインの zip のパス> を書く${mode === "dev" ? "（開発中に隣の print-craft の prod/ を読むなら環境変数 PCRAFT_ALLOW_DEV_PLUGIN=1）" : ""}`);
   }
-  const dev = devPluginDir();
-  if (!dev) throw new PluginZipError("印刷屋の zip の場所が分からない（PCRAFT_ALLOW_DEV_PLUGIN=1 だが隣の print-craft の prod/ が無い）。.env に PCRAFT_PLUGIN_ZIP を書く");
+  if (!dev || !existsSync(path.join(dev, ENGINE_ENTRY))) throw new PluginZipError(`印刷屋の zip の場所が分からない（PCRAFT_ALLOW_DEV_PLUGIN=1 だが print-craft の prod/ が無い: ${dev}）。.env に PCRAFT_PLUGIN_ZIP を書く`);
   const read = (rel: string): string => readFileSync(path.join(dev, rel), "utf8");
   const apiFile = path.join(dev, API_ENTRY);
   const engine = read(ENGINE_ENTRY);

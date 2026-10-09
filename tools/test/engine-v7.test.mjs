@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PRINT_CRAFT_ROOT } from "../src/paths.ts";
+import { PRINT_CRAFT_ROOT } from "../src/dev-paths.ts";
 
 const ZIP7 = path.join(PRINT_CRAFT_ROOT, "dist", "print-craft-plugin7.zip");
 const skip = existsSync(ZIP7) ? false : `print-craft の Ver.7 の zip が無い: ${ZIP7}`;

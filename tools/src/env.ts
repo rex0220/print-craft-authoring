@@ -28,7 +28,7 @@ const NAMES = {
   pluginZip: ["PCRAFT_PLUGIN_ZIP"]
 } as const;
 
-/** 前後の空白と、対になった外側の " / ' を外す（Windows の「パスのコピー」で付く引用符。.env と OS の環境変数の両方。引用符の中の空白は値のうち） */
+/** 前後の空白と、対になった外側の " / ' を外す（.env の値と、OS の環境変数の場所・URL。Windows の「パスのコピー」で付く引用符。引用符の中の空白は値のうち） */
 export function unquote(raw: string): string {
   const value = raw.trim();
   if (value.length >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) return value.slice(1, -1);
@@ -68,14 +68,19 @@ export interface Picked {
   file?: string;
 }
 
-function pickerWithSource(opt: LoadAuthOptions): (names: readonly string[]) => Picked | undefined {
+/**
+ * unquoteProcess: OS の環境変数の値から外側の引用符も外す（場所と URL だけ。Windows の「パスのコピー」で付く。
+ * 認証情報は外さない＝引用符で始まって終わるパスワードの意味を変えない。Codex 再レビュー MINOR 6）。.env の値は parseDotEnv が外す
+ */
+function pickerWithSource(opt: LoadAuthOptions, unquoteProcess = false): (names: readonly string[]) => Picked | undefined {
   const osEnv = opt.env;
   const file = envFileOf(opt);
   const fromFile = existsSync(file) ? parseDotEnv(readFileSync(file, "utf8")) : {};
   return (names) => {
     for (const [src, source] of [[osEnv, "process"], [fromFile, "file"]] as const) {
       for (const n of names) {
-        const v = unquote(src[n] ?? "");
+        const raw = src[n] ?? "";
+        const v = source === "process" && unquoteProcess ? unquote(raw) : raw.trim();
         if (v) return { value: v, source, ...(source === "file" ? { file } : {}) };
       }
     }
@@ -83,8 +88,8 @@ function pickerWithSource(opt: LoadAuthOptions): (names: readonly string[]) => P
   };
 }
 
-function picker(opt: LoadAuthOptions): (names: readonly string[]) => string | undefined {
-  const pick = pickerWithSource(opt);
+function picker(opt: LoadAuthOptions, unquoteProcess = false): (names: readonly string[]) => string | undefined {
+  const pick = pickerWithSource(opt, unquoteProcess);
   return (names) => pick(names)?.value;
 }
 
@@ -94,7 +99,7 @@ export function envFileOf(opt: LoadAuthOptions): string {
 
 /** 接続先の URL（検証済み。無ければ undefined） */
 export function baseUrlFromEnv(opt: LoadAuthOptions): string | undefined {
-  const raw = picker(opt)(NAMES.baseUrl);
+  const raw = picker(opt, true)(NAMES.baseUrl);
   if (!raw) return undefined;
   try {
     return normalizeKintoneBaseUrl(raw);
@@ -151,7 +156,7 @@ export function loadAuthForEnv(env: { name: string; baseUrl: string; envFile: st
  * 絶対パスだけを受け付ける（相対パスの起点が起動の場所に左右されるため。Desktop の起動の場所は / や C:\Windows\System32。段階 0-2 の段 2）
  */
 export function pluginZipPath(opt: LoadAuthOptions): string | undefined {
-  const picked = pickerWithSource(opt)(NAMES.pluginZip);
+  const picked = pickerWithSource(opt, true)(NAMES.pluginZip);
   if (!picked) return undefined;
   if (picked.source === "file") return path.resolve(path.dirname(picked.file ?? envFileOf(opt)), picked.value);
   if (!path.isAbsolute(picked.value)) throw new AuthError(`PCRAFT_PLUGIN_ZIP（OS の環境変数）は絶対パスで書く: ${picked.value}（.env に書くなら .env のフォルダーからの相対パスでもよい）`);

@@ -16,7 +16,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const tools = path.resolve(here, "..");
 const repo = path.resolve(tools, "..");
-const { PRINT_CRAFT_ROOT } = await import(pathToFileURL(path.join(tools, "src", "paths.ts")).href);
+const { PRINT_CRAFT_ROOT } = await import(pathToFileURL(path.join(tools, "src", "dev-paths.ts")).href);
 const FORMULA_DOC = path.resolve(PRINT_CRAFT_ROOT, "..", "formula");
 const docs = path.join(repo, "docs");
 mkdirSync(docs, { recursive: true });

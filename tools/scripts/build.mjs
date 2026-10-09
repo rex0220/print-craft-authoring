@@ -15,7 +15,7 @@ const root = path.resolve(here, "..");
 // 前のビルドの残り（以前は dist/lib/ にエンジンを複写していた）を消す。npm pack は dist/** を全部入れるので、古いファイルが残っていると配布物に入る
 rmSync(path.join(root, "dist"), { recursive: true, force: true });
 const { devMeta } = await import(pathToFileURL(path.join(root, "src", "meta.ts")).href);
-const { kitRoot, rexgridRoot, PRINT_CRAFT_ROOT } = await import(pathToFileURL(path.join(root, "src", "paths.ts")).href);
+const { kitRoot, rexgridRoot, PRINT_CRAFT_ROOT } = await import(pathToFileURL(path.join(root, "src", "dev-paths.ts")).href);
 
 const meta = { ...devMeta(), builtAt: new Date().toISOString(), mode: "build" };
 const banner = `#!/usr/bin/env node\n/*! @rex0220/print-craft-authoring-tools ${meta.toolsVersion} (c) rex0220. MIT License. 計算式エンジンと印刷屋のコードは利用者の印刷屋プラグインの zip から読む（このファイルには含まれない）。commit ${meta.commit}. */`;

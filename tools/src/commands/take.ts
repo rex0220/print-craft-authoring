@@ -5,11 +5,12 @@
  * ダウンロードにはドメインが入っていないので、環境は apps の番号から決める。同じ番号が 2 つの環境にあるとき・apps に無い番号で環境が 2 つ以上あるときは --env が要る。
  * 印刷屋の設定でないファイル、ファイル名の番号と封筒の appId が違うファイル、行き先に同じ名前の別の中身があるファイルは移さない（理由を出す）
  */
-import { existsSync, readdirSync, readFileSync, unlinkSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, unlinkSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { readJsonLimited } from "./normalize.ts";
 import { realResolve, resolveRead, resolveWrite, WRITE_ROOTS } from "../safe-path.ts";
 import { assertChangeAllowed, PermissionError } from "../permission.ts";
+import { FileExistsError, writeNewFile } from "../commit-file.ts";
 import { appDirFor, INBOX, SNAPSHOT_RE, type EnvironmentDef, type Workspace } from "../workspace.ts";
 
 /** 印刷屋の設定の封筒の pluginID（印刷屋の PLUGIN_ID_NAME と同じ。engine の api.pluginId で確かめている） */
@@ -82,16 +83,26 @@ export function takeInbox(cwdIn: string, ws: Workspace, envName?: string): TakeR
       result.moved.push({ file: rel, to: path.relative(cwd, dest), same: true });
       continue;
     }
-    // 本番は新しい名前のダウンロードを足すことだけ、未分類は何も変えない（permission.ts）
+    // 本番は新しい名前のダウンロードを足すことだけ、未分類は何も変えない（permission.ts）。確定の直前にも確かめ直し、
+    // 新しいファイルとしてだけ置く（確かめた後に同じ名前ができても上書きしない。Codex 再レビュー BLOCKER 2）。inbox の元は置けてから消す
     try {
       assertChangeAllowed(cwd, dest, "snapshot");
+      mkdirSync(path.dirname(dest), { recursive: true });
+      writeNewFile(dest, text, () => {
+        if (resolveWrite(path.join(dir, name), WRITE_ROOTS.kintone, cwd) !== dest) throw new PermissionError(`書く先のフォルダーが途中で変わった（symlink など）: ${path.relative(cwd, dest)}`);
+        assertChangeAllowed(cwd, dest, "snapshot");
+      });
     } catch (e) {
-      if (!(e instanceof PermissionError)) throw e;
-      result.skipped.push({ file: rel, reason: e.message });
-      continue;
+      if (e instanceof PermissionError) {
+        result.skipped.push({ file: rel, reason: e.message });
+        continue;
+      }
+      if (e instanceof FileExistsError) {
+        result.skipped.push({ file: rel, reason: `行き先に同じ名前のファイルができた（移す途中で）: ${path.relative(cwd, dest)}。もう一度 take する` });
+        continue;
+      }
+      throw e;
     }
-    mkdirSync(path.dirname(dest), { recursive: true });
-    writeFileSync(dest, text, "utf8");
     unlinkSync(src);
     result.moved.push({ file: rel, to: path.relative(cwd, dest), same: false });
   }

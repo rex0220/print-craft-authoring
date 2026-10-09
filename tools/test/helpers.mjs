@@ -4,7 +4,7 @@
  */
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { PRINT_CRAFT_ROOT } from "../src/paths.ts";
+import { PRINT_CRAFT_ROOT } from "../src/dev-paths.ts";
 
 export const PLUGIN_ZIP = path.join(PRINT_CRAFT_ROOT, "dist", "print-craft-plugin6.zip");
 if (!process.env.PCRAFT_PLUGIN_ZIP && existsSync(PLUGIN_ZIP)) process.env.PCRAFT_PLUGIN_ZIP = PLUGIN_ZIP;

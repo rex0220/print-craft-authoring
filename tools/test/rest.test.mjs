@@ -123,6 +123,11 @@ test("pluginZipPath: .env の相対パスは .env のフォルダーから、OS 
     rmSync(path.join(work, ".env"));
     assert.equal(pluginZipPath({ cwd: work, env: {} }), undefined, "どちらにも無ければ undefined");
     assert.equal(pluginZipPath({ cwd: work, env: { PCRAFT_PLUGIN_ZIP: '""' } }), undefined, "引用符だけは無いのと同じ");
+    const quoted = loadAuth({ cwd: work, env: { KINTONE_BASE_URL: '"https://q.cybozu.com"', KINTONE_API_TOKEN: '"tok"' } });
+    assert.equal(quoted.baseUrl, "https://q.cybozu.com", "OS の環境変数の URL は引用符を外す");
+    assert.equal(quoted.token, '"tok"', "認証情報は引用符を外さない（Codex 再レビュー MINOR 6）");
+    const pw = loadAuth({ cwd: work, env: { KINTONE_BASE_URL: "https://q.cybozu.com", KINTONE_USERNAME: "'u'", KINTONE_PASSWORD: '  "p w"  ' } });
+    assert.deepEqual([pw.username, pw.password], ["'u'", '"p w"'], "ユーザー名・パスワードも前後の空白だけ");
   } finally {
     rmSync(work, { recursive: true, force: true });
   }

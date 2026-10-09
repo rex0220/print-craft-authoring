@@ -6,17 +6,17 @@
  *   - 項目定義: アプリのフォルダーの中なら常に同じフォルダーの fields.json（別のファイルを渡されたら拒否。Codex レビュー MAJOR 4）。
  *     それ以外は引数の fields が要る
  *   - 入力の大きさ: content / replacement は 256 KiB まで（印刷屋の保存値の上限に合わせる）
- *   - 確定の仕方: 確定先と同じフォルダーに一時ファイル → normalize（エラーが 1 つでもあれば確定しない）→ ロックを取る →
- *     書ける場所・environments.json の role・ダウンロードのファイル・digest をもう一度確かめる → 確定 → ロックを外す。
+ *   - 確定の仕方: normalize（エラーが 1 つでもあれば確定しない）→ 確定先と同じフォルダーに一時ファイル → ロックを取る →
+ *     書ける場所・environments.json の role・ダウンロードのファイル・digest・ロックがまだ自分のものかをもう一度確かめる → 確定 → 片付け。
  *     新しい設定はハードリンクで確定し（同じ名前があれば失敗する = 上書きしない）、既存の設定は名前の付け替えで確定する
- *     （Codex レビュー MAJOR 5: 確かめてから確定までの間に作られた・変えられたファイルを上書きしない）。失敗したら一時ファイルを消す
- *   - ロック: 確定先の隣の .<名前>.pcraft-lock。同じ中核を使う保存どうしだけが従う（AI の直接の Write はプラグインのフックで止める）。
- *     60 秒より古いロックは、止まった保存の残りとみなして外す
+ *     （Codex レビュー MAJOR 5: 確かめてから確定までの間に作られた・変えられたファイルを上書きしない）
+ *   - ロックと片付けは commit-file.ts（所有者の印付きのロック、60 秒より古いロックの回収。一時ファイルとロックの片付けは別々に試し、
+ *     確定の後の片付けの失敗は確定の失敗にしない＝ ok に cleanup の文を添える。Codex 再レビュー MAJOR 3、4）
  *   - 警告は確定を止めない（findings で返す）
  * パスは作業フォルダーからの相対で受け取る（..・絶対パス・ドライブ名は safe-path.ts が止める）。
  */
-import { createHash, randomBytes } from "node:crypto";
-import { constants, copyFileSync, existsSync, linkSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { Engine } from "../engine.ts";
 import type { Policy } from "../normalize/policy.ts";
@@ -25,6 +25,7 @@ import { WRITE_ROOTS, resolveRead, resolveWrite } from "../safe-path.ts";
 import { assertChangeAllowed } from "../permission.ts";
 import { SNAPSHOT_RE, appFolderOfFile } from "../workspace.ts";
 import { normalizeSettings, readFieldsFile } from "./normalize.ts";
+import { FileExistsError, LockBusyError, acquireLock, cleanupAll, placeNew, tempPathFor, type Lock } from "../commit-file.ts";
 
 export type SaveStatus = "ok" | "invalid" | "conflict" | "denied";
 
@@ -37,6 +38,8 @@ export interface SaveResult {
   findings: Finding[];
   /** status が ok でないときの理由（決まった文） */
   message?: string;
+  /** ok だが、確定の後に一時ファイルかロックを消せなかった（確定はしている。利用者に伝えて消してもらう） */
+  cleanup?: string[];
 }
 
 export interface SaveContext {
@@ -50,7 +53,6 @@ export interface SaveContext {
 
 /** 入力（content / replacement）の上限（バイト） */
 export const MAX_SAVE_INPUT_BYTES = 256 * 1024;
-const LOCK_STALE_MS = 60_000;
 
 /** ファイルの digest（sha256。pcraft_buttons が返し、pcraft_update_button が照合する） */
 export function digestOf(text: string | Buffer): string {
@@ -78,68 +80,35 @@ function tooLarge(text: string): boolean {
   return Buffer.byteLength(text, "utf8") > MAX_SAVE_INPUT_BYTES;
 }
 
-/** 確定先の隣のロックを取る。取れなければ ConflictError。外す関数を返す */
-function lock(target: string): () => void {
-  const file = path.join(path.dirname(target), `.${path.basename(target)}.pcraft-lock`);
-  const take = (): boolean => {
-    try {
-      writeFileSync(file, String(Date.now()), { flag: "wx" });
-      return true;
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
-      return false;
-    }
+/** 一時ファイルを書き、ロックを取って確かめ直してから確定する。確定したら digest と片付けの失敗の文を返す */
+function commit(ctx: SaveContext, target: string, text: string, mode: "new" | "replace", recheck: () => void): { digest: string; cleanup: string[] } {
+  const tmp = tempPathFor(target);
+  let lock: Lock | undefined;
+  let digest: string | undefined;
+  let failure: unknown;
+  const sameTarget = (): void => {
+    if (resolveWrite(rel(ctx.root, target), WRITE_ROOTS.settings, ctx.root) !== target) throw new SaveDenied("書く先のフォルダーが途中で変わった（symlink など）");
   };
-  if (!take()) {
-    let stale = false;
-    try {
-      stale = Date.now() - statSync(file).mtimeMs > LOCK_STALE_MS;
-    } catch {
-      stale = true;
-    }
-    if (!stale) throw new ConflictError("同じファイルへの別の保存が進行中。少し待ってからやり直す");
-    rmSync(file, { force: true });
-    if (!take()) throw new ConflictError("同じファイルへの別の保存が進行中。少し待ってからやり直す");
-  }
-  return () => rmSync(file, { force: true });
-}
-
-/** 新しいファイルとして確定する（同じ名前があれば失敗 = 上書きしない）。ハードリンクが使えないファイルシステムでは排他のコピー */
-function placeNew(tmp: string, target: string): void {
   try {
-    linkSync(tmp, target);
-  } catch (e) {
-    const code = (e as NodeJS.ErrnoException).code;
-    if (code === "EEXIST") throw new ConflictError("確定の直前に同じ名前のファイルができた");
-    if (code !== "EPERM" && code !== "ENOTSUP" && code !== "EXDEV" && code !== "ENOSYS") throw e;
-    try {
-      copyFileSync(tmp, target, constants.COPYFILE_EXCL);
-    } catch (e2) {
-      if ((e2 as NodeJS.ErrnoException).code === "EEXIST") throw new ConflictError("確定の直前に同じ名前のファイルができた");
-      throw e2;
-    }
-  }
-}
-
-/** 一時ファイルを書き、ロックを取って確かめ直してから確定する */
-function commit(ctx: SaveContext, target: string, text: string, mode: "new" | "replace", recheck: () => void): string {
-  const tmp = path.join(path.dirname(target), `.${path.basename(target)}.${randomBytes(6).toString("hex")}.tmp`);
-  let unlock: (() => void) | undefined;
-  try {
+    sameTarget(); // 一時ファイルを書く前にも（差し替えられたフォルダーに書かない）
     writeFileSync(tmp, text, { encoding: "utf8", flag: "wx" });
-    unlock = lock(target);
+    lock = acquireLock(target);
     // 確定の直前にもう一度: 書ける場所（symlink の差し替えを含む）、role と操作 × 場所、ダウンロードのファイル、digest / 無いこと
-    resolveWrite(rel(ctx.root, target), WRITE_ROOTS.settings, ctx.root);
+    sameTarget();
     assertChangeAllowed(ctx.root, target, "settings");
     if (SNAPSHOT_RE.test(path.basename(target))) throw new SaveDenied("ダウンロード / pull のファイルは書き換えない。edit で -edit.json に写して直す");
     recheck();
+    // 長く止まっている間に、古いとみなされて他の保存にロックを取られていたら確定しない
+    if (!lock.owned()) throw new ConflictError("ロックを失った（保存が 60 秒より長く止まった）。pcraft_buttons で読み直してやり直す");
     if (mode === "new") placeNew(tmp, target);
     else renameSync(tmp, target);
-    return digestOf(text);
-  } finally {
-    unlock?.();
-    if (existsSync(tmp)) rmSync(tmp, { force: true });
+    digest = digestOf(text);
+  } catch (e) {
+    failure = e;
   }
+  const cleanup = cleanupAll([...(lock ? [() => void lock!.release()] : []), () => rmSync(tmp, { force: true })]);
+  if (digest === undefined) throw failure;
+  return { digest, cleanup };
 }
 
 async function normalizeText(ctx: SaveContext, target: string, text: string, fields: string | undefined) {
@@ -152,11 +121,12 @@ function deniedResult(root: string, target: string, e: unknown): SaveResult {
   return { status: "denied", path: rel(root, target), findings: [], message: e instanceof Error ? e.message : String(e) };
 }
 
-function finish(ctx: SaveContext, target: string, findings: Finding[], run: () => string): SaveResult {
+function finish(ctx: SaveContext, target: string, findings: Finding[], run: () => { digest: string; cleanup: string[] }): SaveResult {
   try {
-    return { status: "ok", path: rel(ctx.root, target), digest: run(), findings };
+    const { digest, cleanup } = run();
+    return { status: "ok", path: rel(ctx.root, target), digest, findings, ...(cleanup.length ? { cleanup, message: `確定したが、一時ファイルかロックを消せなかった（.${path.basename(target)}.* を消してよい）` } : {}) };
   } catch (e) {
-    if (e instanceof ConflictError) return { status: "conflict", path: rel(ctx.root, target), findings, message: e.message };
+    if (e instanceof ConflictError || e instanceof FileExistsError || e instanceof LockBusyError) return { status: "conflict", path: rel(ctx.root, target), findings, message: e.message };
     return deniedResult(ctx.root, target, e);
   }
 }

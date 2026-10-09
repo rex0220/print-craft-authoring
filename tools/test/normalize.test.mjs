@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { loadEngine } from "./helpers.mjs";
-import { PRINT_CRAFT_ROOT } from "../src/paths.ts";
+import { PRINT_CRAFT_ROOT } from "../src/dev-paths.ts";
 import { normalizeSettings, jsonDiff } from "../src/commands/normalize.ts";
 import { FIELDS_FILE, aiSettings, HTML_TEMPLATE } from "./fixtures.mjs";
 

@@ -22,6 +22,8 @@ Projects/
 - `src/engine.ts` … zip のエンジンと authoring API を happy-dom + スタブで動かす。照合（プラグイン ID、印刷屋の版、API の版と pluginVersion、API のキーと型）
 - `src/kintone-url.ts` … 接続先の検証（`*.cybozu.com` / `*.kintone.com` / `*.cybozu.cn`、ユーザー情報・パス・ポート無し）
 - `src/context.ts` … 作業の文脈（作業フォルダーの実際のパスと環境変数）。CLI は起動時に一度だけ作り、中核には引数で渡す（print-craft MCP も同じ中核を呼ぶ）
+- `src/paths.ts` / `src/dev-paths.ts` … tools の置き場所（環境変数を読まない。中核から使う）/ 開発とビルドのときだけ使う場所の探し方（隣の print-craft、kit、rexgrid。`PCRAFT_PRINT_CRAFT_ROOT` などの環境変数を読む。import するのは `cli.ts` と scripts/・試験だけ）
+- `src/commit-file.ts` … ファイルの確定（新しいファイルはハードリンクで、上書きしない）、所有者の印付きのロック、片付け（save / pull / take が使う）
 - `src/permission.ts` … `kintone/` の下を変える前の許可（`environments.json` の `role`。本番は読み取りだけ、未分類は何も変えない）
 - `src/workspace.ts` … 開発と本番（environments.json。環境の `role`）、`kintone/<ホスト名>/<番号>-<アプリ名>/` のフォルダー、ダウンロードの名前（`src/commands/take.ts` が inbox から移す）
 - `src/env.ts` / `src/kintone-rest.ts` … `.env`（kintone 公式 MCP と同じ `KINTONE_*` + `PCRAFT_PLUGIN_ZIP`）と GET 専用・許可 API 固定・送信先固定の REST

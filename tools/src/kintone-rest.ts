@@ -144,7 +144,11 @@ export function createRestClient(auth: KintoneAuth, fetchImpl: FetchLike = fetch
         const hint = res.status === 401 ? "（認証情報かアクセス権を確かめる。API トークンならそのアプリで有効か）" : res.status === 403 ? "（アクセス権が無い）" : res.status === 404 ? "（アプリかレコードが無い）" : "";
         throw new RestError(`kintone ${apiPath} が HTTP ${res.status}${code ? ` ${code}` : ""}${hint}`, res.status, code, apiPath);
       }
-      return JSON.parse(text) as T;
+      try {
+        return JSON.parse(text) as T;
+      } catch {
+        throw new RestError(`kintone ${apiPath} の応答が JSON でない${text ? "" : "（本文が空）"}`, res.status, "ResponseError", apiPath);
+      }
     }
   };
 }

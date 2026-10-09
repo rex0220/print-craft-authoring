@@ -124,3 +124,22 @@ test("listRecordShapes: 64 KiB は返す JSON の UTF-8 のバイト数（日本
   assert.equal(r.truncated, true);
   assert.ok(Buffer.byteLength(JSON.stringify(r), "utf8") <= 64 * 1024);
 });
+
+test("listRecordShapes: 上限ちょうどは返し、1 バイト超えれば打ち切る（truncated: false の長い方で測る。Codex 再レビュー MINOR 5）", async () => {
+  const rec = { $id: { type: "__ID__", value: "1" }, 項目: { type: "SINGLE_LINE_TEXT", value: "" } };
+  const client = { baseUrl: "https://a.cybozu.com", get: async () => ({ records: [rec] }) };
+  const exact = Buffer.byteLength(JSON.stringify({ appId: 1, query: listQueryOf(undefined), records: [{ id: "1", lines: shapeLines(rec) }], truncated: false }), "utf8");
+  const fits = await listRecordShapes(client, { app: 1, maxBytes: exact });
+  assert.deepEqual([fits.records.length, fits.truncated], [1, false]);
+  assert.equal(Buffer.byteLength(JSON.stringify(fits), "utf8"), exact, "返す JSON はちょうど上限");
+  const over = await listRecordShapes(client, { app: 1, maxBytes: exact - 1 });
+  assert.deepEqual([over.records.length, over.truncated], [0, true]);
+  assert.ok(Buffer.byteLength(JSON.stringify(over), "utf8") <= exact - 1);
+});
+
+test("createRestClient: 成功の応答の本文が空・JSON でないときは決まった文の RestError（ResponseError。本文は出さない）", async () => {
+  const empty = createRestClient({ baseUrl: "https://a.cybozu.com", token: "t" }, async () => ({ ok: true, status: 204, body: null }));
+  await assert.rejects(empty.get("app", { id: 1 }), (e) => e instanceof RestError && e.code === "ResponseError" && /本文が空/.test(e.message));
+  const html = createRestClient({ baseUrl: "https://a.cybozu.com", token: "t" }, async () => new Response("<html>secret</html>", { status: 200 }));
+  await assert.rejects(html.get("app", { id: 1 }), (e) => e instanceof RestError && e.code === "ResponseError" && !/secret/.test(e.message));
+});

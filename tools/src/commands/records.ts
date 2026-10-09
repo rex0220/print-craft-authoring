@@ -44,7 +44,9 @@ export interface RecordShapes {
   truncated: boolean;
 }
 
-export async function listRecordShapes(client: RestClient, opt: { app: number; query?: string; guestSpaceId?: number }): Promise<RecordShapes> {
+/** maxBytes は試験用（既定 SHAPE_TEXT_MAX） */
+export async function listRecordShapes(client: RestClient, opt: { app: number; query?: string; guestSpaceId?: number; maxBytes?: number }): Promise<RecordShapes> {
+  const max = opt.maxBytes ?? SHAPE_TEXT_MAX;
   const query = listQueryOf(opt.query);
   const res = await client.get<{ records?: KintoneRecord[] }>("records", { app: opt.app, query }, opt.guestSpaceId);
   const out: RecordShape[] = [];
@@ -52,8 +54,8 @@ export async function listRecordShapes(client: RestClient, opt: { app: number; q
   for (const record of (res.records ?? []).slice(0, LIST_LIMIT)) {
     const idValue = (record.$id as { value?: unknown } | undefined)?.value;
     const shape = { id: typeof idValue === "string" ? idValue : String(idValue ?? ""), lines: shapeLines(record) };
-    // 足した後の応答全体（truncated: true の形。長い方）で測る
-    if (Buffer.byteLength(JSON.stringify({ appId: opt.app, query, records: [...out, shape], truncated: true }), "utf8") > SHAPE_TEXT_MAX) {
+    // 足した後の応答全体を、長い方の形（truncated: false。"false" は "true" より 1 バイト長い）で測る。打ち切るときの応答はこれより小さい（Codex 再レビュー MINOR 5）
+    if (Buffer.byteLength(JSON.stringify({ appId: opt.app, query, records: [...out, shape], truncated: false }), "utf8") > max) {
       truncated = true;
       break;
     }

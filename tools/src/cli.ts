@@ -15,6 +15,8 @@ import { NotAllowedError, RestError, createRestClient } from "./kintone-rest.ts"
 import { KintoneUrlError } from "./kintone-url.ts";
 import { fetchFields, listFields, summarizeFields } from "./commands/fields.ts";
 import { describeRecord, fetchRecord, summarizeRecord, usedFieldCodes, type RecordFile } from "./commands/record.ts";
+import { printCraftProdDir } from "./dev-paths.ts";
+import { FileExistsError, writeNewFile } from "./commit-file.ts";
 import { InputError, MAX_INPUT_BYTES, loadPolicy, normalizeSettings, readFieldsFile, readJsonLimited, readTextLimited, relativeSettingsPath } from "./commands/normalize.ts";
 import { diffSettings } from "./commands/diff.ts";
 import { ButtonNotFoundError, listButtons } from "./commands/buttons.ts";
@@ -138,16 +140,30 @@ function rejectRemovedOptions(args: string[]): void {
  * 書く直前に、書ける場所（roots）と、kintone/ の下ならこの操作で変えてよいか（role を読み直す）をもう一度確かめてから書く
  * （Codex レビュー BLOCKER 2: 早めの判定の後に通信や normalize を挟むと、その間に role が変わっても書けてしまう）
  */
-function writeText(file: string, text: string, roots: readonly string[], op: ChangeOp): string {
+function writeText(file: string, text: string, roots: readonly string[], op: ChangeOp, opt: { exclusive?: boolean } = {}): string {
   const real = resolveWrite(file, roots);
   allow(real, op);
   mkdirSync(path.dirname(real), { recursive: true });
+  // ダウンロード / pull のファイルと、--force の無い pull は新しいファイルとしてだけ書く（確かめた後に作られた同じ名前のファイルを上書きしない。Codex 再レビュー BLOCKER 2）
+  if (opt.exclusive ?? op === "snapshot") {
+    try {
+      const { cleanup } = writeNewFile(real, text, () => {
+        if (resolveWrite(file, roots) !== real) throw new InputError(`書く先のフォルダーが途中で変わった（symlink など）: ${shown(real)}`);
+        allow(real, op);
+      });
+      for (const c of cleanup) console.error(`注意: 書いたが一時ファイルを消せなかった（${c}）`);
+    } catch (e) {
+      if (e instanceof FileExistsError) throw new InputError(`${shown(real)} は既にある（確かめた後に作られた）。上書きしない`);
+      throw e;
+    }
+    return real;
+  }
   writeFileSync(real, text, "utf8");
   return real;
 }
 
-function writeJson(file: string, data: unknown, roots: readonly string[], op: ChangeOp): string {
-  return writeText(file, JSON.stringify(data, null, 2) + "\n", roots, op);
+function writeJson(file: string, data: unknown, roots: readonly string[], op: ChangeOp, opt: { exclusive?: boolean } = {}): string {
+  return writeText(file, JSON.stringify(data, null, 2) + "\n", roots, op, opt);
 }
 
 function shown(file: string): string {
@@ -156,7 +172,7 @@ function shown(file: string): string {
 }
 
 async function engineFor(): Promise<Engine> {
-  const engine = await loadEngine({ pluginZip: pluginZipPath(authOpt()), allowDevPlugin: W.env.PCRAFT_ALLOW_DEV_PLUGIN === "1" });
+  const engine = await loadEngine({ pluginZip: pluginZipPath(authOpt()), devPluginDir: W.env.PCRAFT_ALLOW_DEV_PLUGIN === "1" ? printCraftProdDir(W.env) : undefined });
   for (const w of engine.warnings) console.error(`注意: ${w}`);
   return engine;
 }
@@ -409,7 +425,7 @@ async function pull(args: string[]): Promise<number> {
     : resolveWrite(outArg ?? path.join("settings", defaultPullName(result.appName, app)), WRITE_ROOTS.settings);
   if (existsSync(out) && !flag(args, "force")) throw new InputError(`${shown(out)} は既にある。上書きするなら --force（上書きの前の内容は git の差分で確かめる）、別の名前なら --out settings/<ファイル>`);
   allow(out, ctx.ws ? "snapshot" : "settings");
-  writeJson(out, result.envelope, ctx.ws ? WRITE_ROOTS.kintone : WRITE_ROOTS.settings, ctx.ws ? "snapshot" : "settings");
+  writeJson(out, result.envelope, ctx.ws ? WRITE_ROOTS.kintone : WRITE_ROOTS.settings, ctx.ws ? "snapshot" : "settings", { exclusive: ctx.ws ? true : !flag(args, "force") });
   console.log(`pull: アプリ ${app} ${result.appName}（${preview ? "動作テスト環境" : "運用中"}の設定、revision ${result.revision}、保存形式 ${result.format}）を${authLabel}で ${c.baseUrl} から取得 → ${shown(out)}`);
   console.log(listButtons(result.envelope, { file: shown(out) }));
   return 0;

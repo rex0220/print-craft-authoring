@@ -15,7 +15,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
 const { loadEngine } = await import(pathToFileURL(path.join(root, "src", "engine.ts")).href);
-const { PRINT_CRAFT_ROOT } = await import(pathToFileURL(path.join(root, "src", "paths.ts")).href);
+const { PRINT_CRAFT_ROOT } = await import(pathToFileURL(path.join(root, "src", "dev-paths.ts")).href);
 
 const FORMULA_DOC = path.resolve(PRINT_CRAFT_ROOT, "..", "formula");
 const qiita = readFileSync(path.join(FORMULA_DOC, "doc", "qiita_計算式プラグイン.md"), "utf8").split(/\r?\n/);
