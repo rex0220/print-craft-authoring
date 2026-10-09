@@ -104,3 +104,22 @@ test(".env の読み方: dashboard の KSQL_* も読む。KINTONE_* があれば
   assert.equal(both.baseUrl, "https://n.cybozu.com");
   assert.equal(both.token, "nt");
 });
+
+test("pluginZipPath: .env の相対パスは .env のフォルダーから、OS の環境変数は絶対パスだけ（段階 0-2 の段 2）", async () => {
+  const { pluginZipPath } = await import("../src/env.ts");
+  const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+  const os = await import("node:os");
+  const { default: path } = await import("node:path");
+  const work = mkdtempSync(path.join(os.tmpdir(), "pcraft-env-"));
+  try {
+    writeFileSync(path.join(work, ".env"), 'PCRAFT_PLUGIN_ZIP="zips/print-craft.zip"\n');
+    assert.equal(pluginZipPath({ cwd: work, env: {} }), path.resolve(work, "zips/print-craft.zip"), ".env の相対パスは .env のフォルダーから");
+    const abs = path.resolve(work, "abs/print-craft.zip");
+    assert.equal(pluginZipPath({ cwd: work, env: { PCRAFT_PLUGIN_ZIP: abs } }), abs, "OS の環境変数の絶対パスはそのまま（.env より優先）");
+    assert.throws(() => pluginZipPath({ cwd: work, env: { PCRAFT_PLUGIN_ZIP: "rel/print-craft.zip" } }), (e) => e instanceof AuthError && /絶対パスで書く/.test(e.message), "OS の環境変数の相対パスは止める");
+    rmSync(path.join(work, ".env"));
+    assert.equal(pluginZipPath({ cwd: work, env: {} }), undefined, "どちらにも無ければ undefined");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});

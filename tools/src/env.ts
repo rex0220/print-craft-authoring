@@ -54,19 +54,33 @@ export interface LoadAuthOptions {
 
 export class AuthError extends Error {}
 
-function picker(opt: LoadAuthOptions): (names: readonly string[]) => string | undefined {
+/** 値と、その出所（OS の環境変数か .env か）。相対パスの解決の起点を出所で変えるため（段階 0-2 の段 2） */
+export interface Picked {
+  value: string;
+  /** process = OS の環境変数（print-craft MCP では設定項目から作った環境変数）、file = .env */
+  source: "process" | "file";
+  /** source が file のときの .env のパス */
+  file?: string;
+}
+
+function pickerWithSource(opt: LoadAuthOptions): (names: readonly string[]) => Picked | undefined {
   const osEnv = opt.env;
   const file = envFileOf(opt);
   const fromFile = existsSync(file) ? parseDotEnv(readFileSync(file, "utf8")) : {};
   return (names) => {
-    for (const src of [osEnv, fromFile]) {
+    for (const [src, source] of [[osEnv, "process"], [fromFile, "file"]] as const) {
       for (const n of names) {
         const v = src[n];
-        if (v && v.trim()) return v.trim();
+        if (v && v.trim()) return { value: v.trim(), source, ...(source === "file" ? { file } : {}) };
       }
     }
     return undefined;
   };
+}
+
+function picker(opt: LoadAuthOptions): (names: readonly string[]) => string | undefined {
+  const pick = pickerWithSource(opt);
+  return (names) => pick(names)?.value;
 }
 
 export function envFileOf(opt: LoadAuthOptions): string {
@@ -126,11 +140,17 @@ export function loadAuthForEnv(env: { name: string; baseUrl: string; envFile: st
   return { baseUrl: env.baseUrl, token, username: token ? undefined : username, password: token ? undefined : password };
 }
 
-/** 印刷屋の zip の場所（OS の環境変数か .env の PCRAFT_PLUGIN_ZIP。無ければ undefined = 開発中の print-craft を探す） */
+/**
+ * 印刷屋の zip の場所（OS の環境変数か .env の PCRAFT_PLUGIN_ZIP。無ければ undefined = 開発中の print-craft を探す）。
+ * .env に書いた相対パスは .env のフォルダーから解決する（今までどおり）。OS の環境変数（print-craft MCP では設定項目）の値は
+ * 絶対パスだけを受け付ける（相対パスの起点が起動の場所に左右されるため。Desktop の起動の場所は / や C:\Windows\System32。段階 0-2 の段 2）
+ */
 export function pluginZipPath(opt: LoadAuthOptions): string | undefined {
-  const v = picker(opt)(NAMES.pluginZip);
-  if (!v) return undefined;
-  return path.resolve(path.dirname(envFileOf(opt)), v);
+  const picked = pickerWithSource(opt)(NAMES.pluginZip);
+  if (!picked) return undefined;
+  if (picked.source === "file") return path.resolve(path.dirname(picked.file ?? envFileOf(opt)), picked.value);
+  if (!path.isAbsolute(picked.value)) throw new AuthError(`PCRAFT_PLUGIN_ZIP（OS の環境変数）は絶対パスで書く: ${picked.value}（.env に書くなら .env のフォルダーからの相対パスでもよい）`);
+  return path.normalize(picked.value);
 }
 
 /** 認証の種類だけを文言にする（値もユーザー名も出さない） */
