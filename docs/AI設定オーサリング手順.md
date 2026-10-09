@@ -116,4 +116,5 @@ requirements/納品書.md の要件で、settings/APP3740-見積書.json に「�
 - 印刷屋プラグイン Ver.6、tools 1.0.0、kintone 公式 MCP 1.8.2、Node 20 以上（開発は Node 24）
 - tools 1.1.0: 印刷屋プラグイン Ver.6 と Ver.7 の zip で `version`・`normalize`・`preview` を確認（2026-10-08）
 - tools 1.2.0: 公開版で印刷屋プラグイン Ver.7 の zip の `version` を確認、`normalize`・`preview` は試験で確認（2026-10-09。`environments.json` の環境に `role` が要る）
+- tools 1.3.0: 公開版で印刷屋プラグイン Ver.7 の zip の `version` を確認（2026-10-09。CLI の使い方は 1.2.0 と同じ。print-craft MCP が使う中核の入口を足した）
 - Windows 11 の Claude Code（VSCode）。macOS でも手順は同じ（`.env` の置き方は README）
