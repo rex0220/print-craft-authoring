@@ -21,9 +21,11 @@ Projects/
 - `src/plugin-zip.ts` … 印刷屋の zip（contents.zip の 2 層）を Node の zlib だけで読む。大きさ・entry 数・展開後の上限、CRC-32、名前の一致、重複を検査
 - `src/engine.ts` … zip のエンジンと authoring API を happy-dom + スタブで動かす。照合（プラグイン ID、印刷屋の版、API の版と pluginVersion、API のキーと型）
 - `src/kintone-url.ts` … 接続先の検証（`*.cybozu.com` / `*.kintone.com` / `*.cybozu.cn`、ユーザー情報・パス・ポート無し）
-- `src/workspace.ts` … 開発と本番（environments.json）、`kintone/<ホスト名>/<番号>-<アプリ名>/` のフォルダー、ダウンロードの名前（`src/commands/take.ts` が inbox から移す）
+- `src/context.ts` … 作業の文脈（作業フォルダーの実際のパスと環境変数）。CLI は起動時に一度だけ作り、中核には引数で渡す（print-craft MCP も同じ中核を呼ぶ）
+- `src/permission.ts` … `kintone/` の下を変える前の許可（`environments.json` の `role`。本番は読み取りだけ、未分類は何も変えない）
+- `src/workspace.ts` … 開発と本番（environments.json。環境の `role`）、`kintone/<ホスト名>/<番号>-<アプリ名>/` のフォルダー、ダウンロードの名前（`src/commands/take.ts` が inbox から移す）
 - `src/env.ts` / `src/kintone-rest.ts` … `.env`（kintone 公式 MCP と同じ `KINTONE_*` + `PCRAFT_PLUGIN_ZIP`）と GET 専用・許可 API 固定・送信先固定の REST
-- `src/commands/` … 各コマンド。`src/normalize/` … 派生値の生成、検査（HTML / CSS の allowlist、policy、大きさ）、行の差分。`src/preview/` … 帳票 HTML（sandbox + CSP + DOM の無害化）
+- `src/commands/` … 各コマンド。`save.ts` は保存の約束（新しい設定の保存、ボタン 1 つの差し替え。print-craft MCP の保存のツールの本体）、`records.ts` はレコードを数件・形だけで見る（print-craft MCP の kintone_list_records）。`src/normalize/` … 派生値の生成、検査（HTML / CSS の allowlist、policy、大きさ）、行の差分。`src/preview/` … 帳票 HTML（sandbox + CSP + DOM の無害化）
 - `src/meta.ts` … tools の版、扱う印刷屋（プラグイン ID `PRINT_CRAFT_PLUGIN_ID`、版の下限 `MIN_PLUGIN_VERSION`）、API の版（`SUPPORTED_API_VERSIONS`）、API の契約（`REQUIRED_API`）
 - `scripts/vendor.mjs` … moment 2.24.0 を CDN から `vendor/` に取る（`vendor/moment.json` の SHA-256 と照合）
 - `scripts/build.mjs` … esbuild で `dist/cli.mjs`（Node 20、ESM。印刷屋 / kit のコードが入ったら失敗）

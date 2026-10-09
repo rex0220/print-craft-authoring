@@ -6,7 +6,7 @@
  *   - .env、policy/authoring-policy.json、印刷屋の zip の場所は固定。オプションで別の場所を指定できない（AI が書けるファイルを読ませない）
  * 終了コード: 0 成功、1 検査のエラー・認証・kintone・zip・入力の誤り、2 使い方の誤り（パスの制限を含む）。
  */
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { AuthError, baseUrlFromEnv, describeAuth, loadAuth, loadAuthForEnv, pluginZipPath } from "./env.ts";
 import { appDirFor, appFolderOfFile, editNameOf, envsOfHost, findAppDir, INBOX, isEnvName, listAppFolder, loadWorkspace, pickEnv, resolveApp, SNAPSHOT_RE, snapshotNameOf, WorkspaceError, type EnvironmentDef, type Workspace } from "./workspace.ts";
@@ -27,6 +27,7 @@ import { isSupportedPluginVersion, schemaRevisionOf, toolsMeta } from "./meta.ts
 import { PathError, WRITE_ROOTS, resolveRead as resolveReadIn, resolveWrite as resolveWriteIn, resolveWriteDir as resolveWriteDirIn } from "./safe-path.ts";
 import { createContext, type WorkContext } from "./context.ts";
 import { assertChangeAllowed, PermissionError, type ChangeKind } from "./permission.ts";
+import { digestOf } from "./commands/save.ts";
 
 const USAGE = `使い方: npx @rex0220/print-craft-authoring-tools <command> [options]
 （短い npx pcraft-authoring は使わない。npm ci の前だと npm の公開レジストリの同じ名前のパッケージを取りに行く）
@@ -40,14 +41,15 @@ const USAGE = `使い方: npx @rex0220/print-craft-authoring-tools <command> [op
       取得済みの fields/<N>.json を 1 項目 1 行で（レイアウトの順。型・ラベル・書式・単位・選択肢・ルックアップ）。通信しない。
   pull --app N [--preview] [--guest <spaceId>] [--out settings/<file>] [--force] [--plugin-id <ID>]
       アプリに入っている印刷屋の今の設定を取って、設定画面の「設定をダウンロード」と同じ封筒形式で settings/APP<N>-<アプリ名>.json に保存（GET だけ）。
-      kintone の API ラボ「アプリに追加されているプラグインの設定情報を取得する」を有効にした環境だけ。権限は運用中の設定がレコード閲覧＋追加、
+      kintone の API ラボ「アプリに追加されているプラグインの設定情報を取得する」を有効にした環境だけ。権限は運用中の設定がレコード閲覧（API トークンでも可）、
       --preview（動作テスト環境 = 保存して未反映の設定）がアプリ管理。プラグイン ID は印刷屋の zip から。既にあるファイルは --force で上書き。
   record --app N --id R [--fields-from <settings.json>] [--guest <spaceId>] [--out records/<file>]
       レコードを records/<N>-<R>.json に保存。--fields-from で設定が使う項目だけ残す。
   record --app N --id R --summary
       取得済みの records/<N>-<R>.json を 1 項目 1 行で。値は出さず形だけ（文字数・行数・数値の桁・テーブルの行数・添付の件数と種類）。通信しない。
-  buttons <settings.json> [--button <名前>]
+  buttons <settings.json> [--button <名前>] [--json]
       設定のボタン一覧（画面・保存先・用紙・表示条件・ファイル名・帳票の行・更新項目）。--button でそのボタンの HTML / CSS / 計算式（data: の URL は長さだけ）。
+      --json はファイルの digest（sha256）とボタンの名前の一覧も（直すときの照合に使う）。
   normalize <settings.json> --fields <fields.json> [--out settings/<file>] [--dry-run] [--check] [--json]
       設定画面と同じ手順で派生値を作り直し、検査して、エラーが無ければ書き戻す（既定は同じファイルに上書き。--dry-run は書かない）。
       --check は入力の派生値と生成した値の差を出す。外部 URL の承認は policy/authoring-policy.json（場所は固定。利用者が書く）。
@@ -391,7 +393,7 @@ async function pull(args: string[]): Promise<number> {
     result = await pullSettings(c, engine, { app, preview, guestSpaceId, pluginId });
   } catch (e) {
     if (e instanceof RestError && /plugin\/config/.test(e.apiPath ?? "")) {
-      throw new RestError(`${e.message}。確かめること: kintone の API ラボ「アプリに追加されているプラグインの設定情報を取得または更新するREST API」が有効か（cybozu.com 共通管理者がアップデートオプションの「検討中の新機能」で）、権限（運用中: レコード閲覧＋レコード追加 / --preview: アプリ管理）、アプリに印刷屋プラグイン（ID ${pluginId}）が入っているか`, e.status, e.code, e.apiPath);
+      throw new RestError(`${e.message}。確かめること: kintone の API ラボ「アプリに追加されているプラグインの設定情報を取得または更新するREST API」が有効か（cybozu.com 共通管理者がアップデートオプションの「検討中の新機能」で）、権限（運用中: レコード閲覧。API トークンでも可 / --preview: アプリ管理）、アプリに印刷屋プラグイン（ID ${pluginId}）が入っているか`, e.status, e.code, e.apiPath);
     }
     throw e;
   }
@@ -421,7 +423,16 @@ async function buttons(args: string[]): Promise<number> {
   if (!settingsArg) throw new UsageError("設定 JSON のパスが要る");
   const button = option(args, "button");
   if (args.includes("--button") && !button) throw new UsageError("--button にはボタン名を続ける");
-  console.log(listButtons(readJsonLimited(resolveRead(settingsArg)), { file: settingsArg, button }));
+  const file = resolveRead(settingsArg);
+  const settings = readJsonLimited(file);
+  const text = listButtons(settings, { file: settingsArg, button });
+  if (flag(args, "json")) {
+    // 直すときの照合に使う digest（ファイルのバイト列の sha256）と、ボタンの名前（menu。設定の中で一意）
+    const menus = (Array.isArray(settings.pluginInfos) ? settings.pluginInfos : []).map((r) => String((r as { menu?: unknown }).menu ?? ""));
+    console.log(JSON.stringify({ file: shown(file), digest: digestOf(readFileSync(file)), menus, text }, null, 2));
+  } else {
+    console.log(text);
+  }
   return 0;
 }
 

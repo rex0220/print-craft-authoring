@@ -1,8 +1,9 @@
 /** 要約コマンド: fields --summary（1 項目 1 行）、record --summary（値は出さず形だけ）、buttons（ボタン一覧と --button の中身） */
 import { test } from "node:test";
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -139,6 +140,13 @@ test("CLI: fields / record の --summary は取得済みのファイルを読む
     const b = run(["buttons", "settings/a.json"], work);
     assert.equal(b.status, 0, b.stderr);
     assert.match(b.stdout, /1\. 見積書（有効/);
+    // --json: ファイルの digest（sha256。pcraft_update_button の照合）とボタンの名前（段階 0-2 の段 6）
+    const bj = run(["buttons", "settings/a.json", "--json"], work);
+    assert.equal(bj.status, 0, bj.stderr);
+    const info = JSON.parse(bj.stdout);
+    assert.equal(info.digest, createHash("sha256").update(readFileSync(path.join(work, "settings", "a.json"))).digest("hex"));
+    assert.deepEqual(info.menus, ["見積書"]);
+    assert.match(info.text, /1\. 見積書（有効/);
     const nb = run(["buttons", "settings/a.json", "--button", "無い"], work);
     assert.equal(nb.status, 1);
     assert.match(nb.stderr, /ボタン「無い」は settings\/a\.json に無い/);

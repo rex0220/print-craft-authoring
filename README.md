@@ -94,7 +94,7 @@ flowchart LR
 - **構成 1**: 開発は開発環境のドメイン、本番は本番のドメイン → 環境ごとに `baseUrl` と認証のファイルを分ける
 - **構成 2**: 同じドメインで、開発用のアプリと本番のアプリ → `baseUrl` は同じで、`apps` の番号を分ける
 
-1. `environments.example.json` を写して `environments.json` を作り、環境（`baseUrl`、認証のファイル `envFile` = `.env` か `env/<名前>.env`）とアプリの番号（`apps`）を書く。構成 2 なら `envFile` を省いて `.env` を共用してよい
+1. `environments.example.json` を写して `environments.json` を作り、環境（`baseUrl`、認証のファイル `envFile` = `.env` か `env/<名前>.env`、**役割 `role` = `development`（開発）か `production`（本番）**）とアプリの番号（`apps`）を書く。構成 2 なら `envFile` を省いて `.env` を共用してよい。**`role` を書いていない環境のフォルダーは、tools が何も変えません**（読み取りだけ）。本番（`production`）のフォルダーは、新しいダウンロード / pull を足すことだけができます（直す・書くのは開発の環境で）。構成 2 で `apps` に無いアプリは、開発か本番か決まらないので変えられません（`apps` に足す）
 2. 認証のファイル（例 `env/dev.env`、`env/prod.env`）に `.env` と同じ書き方で `KINTONE_USERNAME` / `KINTONE_PASSWORD`（または `KINTONE_API_TOKEN`）を書く。`KINTONE_BASE_URL` は書かなくてよい（書くなら `environments.json` と同じにする）。**このときは OS の環境変数の `KINTONE_*` は読みません**（開発と本番の取り違えを防ぐため）。`PCRAFT_PLUGIN_ZIP` はルートの `.env` か OS の環境変数のまま
 3. 設定画面でダウンロードしたファイル（`rex0220-print-craft-app<番号>-<日時>.json`）は**名前を変えずに** `inbox/` に置く（ブラウザーのダウンロード先を `inbox/` にしておくと手で移す必要がありません）。`npx @rex0220/print-craft-authoring-tools take` がアプリのフォルダーへ移します
 
@@ -125,7 +125,7 @@ kintone/
 | `npx @rex0220/print-craft-authoring-tools normalize settings/<ファイル>.json --fields fields/N.json` | 派生値の生成と検査。エラーがあれば書き戻さない。`--check` で派生値の差、`--dry-run` で書かない |
 | `npx @rex0220/print-craft-authoring-tools preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json` | ボタンごとの帳票 HTML を `out/` に |
 | `npx @rex0220/print-craft-authoring-tools diff <前.json> <後.json>` | 既存設定の変更の差分 |
-| `npx @rex0220/print-craft-authoring-tools pull --app N [--preview]` | アプリに入っている印刷屋の今の設定を取って、設定画面の「設定をダウンロード」と同じ形で `settings/APP<番号>-<アプリ名>.json` に保存（GET だけ。tools 0.1.1 から。0.1.0 は `settings/<アプリ名>.json`）。kintone の API ラボの API を使うので、cybozu.com 共通管理者がアップデートオプションの「検討中の新機能」で「アプリに追加されているプラグインの設定情報を取得または更新するREST API」を有効にした環境だけ。権限は運用中の設定がレコード閲覧＋追加、`--preview`（保存して未反映の設定）がアプリ管理。既にあるファイルは `--force` で上書き |
+| `npx @rex0220/print-craft-authoring-tools pull --app N [--preview]` | アプリに入っている印刷屋の今の設定を取って、設定画面の「設定をダウンロード」と同じ形で `settings/APP<番号>-<アプリ名>.json` に保存（GET だけ。tools 0.1.1 から。0.1.0 は `settings/<アプリ名>.json`）。kintone の API ラボの API を使うので、cybozu.com 共通管理者がアップデートオプションの「検討中の新機能」で「アプリに追加されているプラグインの設定情報を取得または更新するREST API」を有効にした環境だけ。権限は運用中の設定がレコード閲覧（API トークンでも可）、`--preview`（保存して未反映の設定）がアプリ管理。既にあるファイルは `--force` で上書き |
 | `npx @rex0220/print-craft-authoring-tools take [--env <環境>]` | `inbox/` の設定のダウンロードを、アプリのフォルダーへ名前のまま移す（environments.json があるとき） |
 | `npx @rex0220/print-craft-authoring-tools edit --app <アプリ>` | 今の設定（一番新しいダウンロード / pull）を `…-edit.json` に写す。直すのはこちら（environments.json があるとき） |
 | `npx @rex0220/print-craft-authoring-tools files --app <アプリ>` | アプリのフォルダーのファイル（今の設定、直したもの、新しい帳票、records、out）（environments.json があるとき） |
