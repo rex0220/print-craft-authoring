@@ -10,7 +10,7 @@ import path from "node:path";
 import { readJsonLimited } from "./normalize.ts";
 import { realResolve, resolveRead, resolveWrite, WRITE_ROOTS } from "../safe-path.ts";
 import { assertChangeAllowed, PermissionError } from "../permission.ts";
-import { appDirFor, INBOX, type EnvironmentDef, type Workspace } from "../workspace.ts";
+import { appDirFor, INBOX, SNAPSHOT_RE, type EnvironmentDef, type Workspace } from "../workspace.ts";
 
 /** 印刷屋の設定の封筒の pluginID（印刷屋の PLUGIN_ID_NAME と同じ。engine の api.pluginId で確かめている） */
 export const PRINT_CRAFT_PLUGIN_ID = "rex0220 Print craft plugin";
@@ -55,6 +55,11 @@ export function takeInbox(cwdIn: string, ws: Workspace, envName?: string): TakeR
       result.skipped.push({ file: rel, reason: "封筒の appId が無い" });
       continue;
     }
+    // 取り込むのはダウンロードの名前（rex0220-print-craft-app<番号>-<日時>.json）のファイルだけ（Codex レビュー MAJOR 3。名前は変えずに置く）
+    if (!SNAPSHOT_RE.test(name)) {
+      result.skipped.push({ file: rel, reason: "ダウンロードの名前（rex0220-print-craft-app<番号>-<日時>.json）ではない。設定画面のダウンロードの名前のまま inbox/ に置く" });
+      continue;
+    }
     const m = name.match(/-app(\d+)-/);
     if (m && Number(m[1]) !== appId) {
       result.skipped.push({ file: rel, reason: `ファイル名のアプリ ${m[1]} と封筒の appId ${appId} が違う` });
@@ -79,7 +84,7 @@ export function takeInbox(cwdIn: string, ws: Workspace, envName?: string): TakeR
     }
     // 本番は新しい名前のダウンロードを足すことだけ、未分類は何も変えない（permission.ts）
     try {
-      assertChangeAllowed(cwd, dest, "add-snapshot");
+      assertChangeAllowed(cwd, dest, "snapshot");
     } catch (e) {
       if (!(e instanceof PermissionError)) throw e;
       result.skipped.push({ file: rel, reason: e.message });

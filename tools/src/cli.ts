@@ -26,7 +26,7 @@ import { PolicyError } from "./normalize/policy.ts";
 import { isSupportedPluginVersion, schemaRevisionOf, toolsMeta } from "./meta.ts";
 import { PathError, WRITE_ROOTS, resolveRead as resolveReadIn, resolveWrite as resolveWriteIn, resolveWriteDir as resolveWriteDirIn } from "./safe-path.ts";
 import { createContext, type WorkContext } from "./context.ts";
-import { assertChangeAllowed, PermissionError, type ChangeKind } from "./permission.ts";
+import { assertChangeAllowed, PermissionError, type ChangeOp } from "./permission.ts";
 import { digestOf } from "./commands/save.ts";
 
 const USAGE = `使い方: npx @rex0220/print-craft-authoring-tools <command> [options]
@@ -90,8 +90,8 @@ const resolveRead = (target: string): string => resolveReadIn(target, W.root);
 const resolveWrite = (target: string, roots: readonly string[]): string => resolveWriteIn(target, roots, W.root);
 const resolveWriteDir = (target: string, roots: readonly string[]): string => resolveWriteDirIn(target, roots, W.root);
 const authOpt = () => ({ cwd: W.root, env: W.env });
-/** kintone/ の下を変える直前の許可（environments.json の role。permission.ts） */
-const allow = (file: string, kind: ChangeKind = "write"): void => assertChangeAllowed(W.root, file, kind);
+/** kintone/ の下をこの操作で変えてよいか（environments.json の role と、操作 × 場所。permission.ts）。通信や normalize の前に止めるための早めの判定 */
+const allow = (file: string, op: ChangeOp): void => assertChangeAllowed(W.root, file, op);
 
 function option(args: string[], name: string): string | undefined {
   const i = args.indexOf(`--${name}`);
@@ -134,14 +134,20 @@ function rejectRemovedOptions(args: string[]): void {
   }
 }
 
-function writeJson(file: string, data: unknown): void {
-  mkdirSync(path.dirname(file), { recursive: true });
-  writeFileSync(file, JSON.stringify(data, null, 2) + "\n", "utf8");
+/**
+ * 書く直前に、書ける場所（roots）と、kintone/ の下ならこの操作で変えてよいか（role を読み直す）をもう一度確かめてから書く
+ * （Codex レビュー BLOCKER 2: 早めの判定の後に通信や normalize を挟むと、その間に role が変わっても書けてしまう）
+ */
+function writeText(file: string, text: string, roots: readonly string[], op: ChangeOp): string {
+  const real = resolveWrite(file, roots);
+  allow(real, op);
+  mkdirSync(path.dirname(real), { recursive: true });
+  writeFileSync(real, text, "utf8");
+  return real;
 }
 
-function writeText(file: string, text: string): void {
-  mkdirSync(path.dirname(file), { recursive: true });
-  writeFileSync(file, text, "utf8");
+function writeJson(file: string, data: unknown, roots: readonly string[], op: ChangeOp): string {
+  return writeText(file, JSON.stringify(data, null, 2) + "\n", roots, op);
 }
 
 function shown(file: string): string {
@@ -282,8 +288,8 @@ async function fields(args: string[]): Promise<number> {
   const out = ctx.ws
     ? resolveWrite(path.join(appDirFor(W.root, ctx.env!, app, file.appName), "fields.json"), WRITE_ROOTS.kintone)
     : resolveWrite(option(args, "out") ?? path.join("fields", `${app}.json`), WRITE_ROOTS.fields);
-  allow(out);
-  writeJson(out, file);
+  allow(out, "fields");
+  writeJson(out, file, ctx.ws ? WRITE_ROOTS.kintone : WRITE_ROOTS.fields, "fields");
   console.log(`${summarizeFields(file)}\n${authLabel}で ${c.baseUrl} から取得 → ${shown(out)}`);
   return 0;
 }
@@ -312,9 +318,9 @@ async function record(args: string[]): Promise<number> {
     else keep = codes;
   }
   const { client: c, authLabel } = client(ctx);
-  allow(out);
+  allow(out, "record");
   const file = await fetchRecord(c, { app, id, guestSpaceId, keep });
-  writeJson(out, file);
+  writeJson(out, file, WRITE_ROOTS.records, "record");
   console.log(`${summarizeRecord(file)}\n${authLabel}で ${c.baseUrl} から取得 → ${shown(out)}（個人情報を含む。コミットしない）`);
   return 0;
 }
@@ -331,7 +337,7 @@ async function normalize(args: string[]): Promise<number> {
     throw new UsageError(`ダウンロード / pull のファイルは書き換えない。npx @rex0220/print-craft-authoring-tools edit ${shown(settingsFile)} で -edit.json に写してから直す（検査だけなら --dry-run）`);
   }
   const out = write ? resolveWrite(option(args, "out") ?? settingsFile, WRITE_ROOTS.settings) : undefined;
-  if (out) allow(out);
+  if (out) allow(out, "settings");
   const fieldsData = await readFieldsFile(fieldsFile);
   const baseUrl = trustedBaseUrl(folder);
   const engine = await engineFor();
@@ -361,7 +367,7 @@ async function normalize(args: string[]): Promise<number> {
     return 1;
   }
   if (out) {
-    writeJson(out, result.output);
+    writeJson(out, result.output, WRITE_ROOTS.settings, "settings");
     if (!flag(args, "json")) console.log(`出力: ${shown(out)}（封筒の date を更新。派生値を生成）`);
   }
   return 0;
@@ -402,8 +408,8 @@ async function pull(args: string[]): Promise<number> {
     ? resolveWrite(path.join(appDirFor(W.root, ctx.env!, app, result.appName), snapshotNameOf(app)), WRITE_ROOTS.kintone)
     : resolveWrite(outArg ?? path.join("settings", defaultPullName(result.appName, app)), WRITE_ROOTS.settings);
   if (existsSync(out) && !flag(args, "force")) throw new InputError(`${shown(out)} は既にある。上書きするなら --force（上書きの前の内容は git の差分で確かめる）、別の名前なら --out settings/<ファイル>`);
-  allow(out, existsSync(out) ? "write" : "add-snapshot");
-  writeJson(out, result.envelope);
+  allow(out, ctx.ws ? "snapshot" : "settings");
+  writeJson(out, result.envelope, ctx.ws ? WRITE_ROOTS.kintone : WRITE_ROOTS.settings, ctx.ws ? "snapshot" : "settings");
   console.log(`pull: アプリ ${app} ${result.appName}（${preview ? "動作テスト環境" : "運用中"}の設定、revision ${result.revision}、保存形式 ${result.format}）を${authLabel}で ${c.baseUrl} から取得 → ${shown(out)}`);
   console.log(listButtons(result.envelope, { file: shown(out) }));
   return 0;
@@ -462,8 +468,8 @@ async function edit(args: string[]): Promise<number> {
   if (existsSync(dest)) {
     console.log(`既にある（続けて直す）: ${shown(dest)}`);
   } else {
-    allow(dest);
-    writeText(dest, readTextLimited(file));
+    allow(dest, "settings");
+    writeText(dest, readTextLimited(file), WRITE_ROOTS.kintone, "settings");
     console.log(`${shown(file)} → ${shown(dest)}（ここを直す。ダウンロードのファイルは書き換えない）`);
   }
   console.log(`次: 直したら npx @rex0220/print-craft-authoring-tools normalize ${shown(dest)} → diff ${shown(file)} ${shown(dest)}`);
@@ -517,8 +523,8 @@ async function preview(args: string[]): Promise<number> {
   if (!result.findings.hasErrors) {
     for (const r of result.results) {
       const file = resolveWrite(path.join(outDir, r.file), WRITE_ROOTS.out);
-      allow(file);
-      writeText(file, r.html);
+      allow(file, "preview");
+      writeText(file, r.html, WRITE_ROOTS.out, "preview");
       written.push(shown(file));
     }
   }

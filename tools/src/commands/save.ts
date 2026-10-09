@@ -65,7 +65,7 @@ function commit(ctx: SaveContext, target: string, text: string, recheck: () => v
     writeFileSync(tmp, text, { encoding: "utf8", flag: "wx" });
     // 名前を付け替える直前にもう一度: 書ける場所（symlink の差し替えを含む）、role、ダウンロードのファイル、digest
     resolveWrite(rel(ctx.root, target), WRITE_ROOTS.settings, ctx.root);
-    assertChangeAllowed(ctx.root, target, "write");
+    assertChangeAllowed(ctx.root, target, "settings");
     if (SNAPSHOT_RE.test(path.basename(target))) throw new SaveDenied("ダウンロード / pull のファイルは書き換えない。edit で -edit.json に写して直す");
     recheck();
     renameSync(tmp, target);
@@ -91,7 +91,7 @@ export async function saveNewSettings(ctx: SaveContext, opt: { path: string; con
   try {
     target = resolveWrite(opt.path, WRITE_ROOTS.settings, ctx.root);
     if (SNAPSHOT_RE.test(path.basename(target))) throw new SaveDenied("ダウンロード / pull の名前（rex0220-print-craft-app<番号>-<日時>.json）では新しく保存しない");
-    assertChangeAllowed(ctx.root, target, "write");
+    assertChangeAllowed(ctx.root, target, "settings");
   } catch (e) {
     return deniedResult(ctx.root, path.resolve(ctx.root, opt.path), e);
   }
@@ -126,7 +126,7 @@ export async function updateButton(ctx: SaveContext, opt: { path: string; button
     target = resolveRead(opt.path, ctx.root);
     resolveWrite(opt.path, WRITE_ROOTS.settings, ctx.root);
     if (SNAPSHOT_RE.test(path.basename(target))) throw new SaveDenied("ダウンロード / pull のファイルは書き換えない。edit で -edit.json に写して直す");
-    assertChangeAllowed(ctx.root, target, "write");
+    assertChangeAllowed(ctx.root, target, "settings");
   } catch (e) {
     return deniedResult(ctx.root, path.resolve(ctx.root, opt.path), e);
   }
