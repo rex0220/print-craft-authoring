@@ -140,6 +140,17 @@ test("zip のコードを動かし始めた後に失敗したら、そのプロ�
   }
 });
 
+test("同じ壊れた zip を同時に読むと、1 つだけ元の誤り、待っていたほかは restart-required（子プロセス。B1 の Codex 4 回目）", () => {
+  const p = zipFile("stub-concurrent.zip", stubInnerEntries());
+  const script = `
+    const { loadEngine } = await import(${JSON.stringify(ENGINE_URL)});
+    const r = await Promise.allSettled([0, 1, 2].map(() => loadEngine({ pluginZip: process.argv[1] })));
+    process.stdout.write(JSON.stringify(r.map((x) => (x.status === "fulfilled" ? "ok" : x.reason.code))));`;
+  const r = spawnSync(process.execPath, ["--no-warnings", "--input-type=module", "-e", script, p], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout), ["api-incomplete", "restart-required", "restart-required"]);
+});
+
 test("zip のコードを動かす前の失敗（版・プラグイン ID・無い・読めない・API が無い）はやり直せる: 後で正しい zip を読める", { skip: existsSync(PLUGIN_ZIP) ? false : `印刷屋の zip が無い: ${PLUGIN_ZIP}` }, () => {
   const noApiInner = stubInnerEntries();
   delete noApiInner["config_js/print-craft-authoring-api.js"];
