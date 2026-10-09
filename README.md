@@ -87,26 +87,26 @@ flowchart LR
    - 保存先の添付ファイル項目、用紙、向き、ボタンを押したときの動き（プレビュー / 確認 / すぐに作成）を伝えると早いです
 7. **反映する** — アプリの設定 → プラグイン → 印刷屋プラグインの設定 → **設定をアップロード** → `settings/` のファイルを選ぶ → **取り込み方**（全置換 / 一部置換 / 追加）を選ぶ → **保存する** → アプリの設定を**運用環境に反映** → 詳細画面でボタンを押して PDF を確かめる。既存の設定があるアプリにボタンを足すときは「追加」、差し替えるときは「一部置換」（どちらも外部参照・Web フォント・メニューなどは今の設定のまま）。ファイルの検証に失敗した場合、既存の設定は変わりません
 
-## 開発と本番を分ける（任意。environments.json）
+## 複数のドメイン・アプリ（任意。接続のファイル）
 
-開発用の環境やアプリがあるときは、作業フォルダーのルートに `environments.json` を置くと、tools がドメインとアプリ番号でフォルダーを分けます（無ければ下の `settings/` などの形のまま）。
+開発用の環境（ドメイン）や開発用のアプリ、いくつかのアプリを使うときは、kintone の**接続のファイル**（kSQL の `ksql.config.json` と同じ形）を使います。tools 2.0.0 から。無ければ `.env` の 1 接続の形（下の `settings/` などの形）のままです。
 
-- **構成 1**: 開発は開発環境のドメイン、本番は本番のドメイン → 環境ごとに `baseUrl` と認証のファイルを分ける
-- **構成 2**: 同じドメインで、開発用のアプリと本番のアプリ → `baseUrl` は同じで、`apps` の番号を分ける
-
-1. `environments.example.json` を写して `environments.json` を作り、環境（`baseUrl`、認証のファイル `envFile` = `.env` か `env/<名前>.env`、**役割 `role` = `development`（開発）か `production`（本番）**）とアプリの番号（`apps`）を書く。構成 2 なら `envFile` を省いて `.env` を共用してよい。**`role` を書いていない環境のフォルダーは、tools が何も変えません**（読み取りだけ）。本番（`production`）のフォルダーは、新しいダウンロード / pull を足すことだけができます（直す・書くのは開発の環境で）。構成 2 で `apps` に無いアプリは、開発か本番か決まらないので変えられません（`apps` に足す）
-2. 認証のファイル（例 `env/dev.env`、`env/prod.env`）に `.env` と同じ書き方で `KINTONE_USERNAME` / `KINTONE_PASSWORD`（または `KINTONE_API_TOKEN`）を書く。`KINTONE_BASE_URL` は書かなくてよい（書くなら `environments.json` と同じにする）。**このときは OS の環境変数の `KINTONE_*` は読みません**（開発と本番の取り違えを防ぐため）。`PCRAFT_PLUGIN_ZIP` はルートの `.env` か OS の環境変数のまま
-3. 設定画面でダウンロードしたファイル（`rex0220-print-craft-app<番号>-<日時>.json`）は**名前を変えずに** `inbox/` に置く（ブラウザーのダウンロード先を `inbox/` にしておくと手で移す必要がありません）。`npx @rex0220/print-craft-authoring-tools take` がアプリのフォルダーへ移します
+1. `kintone-connections.example.json` を写して、**作業フォルダーの外**に接続のファイルを作ります（例 `~/kintone-connections.json`）。kSQL を使っていれば、その `ksql.config.json` をそのまま使えます
+   - `profiles` に接続先を名前（英数字と `-` `_`）で並べ、`baseUrl`（`https://<サブドメイン>.cybozu.com`）と認証を書きます。認証は、アプリごとの API トークン（`tokenMap` の `APP<番号>`。値は `env:<環境変数の名前>` か、トークンそのもの）か、ログイン名とパスワード（`username` と、`passwordEnv` か `password`）。ゲストスペースは `guestSpaceId`（1 つの profile は 1 つのスペース）
+   - `defaultProfile` に、ふだん使う profile を書きます（無ければ `dev`。kSQL と同じ）
+   - print-craft には**レコード閲覧だけの API トークン**を勧めます。kSQL で書き込みにも使うトークンは共有しないでください（AI がファイルを読めると、別の使い方をされうるため）。トークンをファイルに直接書くときは、ほかの利用者に読めないようにします（`chmod 600`）
+2. 作業フォルダーの `.env` に `PCRAFT_KINTONE_CONFIG=<接続のファイルのパス>` を書きます（絶対パスか、`.env` のフォルダーからの相対パス）。OS の環境変数に置くときは絶対パスにします
+3. 設定画面でダウンロードしたファイル（`rex0220-print-craft-app<番号>-<日時>.json`）は**名前を変えずに** `inbox/` に置きます（ブラウザーのダウンロード先を `inbox/` にしておくと手で移す必要がありません）。`npx @rex0220/print-craft-authoring-tools take` がアプリのフォルダーへ移します
 
 ```
 kintone/
-  dev-example.cybozu.com/101-見積書/        fields.json、records/、out/、ダウンロード / pull（名前のまま）、…-edit.json（直したもの）
-  example.cybozu.com/3740-見積書/
+  dev/101-見積書/        fields.json、records/、out/、ダウンロード / pull（名前のまま）、…-edit.json（直したもの）、.pcraft-app.json（印）
+  prod/3740-見積書/
 ```
 
-4. 作るのも直すのも開発の環境のアプリ。開発のアプリにアップロードして確かめたら、**同じファイルを本番のアプリの設定画面でアップロード**します（取り込み方は「追加」か「一部置換」。「別のアプリの設定です」の注意が出ますが取り込めます。項目が合わなければ保存のときに止まります）。**一覧 ID はアプリごとに違う**ので、特定の一覧に出すボタンは本番の設定画面で一覧を選び直してください（開発では「出す画面」を空か詳細画面だけにしておきます）
+4. 作るのも直すのも開発のアプリ。開発のアプリにアップロードして確かめたら、**同じファイルを本番のアプリの設定画面でアップロード**します（取り込み方は「追加」か「一部置換」。「別のアプリの設定です」の注意が出ますが取り込めます。項目が合わなければ保存のときに止まります）。**一覧 ID はアプリごとに違う**ので、特定の一覧に出すボタンは本番の設定画面で一覧を選び直してください（開発では「出す画面」を空か詳細画面だけにしておきます）
 
-コマンドは `--env <環境>` で環境を選び（省略は `default`）、`--app` には番号のほか `apps` の名前も書けます。kintone 公式 MCP（AI の探索）は開発の環境だけに向けておけば足ります（本番の今の設定は `pull --env prod` かダウンロードで見られます）。`environments.json` と `env/` は AI が書けないようにしてあります（`.claude/settings.json`）。
+コマンドは `--profile <名前>` で接続先を選びます（省略は `defaultProfile`）。`--app` は番号です。本番のアプリを読み取りだけにする守りは 2.0.0 でやめました（本番の今の設定は `pull --profile prod` かダウンロードで見られます）。kSQL との違い（kSQL の環境変数 `KSQL_*` を読まない、`tokenMap` の書き方を厳しく見る など）は print-craft MCP の README にあります。
 
 ## 設定ファイルの管理ルール（settings/）
 
@@ -126,9 +126,9 @@ kintone/
 | `npx @rex0220/print-craft-authoring-tools preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json` | ボタンごとの帳票 HTML を `out/` に |
 | `npx @rex0220/print-craft-authoring-tools diff <前.json> <後.json>` | 既存設定の変更の差分 |
 | `npx @rex0220/print-craft-authoring-tools pull --app N [--preview]` | アプリに入っている印刷屋の今の設定を取って、設定画面の「設定をダウンロード」と同じ形で `settings/APP<番号>-<アプリ名>.json` に保存（GET だけ。tools 0.1.1 から。0.1.0 は `settings/<アプリ名>.json`）。kintone の API ラボの API を使うので、cybozu.com 共通管理者がアップデートオプションの「検討中の新機能」で「アプリに追加されているプラグインの設定情報を取得または更新するREST API」を有効にした環境だけ。権限は運用中の設定がレコード閲覧（API トークンでも可）、`--preview`（保存して未反映の設定）がアプリ管理。既にあるファイルは `--force` で上書き |
-| `npx @rex0220/print-craft-authoring-tools take [--env <環境>]` | `inbox/` の設定のダウンロードを、アプリのフォルダーへ名前のまま移す（environments.json があるとき） |
-| `npx @rex0220/print-craft-authoring-tools edit --app <アプリ>` | 今の設定（一番新しいダウンロード / pull）を `…-edit.json` に写す。直すのはこちら（environments.json があるとき） |
-| `npx @rex0220/print-craft-authoring-tools files --app <アプリ>` | アプリのフォルダーのファイル（今の設定、直したもの、新しい帳票、records、out）（environments.json があるとき） |
+| `npx @rex0220/print-craft-authoring-tools take [--profile <名前>]` | `inbox/` の設定のダウンロードを、アプリのフォルダーへ名前のまま移す（接続のファイルがあるとき） |
+| `npx @rex0220/print-craft-authoring-tools edit --app <番号>` | 今の設定（一番新しいダウンロード / pull）を `…-edit.json` に写す。直すのはこちら（接続のファイルがあるとき） |
+| `npx @rex0220/print-craft-authoring-tools files --app <番号>` | アプリのフォルダーのファイル（今の設定、直したもの、新しい帳票、records、out）（接続のファイルがあるとき） |
 | `npx @rex0220/print-craft-authoring-tools buttons settings/<ファイル>.json [--button <名前>]` | 設定のボタン一覧（出す画面、保存先、用紙、表示条件、ファイル名、帳票の行、更新項目）。`--button` でそのボタンの HTML / CSS / 計算式 |
 | `npx @rex0220/print-craft-authoring-tools fields --app N --summary` | 取得済みの `fields/N.json` を 1 項目 1 行で（通信しない） |
 | `npx @rex0220/print-craft-authoring-tools record --app N --id R --summary` | 取得済みの `records/N-R.json` の形（文字数・行数・桁・件数。値は出さない。通信しない） |
@@ -145,13 +145,13 @@ kintone には **GET しか送りません**。計算式エンジン（`KintoneF
 ```
 git remote add template https://github.com/rex0220/print-craft-authoring.git   # 初回のみ
 git fetch template
-git checkout template/main -- .claude .mcp.json .env.example .gitignore CLAUDE.md README.md LICENSE environments.example.json package.json package-lock.json docs tools settings/README.md requirements/example.md policy/README.md
+git checkout template/main -- .claude .mcp.json .env.example .gitignore CLAUDE.md README.md LICENSE kintone-connections.example.json package.json package-lock.json docs tools settings/README.md requirements/example.md policy/README.md
 npm ci
 npx @rex0220/print-craft-authoring-tools version
 git commit -m "テンプレートの更新を取り込む"
 ```
 
-- 置き換えるのはテンプレートのファイルだけです。自分の `settings/` `requirements/` `fields/` `kintone/` `policy/authoring-policy.json` と `.env` `environments.json` `env/` には触れません
+- 置き換えるのはテンプレートのファイルだけです。自分の `settings/` `requirements/` `fields/` `kintone/` `policy/authoring-policy.json` と `.env` には触れません
 - テンプレートのファイルを自分で直していた場合、その変更は消えます。Claude Code の許可を足すなら `.claude/settings.local.json`、git で無視するファイルを足すなら `.git/info/exclude` に書いてください。テンプレートで消えたファイルは残るので、気になれば消してください
 - `git merge template/main --allow-unrelated-histories` では取り込まないでください。テンプレートから作ったリポジトリはテンプレートと履歴がつながっていないので、手を入れていないファイルまで衝突し、`-X theirs` で解くと自分の `policy/authoring-policy.json` の承認がテンプレートの空のものに戻ります
 - テンプレート側は `settings/` に README.md 以外、`requirements/` に example.md 以外、`policy/` に README.md と空の `authoring-policy.json` 以外のファイルを追加しません

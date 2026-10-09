@@ -7,7 +7,7 @@ out/
 # tools の開発用（tools/.gitignore も参照）
 tools/dist/
 tools/vendor/*.js
-# 環境ごとの認証（environments.json の envFile。.env と同じくコミットしない）
+# 1.x の環境ごとの認証（environments.json の envFile。tools 2.0.0 から使わない。消し忘れてもコミットしない）
 env/
 # 設定のダウンロードを置く場所（take がアプリのフォルダーへ移す）
 inbox/
