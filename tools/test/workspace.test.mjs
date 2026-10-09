@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEngine, PLUGIN_ZIP } from "./helpers.mjs";
-import { appDirFor, appFolderOfFile, assertDirInside, EDIT_RE, editNameOf, findAppDir, folderNameOf, listAppFolder, parseWorkspace, pickEnv, resolveApp, SNAPSHOT_RE, snapshotNameOf, WorkspaceError } from "../src/workspace.ts";
+import { appDirFor, appFolderOfFile, assertInsideWorkspace, EDIT_RE, editNameOf, findAppDir, folderNameOf, listAppFolder, loadWorkspace, parseWorkspace, pickEnv, resolveApp, SNAPSHOT_RE, snapshotNameOf, WorkspaceError } from "../src/workspace.ts";
 import { AuthError, loadAuthForEnv } from "../src/env.ts";
 import { PathError } from "../src/safe-path.ts";
 import { takeInbox } from "../src/commands/take.ts";
@@ -295,7 +295,7 @@ test("フォルダーの実体が作業フォルダーの外（symlink / junctio
       return;
     }
     assert.throws(() => findAppDir(work, dev, 3740), PathError, "kintone/ が外");
-    assert.throws(() => assertDirInside(work, path.join(work, "kintone")), /作業フォルダーの外を指している/);
+    assert.throws(() => assertInsideWorkspace(work, path.join(work, "kintone")), /kintone の実体が作業フォルダーの外を指している/);
     rmSync(path.join(work, "kintone"));
     mkdirSync(path.join(work, "kintone"));
     link(path.join(outside, "x.cybozu.com"), path.join(work, "kintone", "x.cybozu.com"));
@@ -323,8 +323,46 @@ test("フォルダーの実体が作業フォルダーの外（symlink / junctio
     assert.throws(() => takeInbox(work, ws), PathError, "inbox が外");
     const take = run(["take"], work);
     assert.equal(take.status, 2, take.stderr);
-    assert.match(take.stderr, /作業フォルダーの外を指している（symlink など）: inbox/);
+    assert.match(take.stderr, /inbox の実体が作業フォルダーの外を指している（symlink など）/);
     assert.ok(existsSync(path.join(outside, "rex0220-print-craft-app3740-20261005-125115.json")), "外のファイルは動かさない");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test("environments.json は実体が作業フォルダーの中のときだけ読む: 外への symlink・リンク切れ・ループは PathError（外の中身を出さない）、中への symlink は読む、フォルダーは WorkspaceError（B1 の Codex 再レビュー BLOCKER 2）", (t) => {
+  const work = mkdtempSync(path.join(os.tmpdir(), "pcraft-ws-"));
+  const outside = mkdtempSync(path.join(os.tmpdir(), "pcraft-outside-"));
+  const file = path.join(work, "environments.json");
+  try {
+    writeFileSync(path.join(outside, "environments.json"), JSON.stringify({ ...WS3, environments: { 外の秘密: { baseUrl: "https://secret.cybozu.com", role: "development" } }, default: "外の秘密", apps: [] }));
+    try {
+      symlinkSync(path.join(outside, "environments.json"), file);
+    } catch (e) {
+      t.skip(`symlink を作れない: ${e.message}`);
+      return;
+    }
+    assert.throws(() => loadWorkspace(work), (e) => e instanceof PathError && /environments\.json の実体が作業フォルダーの外を指している/.test(e.message) && !/外の秘密|secret/.test(e.message));
+    const cli = run(["files", "--app", "見積書"], work);
+    assert.equal(cli.status, 2, cli.stderr);
+    assert.ok(!/外の秘密|secret\.cybozu/.test(cli.stdout + cli.stderr), "外のファイルの中身を出さない");
+    rmSync(file);
+    symlinkSync(path.join(outside, "無い.json"), file);
+    assert.throws(() => loadWorkspace(work), (e) => e instanceof PathError && /リンク切れ/.test(e.message), "リンク切れは「無い」にしない");
+    rmSync(file);
+    symlinkSync(file, file);
+    assert.throws(() => loadWorkspace(work), PathError, "ループ");
+    rmSync(file);
+    mkdirSync(path.join(work, "config"));
+    writeFileSync(path.join(work, "config", "environments.json"), JSON.stringify(WS3));
+    symlinkSync(path.join(work, "config", "environments.json"), file);
+    assert.deepEqual(Object.keys(loadWorkspace(work).environments), ["dev"], "中への symlink は読む");
+    rmSync(file);
+    mkdirSync(file);
+    assert.throws(() => loadWorkspace(work), (e) => e instanceof WorkspaceError && /ファイルでない/.test(e.message));
+    rmSync(file, { recursive: true });
+    assert.equal(loadWorkspace(work), null, "無ければ今までの形");
   } finally {
     rmSync(work, { recursive: true, force: true });
     rmSync(outside, { recursive: true, force: true });

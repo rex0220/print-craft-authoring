@@ -17,7 +17,43 @@ const SIG_EOCD = 0x06054b50;
 const SIG_CENTRAL = 0x02014b50;
 const SIG_LOCAL = 0x04034b50;
 
-export class PluginZipError extends Error {}
+/**
+ * 印刷屋の zip の誤りの種類。診断で「読めない」「読めるが合わない」「読み込んだ後に変わった」を分けるため（print-craft MCP の pcraft_status。B1 の Codex 再レビュー MAJOR 1）。
+ *   not-configured: zip の場所が分からない / missing: zip が無い / unreadable: zip として読めない（壊れている、印刷屋の 2 層の形でない、manifest が読めない、大きすぎる）
+ *   not-print-craft: プラグイン ID が印刷屋のものでない / unsupported-version: 印刷屋の版が対応外 / no-api: authoring API が無い
+ *   engine-unreadable: zip のコードを実行できない、計算式エンジンが無い / api-unreadable: authoring API が読めない / api-unsupported: authoring API の版が対応外
+ *   api-mismatch: authoring API の印刷屋の版が manifest と違う（組み替えられた zip） / api-incomplete: authoring API に tools が使うものが無い
+ *   zip-changed: 読み込んだ後に別の zip を渡された、または zip が変わった（1 プロセスに 1 つ）
+ */
+export type PluginZipErrorCode =
+  | "not-configured"
+  | "missing"
+  | "unreadable"
+  | "not-print-craft"
+  | "unsupported-version"
+  | "no-api"
+  | "engine-unreadable"
+  | "api-unreadable"
+  | "api-unsupported"
+  | "api-mismatch"
+  | "api-incomplete"
+  | "zip-changed";
+
+/** 誤りの時点で分かっている印刷屋の版（manifest）と authoring API の版 */
+export interface PluginZipErrorInfo {
+  pluginVersion?: string;
+  apiVersion?: unknown;
+}
+
+export class PluginZipError extends Error {
+  readonly code: PluginZipErrorCode;
+  readonly info: PluginZipErrorInfo;
+  constructor(message: string, code: PluginZipErrorCode = "unreadable", info: PluginZipErrorInfo = {}) {
+    super(message);
+    this.code = code;
+    this.info = info;
+  }
+}
 
 export interface ZipLimits {
   maxOuterBytes: number;

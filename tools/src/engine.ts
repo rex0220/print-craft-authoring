@@ -12,9 +12,10 @@
  *   - 開発中に隣の print-craft の prod/ から読む経路は、**ソースから動かしていて（mode dev）かつ PCRAFT_ALLOW_DEV_PLUGIN=1 のときだけ**。
  *     公開ビルド（mode build）では zip 以外から読まない（再レビュー BLOCKER 1: 利用者の node_modules に置いたファイルを実行しない）
  * zip の中のコードはこのプロセス（Node を起動した OS ユーザーと同じ権限）で動く。sandbox ではない。
- * 1 プロセスに 1 回だけ読む（グローバルを使うため）。
+ * 1 プロセスに 1 回だけ読む（グローバルを使うため）。読み込んだ後に別の zip（実体のパス・大きさ・更新日時が違う）を渡されたら止める（zip-changed。
+ * 前は黙って最初のエンジンを返していた。print-craft MCP は作業フォルダーごとに zip を選べる。B1 の Codex 再レビュー MAJOR 2）。
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import type { PrintCraftAuthoringApi } from "print-craft/src/authoring/api.ts";
@@ -89,20 +90,40 @@ export const DEFAULT_CONTEXT_BASE_URL = "https://example.cybozu.com";
 const DEFAULT_USER: LoginUser = { id: "1", code: "authoring", name: "authoring", email: "", language: "ja" };
 
 let loaded: Engine | null = null;
+/** 読み込んだ zip の実体のパス・大きさ・更新日時（dev から読んだときは null） */
+let loadedStamp: ZipStamp | null = null;
+/** 読み込みの途中（同時の呼び出しは、これが終わるのを待ってから照合する） */
+let loading: Promise<Engine> | null = null;
+
+interface ZipStamp {
+  real: string;
+  size: number;
+  mtimeMs: number;
+}
+
+function stampOf(zip: string): ZipStamp | null {
+  try {
+    const real = realpathSync(zip);
+    const st = statSync(real);
+    return { real, size: st.size, mtimeMs: st.mtimeMs };
+  } catch {
+    return null;
+  }
+}
 
 /** 読み込み元を決める: zip（引数 → 環境変数）。開発中（mode dev + PCRAFT_ALLOW_DEV_PLUGIN=1）だけ隣の print-craft の prod/ */
 export function resolvePluginSources(opt: LoadEngineOptions = {}, mode: "build" | "dev" = opt.mode ?? toolsMeta().mode): PluginSources & { kind: "zip" | "dev" } {
   const zip = opt.pluginZip;
   if (zip) {
-    if (!existsSync(zip)) throw new PluginZipError(`印刷屋の zip が無い: ${zip}（.env の PCRAFT_PLUGIN_ZIP）`);
+    if (!existsSync(zip)) throw new PluginZipError(`印刷屋の zip が無い: ${zip}（.env の PCRAFT_PLUGIN_ZIP）`, "missing");
     return { ...readPluginZip(zip), kind: "zip" };
   }
   const dev = opt.devPluginDir;
   const devAllowed = mode === "dev" && !!dev;
   if (!devAllowed) {
-    throw new PluginZipError(`印刷屋の zip の場所が分からない。.env に PCRAFT_PLUGIN_ZIP=<印刷屋プラグインの zip のパス> を書く${mode === "dev" ? "（開発中に隣の print-craft の prod/ を読むなら環境変数 PCRAFT_ALLOW_DEV_PLUGIN=1）" : ""}`);
+    throw new PluginZipError(`印刷屋の zip の場所が分からない。.env に PCRAFT_PLUGIN_ZIP=<印刷屋プラグインの zip のパス> を書く${mode === "dev" ? "（開発中に隣の print-craft の prod/ を読むなら環境変数 PCRAFT_ALLOW_DEV_PLUGIN=1）" : ""}`, "not-configured");
   }
-  if (!dev || !existsSync(path.join(dev, ENGINE_ENTRY))) throw new PluginZipError(`印刷屋の zip の場所が分からない（PCRAFT_ALLOW_DEV_PLUGIN=1 だが print-craft の prod/ が無い: ${dev}）。.env に PCRAFT_PLUGIN_ZIP を書く`);
+  if (!dev || !existsSync(path.join(dev, ENGINE_ENTRY))) throw new PluginZipError(`印刷屋の zip の場所が分からない（PCRAFT_ALLOW_DEV_PLUGIN=1 だが print-craft の prod/ が無い: ${dev}）。.env に PCRAFT_PLUGIN_ZIP を書く`, "not-configured");
   const read = (rel: string): string => readFileSync(path.join(dev, rel), "utf8");
   const apiFile = path.join(dev, API_ENTRY);
   const engine = read(ENGINE_ENTRY);
@@ -124,19 +145,47 @@ export function resolvePluginSources(opt: LoadEngineOptions = {}, mode: "build" 
 }
 
 export async function loadEngine(opt: LoadEngineOptions = {}): Promise<Engine> {
-  if (loaded) return loaded;
+  while (loading) await loading.catch(() => undefined);
+  if (loaded) return sameEngine(loaded, opt);
+  const run = loadOnce(opt);
+  loading = run;
+  try {
+    return await run;
+  } finally {
+    if (loading === run) loading = null;
+  }
+}
+
+/** 読み込んだ後の呼び出し: zip を渡されたら、読み込んだものと同じ実体・大きさ・更新日時のときだけ返す */
+function sameEngine(engine: Engine, opt: LoadEngineOptions): Engine {
+  if (opt.pluginZip === undefined) return engine;
+  const now = stampOf(opt.pluginZip);
+  const was = loadedStamp;
+  if (!now || !was || now.real !== was.real || now.size !== was.size || now.mtimeMs !== was.mtimeMs) {
+    throw new PluginZipError(
+      `印刷屋の zip が、読み込んだもの（${path.basename(was?.real ?? engine.source.from)}）と違う、または読み込んだ後に変わった: ${opt.pluginZip}。1 つのプロセスで読める zip は 1 つ（起動し直す）`,
+      "zip-changed",
+      { pluginVersion: engine.source.pluginVersion }
+    );
+  }
+  return engine;
+}
+
+async function loadOnce(opt: LoadEngineOptions): Promise<Engine> {
   const meta = toolsMeta();
+  const stamp = opt.pluginZip ? stampOf(opt.pluginZip) : null;
   const src = resolvePluginSources(opt, opt.mode ?? meta.mode);
+  const known = { pluginVersion: src.pluginVersion };
   const warnings: string[] = [];
   // 実行してよいか: 外側の zip の PUBKEY から出るプラグイン ID が印刷屋のものか（1.1.0。Takashi 2026-10-08「pluginid のチェックのみで OK」。SIGNATURE は見ない）
   if (src.kind === "zip" && src.pluginId !== PRINT_CRAFT_PLUGIN_ID) {
-    throw new PluginZipError(`印刷屋プラグインの zip ではない（プラグイン ID ${src.pluginId ?? "不明（PUBKEY が無い）"}。印刷屋は ${PRINT_CRAFT_PLUGIN_ID}）: ${src.from}。配布元から入手した印刷屋の zip を PCRAFT_PLUGIN_ZIP に書く`);
+    throw new PluginZipError(`印刷屋プラグインの zip ではない（プラグイン ID ${src.pluginId ?? "不明（PUBKEY が無い）"}。印刷屋は ${PRINT_CRAFT_PLUGIN_ID}）: ${src.from}。配布元から入手した印刷屋の zip を PCRAFT_PLUGIN_ZIP に書く`, "not-print-craft", known);
   }
   if (src.kind === "dev") warnings.push(`開発中の print-craft（${src.from}。PCRAFT_ALLOW_DEV_PLUGIN=1）から読む。プラグイン ID は確かめない`);
   if (!isSupportedPluginVersion(src.pluginVersion)) {
-    throw new PluginZipError(`印刷屋プラグインの版 ${src.pluginVersion || "不明"}（${src.from}）には対応していない。tools が扱うのは Ver.${MIN_PLUGIN_VERSION} 以降`);
+    throw new PluginZipError(`印刷屋プラグインの版 ${src.pluginVersion || "不明"}（${src.from}）には対応していない。tools が扱うのは Ver.${MIN_PLUGIN_VERSION} 以降`, "unsupported-version", known);
   }
-  if (!src.api) throw new PluginZipError(`印刷屋の zip に ${API_ENTRY} が無い（Ver.${MIN_PLUGIN_VERSION} 以降の zip が要る）: ${src.from}`);
+  if (!src.api) throw new PluginZipError(`印刷屋の zip に ${API_ENTRY} が無い（Ver.${MIN_PLUGIN_VERSION} 以降の zip が要る）: ${src.from}`, "no-api", known);
 
   const g = globalThis as Record<string, unknown>;
   const { Window } = (await import("happy-dom")) as unknown as { Window: new (opt: { url: string }) => Record<string, unknown> };
@@ -172,27 +221,33 @@ export async function loadEngine(opt: LoadEngineOptions = {}): Promise<Engine> {
   window.rex0220_users_info3 = g.rex0220_users_info3;
 
   if (!existsSync(MOMENT_FILE)) throw new Error(`moment が無い: ${MOMENT_FILE}（tools の npm install 時に取る。手で取るなら npm run vendor）`);
-  const runScript = (code: string, filename: string): void => {
-    vm.runInThisContext(code, { filename });
+  const runScript = (code: string, filename: string, entry?: string): void => {
+    try {
+      vm.runInThisContext(code, { filename });
+    } catch (e) {
+      if (!entry) throw e;
+      throw new PluginZipError(`印刷屋の zip のコード（${entry}）を実行できない: ${e instanceof Error ? e.message : String(e)}`, "engine-unreadable", known);
+    }
     for (const k of ["moment", "rex0220_BigNumber", "rex0220_Decimal", "rex0220p", "rex0220PrintCraftAuthoring"]) {
       if (g[k] === undefined && window[k] !== undefined) g[k] = window[k];
       if (window[k] === undefined && g[k] !== undefined) window[k] = g[k];
     }
   };
   runScript(readFileSync(MOMENT_FILE, "utf8"), MOMENT_FILE);
-  runScript(src.momentTimezone, `${src.from}!${MOMENT_TZ_ENTRY}`);
-  runScript(src.bignumber, `${src.from}!${BIGNUMBER_ENTRY}`);
-  runScript(src.engine, `${src.from}!${ENGINE_ENTRY}`);
-  runScript(src.api, `${src.from}!${API_ENTRY}`);
+  runScript(src.momentTimezone, `${src.from}!${MOMENT_TZ_ENTRY}`, MOMENT_TZ_ENTRY);
+  runScript(src.bignumber, `${src.from}!${BIGNUMBER_ENTRY}`, BIGNUMBER_ENTRY);
+  runScript(src.engine, `${src.from}!${ENGINE_ENTRY}`, ENGINE_ENTRY);
+  runScript(src.api, `${src.from}!${API_ENTRY}`, API_ENTRY);
   const rex0220p = window.rex0220p as { KintoneFormulaPCraft?: FormulaCtor } | undefined;
   const Ctor = rex0220p?.KintoneFormulaPCraft;
-  if (typeof Ctor !== "function") throw new Error("KintoneFormulaPCraft is not loaded");
+  if (typeof Ctor !== "function") throw new PluginZipError(`印刷屋の計算式エンジン（KintoneFormulaPCraft）が読めない: ${src.from}`, "engine-unreadable", known);
   const api = window.rex0220PrintCraftAuthoring as PrintCraftAuthoringApi | undefined;
-  if (!api || typeof api !== "object") throw new PluginZipError("印刷屋の authoring API（rex0220PrintCraftAuthoring）が読めない");
-  if (!SUPPORTED_API_VERSIONS.includes(api.apiVersion)) throw new PluginZipError(`印刷屋の authoring API の版 ${String(api.apiVersion)} には対応していない（tools は ${SUPPORTED_API_VERSIONS.join(", ")}）。tools を新しい版にする`);
-  if (String(api.pluginVersion) !== src.pluginVersion) throw new PluginZipError(`authoring API の印刷屋の版 ${String(api.pluginVersion)} が zip の manifest の版 ${src.pluginVersion} と違う（組み替えられた zip）`);
+  if (!api || typeof api !== "object") throw new PluginZipError("印刷屋の authoring API（rex0220PrintCraftAuthoring）が読めない", "api-unreadable", known);
+  const withApi = { ...known, apiVersion: api.apiVersion as unknown };
+  if (!SUPPORTED_API_VERSIONS.includes(api.apiVersion)) throw new PluginZipError(`印刷屋の authoring API の版 ${String(api.apiVersion)} には対応していない（tools は ${SUPPORTED_API_VERSIONS.join(", ")}）。tools を新しい版にする`, "api-unsupported", withApi);
+  if (String(api.pluginVersion) !== src.pluginVersion) throw new PluginZipError(`authoring API の印刷屋の版 ${String(api.pluginVersion)} が zip の manifest の版 ${src.pluginVersion} と違う（組み替えられた zip）`, "api-mismatch", withApi);
   const bad = Object.entries(REQUIRED_API).filter(([k, t]) => typeof (api as unknown as Record<string, unknown>)[k] !== t).map(([k]) => k);
-  if (bad.length) throw new PluginZipError(`印刷屋の authoring API に tools が使うものが無い、または型が違う: ${bad.join(", ")}（tools と印刷屋の版を合わせる）`);
+  if (bad.length) throw new PluginZipError(`印刷屋の authoring API に tools が使うものが無い、または型が違う: ${bad.join(", ")}（tools と印刷屋の版を合わせる）`, "api-incomplete", withApi);
 
   loaded = {
     window,
@@ -209,5 +264,6 @@ export async function loadEngine(opt: LoadEngineOptions = {}): Promise<Engine> {
     runner: (pp, record) => new Ctor("formula", pp, record, true),
     functionNames: () => Object.keys(new Ctor("formula", {}, {}, true, true).funs).sort()
   };
+  loadedStamp = src.kind === "zip" ? stamp : null;
   return loaded;
 }

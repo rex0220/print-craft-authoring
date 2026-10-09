@@ -13,7 +13,7 @@
  * inbox/ … ダウンロードを置く場所（take がアプリのフォルダーへ名前のまま移す）
  * 認証は --env の環境の envFile（既定 .env。env/<名前>.env の形だけ）から読み、接続先は environments.json の baseUrl（env.ts の loadAuthForEnv）
  */
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { KintoneUrlError, normalizeKintoneBaseUrl } from "./kintone-url.ts";
 import { PathError, isInside, realResolve, safeFileName } from "./safe-path.ts";
@@ -124,13 +124,25 @@ export function parseWorkspace(text: string, where = WORKSPACE_FILE): Workspace 
   return { defaultEnv, environments, apps };
 }
 
-/** 作業フォルダーの environments.json（無ければ null = 今までの形） */
+/**
+ * 作業フォルダーの environments.json（無ければ null = 今までの形）。実体が作業フォルダーの中のときだけ読む: 外への symlink、リンク切れ、ループは PathError
+ * （外のファイルを環境の定義として使わない・中身を返さない。本番の保護の元になるファイル。B1 の Codex 再レビュー BLOCKER 2）
+ */
 export function loadWorkspace(cwd: string): Workspace | null {
   const file = path.join(cwd, WORKSPACE_FILE);
-  if (!existsSync(file)) return null;
-  const size = statSync(file).size;
-  if (size > MAX_BYTES) throw new WorkspaceError(`${WORKSPACE_FILE} が大きすぎる（${size} バイト）`);
-  return parseWorkspace(readFileSync(file, "utf8"));
+  try {
+    lstatSync(file);
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "ENOTDIR") return null;
+    throw new WorkspaceError(`${WORKSPACE_FILE} を読めない（${code ?? "不明"}）`);
+  }
+  assertInsideWorkspace(cwd, file);
+  const real = realResolve(WORKSPACE_FILE, cwd);
+  const st = statSync(real);
+  if (!st.isFile()) throw new WorkspaceError(`${WORKSPACE_FILE} がファイルでない`);
+  if (st.size > MAX_BYTES) throw new WorkspaceError(`${WORKSPACE_FILE} が大きすぎる（${st.size} バイト）`);
+  return parseWorkspace(readFileSync(real, "utf8"));
 }
 
 export function pickEnv(ws: Workspace, name?: string): EnvironmentDef {
@@ -165,20 +177,21 @@ export function hostDirOf(cwd: string, env: EnvironmentDef): string {
 }
 
 /**
- * フォルダーの実体（symlink を解いたもの）が作業フォルダーの中か。外なら一覧を作らずに PathError
- * （kintone/<ホスト> や inbox が外への symlink のとき、外のファイルの名前を出さない。B1 の Codex レビュー BLOCKER 1）
+ * フォルダー・ファイルの実体（symlink を解いたもの）が作業フォルダーの中か。外なら一覧を作らず・読まずに PathError。リンク切れ・ループも PathError
+ * （kintone/<ホスト> や inbox が外への symlink のとき、外のファイルの名前を出さない。B1 の Codex レビュー BLOCKER 1。environments.json は再レビュー BLOCKER 2）
  */
-export function assertDirInside(cwd: string, dir: string): void {
+export function assertInsideWorkspace(cwd: string, p: string): void {
+  const rel = path.relative(cwd, p);
   const root = realResolve(".", cwd);
-  if (!isInside(realResolve(dir, cwd), root)) throw new PathError(`フォルダーの実体が作業フォルダーの外を指している（symlink など）: ${path.relative(cwd, dir)}`);
+  if (!isInside(realResolve(rel, cwd), root)) throw new PathError(`${rel} の実体が作業フォルダーの外を指している（symlink など）`);
 }
 
 /** 今あるアプリのフォルダー（番号で探す。無ければ null。同じ番号が 2 つあれば止まる）。kintone/ とホストのフォルダーの実体が作業フォルダーの中のときだけ一覧する */
 export function findAppDir(cwd: string, env: EnvironmentDef, appId: number): string | null {
   const hostDir = hostDirOf(cwd, env);
   if (!existsSync(hostDir)) return null;
-  assertDirInside(cwd, path.join(cwd, KINTONE_ROOT));
-  assertDirInside(cwd, hostDir);
+  assertInsideWorkspace(cwd, path.join(cwd, KINTONE_ROOT));
+  assertInsideWorkspace(cwd, hostDir);
   const hits = readdirSync(hostDir, { withFileTypes: true }).filter((d) => d.isDirectory() && (d.name === String(appId) || d.name.startsWith(`${appId}-`))).map((d) => d.name);
   if (hits.length > 1) throw new WorkspaceError(`アプリ ${appId} のフォルダーが 2 つある: ${hits.join(", ")}（kintone/${env.host}/ の下を 1 つにする）`);
   return hits.length ? path.join(hostDir, hits[0]) : null;
@@ -231,7 +244,7 @@ const newestFirst = (a: string, b: string): number => stampOf(b).localeCompare(s
 
 /** アプリのフォルダーの一覧。cwd を渡すと、フォルダーと records / out の実体が作業フォルダーの中か確かめてから一覧する */
 export function listAppFolder(dir: string, cwd?: string): AppFolderList {
-  if (cwd !== undefined) for (const d of [dir, path.join(dir, "records"), path.join(dir, "out")]) if (existsSync(d)) assertDirInside(cwd, d);
+  if (cwd !== undefined) for (const d of [dir, path.join(dir, "records"), path.join(dir, "out")]) if (existsSync(d)) assertInsideWorkspace(cwd, d);
   const files = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }) : [];
   const names = files.filter((d) => d.isFile() && d.name.endsWith(".json")).map((d) => d.name);
   const sub = (name: string, filter: (n: string) => boolean): string[] => {

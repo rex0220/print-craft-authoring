@@ -11,7 +11,7 @@ import { readJsonLimited } from "./normalize.ts";
 import { realResolve, resolveRead, resolveWrite, WRITE_ROOTS } from "../safe-path.ts";
 import { assertChangeAllowed, PermissionError } from "../permission.ts";
 import { FileExistsError, withRetry, writeNewFile } from "../commit-file.ts";
-import { appDirFor, assertDirInside, INBOX, SNAPSHOT_RE, type EnvironmentDef, type Workspace } from "../workspace.ts";
+import { appDirFor, assertInsideWorkspace, INBOX, SNAPSHOT_RE, type EnvironmentDef, type Workspace } from "../workspace.ts";
 
 /** 印刷屋の設定の封筒の pluginID（印刷屋の PLUGIN_ID_NAME と同じ。engine の api.pluginId で確かめている） */
 export const PRINT_CRAFT_PLUGIN_ID = "rex0220 Print craft plugin";
@@ -52,7 +52,7 @@ export function takeInbox(cwdIn: string, ws: Workspace, envName?: string): TakeR
   const inbox = path.join(cwd, INBOX);
   if (!existsSync(inbox)) return result;
   // inbox の実体が作業フォルダーの中か（外への symlink なら、外のファイルの名前を出さずに止める。B1 の Codex レビュー BLOCKER 1）
-  assertDirInside(cwd, inbox);
+  assertInsideWorkspace(cwd, inbox);
   for (const name of readdirSync(inbox).filter((n) => n.toLowerCase().endsWith(".json")).sort()) {
     const rel = `${INBOX}/${name}`;
     const src = resolveRead(rel, cwd);

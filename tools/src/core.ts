@@ -21,7 +21,7 @@ export {
   WorkspaceError,
   appDirFor,
   appFolderOfFile,
-  assertDirInside,
+  assertInsideWorkspace,
   editNameOf,
   envOfAppFolder,
   findAppDir,
@@ -40,7 +40,7 @@ export {
 // 版と印刷屋の zip
 export { MIN_PLUGIN_VERSION, PRINT_CRAFT_PLUGIN_ID, SUPPORTED_API_VERSIONS, isSupportedPluginVersion, toolsMeta, type ToolsMeta } from "./meta.ts";
 export { DEFAULT_CONTEXT_BASE_URL, loadEngine, type Engine, type LoadEngineOptions } from "./engine.ts";
-export { PluginZipError } from "./plugin-zip.ts";
+export { PluginZipError, type PluginZipErrorCode, type PluginZipErrorInfo } from "./plugin-zip.ts";
 
 // 接続先と認証、kintone の GET
 export { AuthError, baseUrlFromEnv, describeAuth, loadAuth, loadAuthForEnv, pluginZipPath, unquote, type KintoneAuth, type LoadAuthOptions } from "./env.ts";
