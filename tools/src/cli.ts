@@ -150,7 +150,7 @@ function shown(file: string): string {
 }
 
 async function engineFor(): Promise<Engine> {
-  const engine = await loadEngine({ pluginZip: pluginZipPath(authOpt()) });
+  const engine = await loadEngine({ pluginZip: pluginZipPath(authOpt()), allowDevPlugin: W.env.PCRAFT_ALLOW_DEV_PLUGIN === "1" });
   for (const w of engine.warnings) console.error(`注意: ${w}`);
   return engine;
 }

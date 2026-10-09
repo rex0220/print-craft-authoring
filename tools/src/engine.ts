@@ -73,8 +73,13 @@ export interface Engine {
 }
 
 export interface LoadEngineOptions {
-  /** 印刷屋の zip。省略時は環境変数 PCRAFT_PLUGIN_ZIP */
+  /**
+   * 印刷屋の zip。中核は環境変数を読まない（段階 0-2。CLI は .env / OS の環境変数の PCRAFT_PLUGIN_ZIP を env.ts の pluginZipPath で
+   * 決めて渡す。print-craft MCP は設定項目から渡す）
+   */
   pluginZip?: string;
+  /** 開発中（mode dev）に隣の print-craft の prod/ を読んでよいか。CLI は環境変数 PCRAFT_ALLOW_DEV_PLUGIN=1 のとき true を渡す */
+  allowDevPlugin?: boolean;
   /** テスト用。省略時は toolsMeta().mode（ソースから動かすと dev、ビルドした bundle は build） */
   mode?: "build" | "dev";
 }
@@ -87,12 +92,12 @@ let loaded: Engine | null = null;
 
 /** 読み込み元を決める: zip（引数 → 環境変数）。開発中（mode dev + PCRAFT_ALLOW_DEV_PLUGIN=1）だけ隣の print-craft の prod/ */
 export function resolvePluginSources(opt: LoadEngineOptions = {}, mode: "build" | "dev" = opt.mode ?? toolsMeta().mode): PluginSources & { kind: "zip" | "dev" } {
-  const zip = opt.pluginZip ?? process.env.PCRAFT_PLUGIN_ZIP;
+  const zip = opt.pluginZip;
   if (zip) {
     if (!existsSync(zip)) throw new PluginZipError(`印刷屋の zip が無い: ${zip}（.env の PCRAFT_PLUGIN_ZIP）`);
     return { ...readPluginZip(zip), kind: "zip" };
   }
-  const devAllowed = mode === "dev" && process.env.PCRAFT_ALLOW_DEV_PLUGIN === "1";
+  const devAllowed = mode === "dev" && opt.allowDevPlugin === true;
   if (!devAllowed) {
     throw new PluginZipError(`印刷屋の zip の場所が分からない。.env に PCRAFT_PLUGIN_ZIP=<印刷屋プラグインの zip のパス> を書く${mode === "dev" ? "（開発中に隣の print-craft の prod/ を読むなら環境変数 PCRAFT_ALLOW_DEV_PLUGIN=1）" : ""}`);
   }

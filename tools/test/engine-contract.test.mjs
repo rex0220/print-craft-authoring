@@ -18,19 +18,22 @@ delete process.env.PCRAFT_ALLOW_DEV_PLUGIN;
 
 const dir = mkdtempSync(path.join(os.tmpdir(), "pcraft-contract-"));
 
-test("zip の指定が無いとき: 公開ビルド（mode build）は隣の print-craft があっても読まない。ソース実行（dev）も PCRAFT_ALLOW_DEV_PLUGIN=1 が無ければ読まない", () => {
+test("zip の指定が無いとき: 公開ビルド（mode build）は隣の print-craft があっても読まない。ソース実行（dev）も allowDevPlugin（CLI では PCRAFT_ALLOW_DEV_PLUGIN=1）が無ければ読まない", () => {
   assert.throws(() => resolvePluginSources({}, "build"), (e) => e instanceof PluginZipError && /zip の場所が分からない/.test(e.message) && !/PCRAFT_ALLOW_DEV_PLUGIN/.test(e.message));
   assert.throws(() => resolvePluginSources({}, "dev"), (e) => e instanceof PluginZipError && /PCRAFT_ALLOW_DEV_PLUGIN=1/.test(e.message));
+  assert.throws(() => resolvePluginSources({ allowDevPlugin: true }, "build"), /zip の場所が分からない/, "build では解除できない");
+  process.env.PCRAFT_PLUGIN_ZIP = "/nonexistent/print-craft.zip";
   process.env.PCRAFT_ALLOW_DEV_PLUGIN = "1";
   try {
-    assert.throws(() => resolvePluginSources({}, "build"), /zip の場所が分からない/, "build では環境変数でも解除できない");
-    if (devPluginDir()) {
-      const s = resolvePluginSources({}, "dev");
-      assert.equal(s.kind, "dev");
-      assert.ok(Number(s.pluginVersion) >= 6, `隣の print-craft の prod/ の版: ${s.pluginVersion}`);
-    }
+    assert.throws(() => resolvePluginSources({}, "dev"), /zip の場所が分からない/, "中核は環境変数を読まない（段階 0-2）");
   } finally {
+    delete process.env.PCRAFT_PLUGIN_ZIP;
     delete process.env.PCRAFT_ALLOW_DEV_PLUGIN;
+  }
+  if (devPluginDir()) {
+    const s = resolvePluginSources({ allowDevPlugin: true }, "dev");
+    assert.equal(s.kind, "dev");
+    assert.ok(Number(s.pluginVersion) >= 6, `隣の print-craft の prod/ の版: ${s.pluginVersion}`);
   }
 });
 const zipFile = (name, inner, outerExtra) => {

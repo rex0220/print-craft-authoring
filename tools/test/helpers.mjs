@@ -9,4 +9,6 @@ import { PRINT_CRAFT_ROOT } from "../src/paths.ts";
 export const PLUGIN_ZIP = path.join(PRINT_CRAFT_ROOT, "dist", "print-craft-plugin6.zip");
 if (!process.env.PCRAFT_PLUGIN_ZIP && existsSync(PLUGIN_ZIP)) process.env.PCRAFT_PLUGIN_ZIP = PLUGIN_ZIP;
 
-export const { loadEngine } = await import("../src/engine.ts");
+const engineModule = await import("../src/engine.ts");
+/** 中核のエンジンは環境変数を読まないので、テストの zip を明示して渡す（段階 0-2） */
+export const loadEngine = (opt = {}) => engineModule.loadEngine({ pluginZip: process.env.PCRAFT_PLUGIN_ZIP, ...opt });
