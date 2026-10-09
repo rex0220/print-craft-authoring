@@ -47,33 +47,39 @@ export class RestError extends Error {
 
 export class NotAllowedError extends Error {}
 
-/** fetch の応答のうち使う部分。headers と body は試験の偽物に無くてもよい（無ければ text() を読んでから大きさを確かめる） */
+/**
+ * fetch の応答のうち使う部分。本文はストリーム（body）だけから読む（全文を読んでから大きさを確かめる経路は持たない。Codex レビュー MINOR 8）。
+ * body が null なら本文なし。headers は無くてもよい（Content-Length は読む前に止めるためだけ）
+ */
 export interface FetchResponseLike {
   ok: boolean;
   status: number;
-  text(): Promise<string>;
   headers?: { get(name: string): string | null };
-  body?: { getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array }>; cancel(): Promise<void> } } | null;
+  body: { getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array }>; cancel(): Promise<void> } } | null;
 }
 
 export type FetchLike = (url: string, init: { method: "GET"; headers: Record<string, string> }) => Promise<FetchResponseLike>;
 
 /**
  * 上限を守って本文を読む。Content-Length が上限を超えれば読まずに止める。無い・偽りでも、読みながら上限 + 1 バイトで止める。
- * JSON にするのは上限の確認の後だけ（呼ぶ側）
+ * 止めるときの cancel の失敗は無視する（上限の誤りを優先して返す）。JSON にするのは上限の確認の後だけ（呼ぶ側）
  */
 export async function readCapped(res: FetchResponseLike, limit: number, apiPath: string): Promise<string> {
   const tooLarge = (): RestError => new RestError(`kintone ${apiPath} の応答が大きすぎる（上限 ${limit} バイト）`, res.status, "LimitError", apiPath);
+  const quietCancel = async (reader: { cancel(): Promise<void> }): Promise<void> => {
+    try {
+      await reader.cancel();
+    } catch {
+      // 止めるときの失敗は無視
+    }
+  };
+  if (res.body === null) return "";
+  if (!res.body || typeof res.body.getReader !== "function") throw new RestError(`kintone ${apiPath} の応答に本文のストリームが無い`, res.status, "ResponseError", apiPath);
+  const reader = res.body.getReader();
   const declared = Number(res.headers?.get("content-length") ?? Number.NaN);
   if (Number.isFinite(declared) && declared > limit) {
-    await res.body?.getReader().cancel().catch(() => {});
+    await quietCancel(reader);
     throw tooLarge();
-  }
-  const reader = res.body?.getReader();
-  if (!reader) {
-    const text = await res.text();
-    if (Buffer.byteLength(text, "utf8") > limit) throw tooLarge();
-    return text;
   }
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -83,7 +89,7 @@ export async function readCapped(res: FetchResponseLike, limit: number, apiPath:
     if (!value) continue;
     total += value.length;
     if (total > limit) {
-      await reader.cancel().catch(() => {});
+      await quietCancel(reader);
       throw tooLarge();
     }
     chunks.push(value);

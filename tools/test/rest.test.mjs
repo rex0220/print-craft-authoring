@@ -9,7 +9,7 @@ const fakeFetch = (status, body) => {
   const calls = [];
   const fn = async (url, init) => {
     calls.push({ url, init });
-    return { ok: status >= 200 && status < 300, status, text: async () => (typeof body === "string" ? body : JSON.stringify(body)) };
+    return new Response(typeof body === "string" ? body : JSON.stringify(body), { status });
   };
   fn.calls = calls;
   return fn;
@@ -118,9 +118,26 @@ test("pluginZipPath: .env の相対パスは .env のフォルダーから、OS 
     const abs = path.resolve(work, "abs/print-craft.zip");
     assert.equal(pluginZipPath({ cwd: work, env: { PCRAFT_PLUGIN_ZIP: abs } }), abs, "OS の環境変数の絶対パスはそのまま（.env より優先）");
     assert.throws(() => pluginZipPath({ cwd: work, env: { PCRAFT_PLUGIN_ZIP: "rel/print-craft.zip" } }), (e) => e instanceof AuthError && /絶対パスで書く/.test(e.message), "OS の環境変数の相対パスは止める");
+    assert.equal(pluginZipPath({ cwd: work, env: { PCRAFT_PLUGIN_ZIP: `"${abs}"` } }), abs, "OS の環境変数の外側の引用符は外す（Codex レビュー MINOR 9）");
+    assert.equal(pluginZipPath({ cwd: work, env: { PCRAFT_PLUGIN_ZIP: ` '${abs}' ` } }), abs);
     rmSync(path.join(work, ".env"));
     assert.equal(pluginZipPath({ cwd: work, env: {} }), undefined, "どちらにも無ければ undefined");
+    assert.equal(pluginZipPath({ cwd: work, env: { PCRAFT_PLUGIN_ZIP: '""' } }), undefined, "引用符だけは無いのと同じ");
   } finally {
     rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test("unquote: 前後の空白と対になった外側の引用符だけを外す。Windows のドライブ・UNC のパスも引用符を外せば絶対パス", async () => {
+  const { unquote } = await import("../src/env.ts");
+  const { default: path } = await import("node:path");
+  assert.equal(unquote('  "/Users/a/print craft.zip"  '), "/Users/a/print craft.zip");
+  assert.equal(unquote("'x'"), "x");
+  assert.equal(unquote('" pass "'), " pass ", "引用符の中の空白は値のうち（パスワードを変えない）");
+  assert.equal(unquote('"x\''), '"x\'', "対になっていなければ外さない");
+  assert.equal(unquote('"'), '"');
+  for (const p of ['"C:\\Users\\a\\print-craft.zip"', "'D:/zips/print-craft.zip'", '"\\\\server\\share\\print-craft.zip"']) {
+    assert.ok(path.win32.isAbsolute(unquote(p)), p);
+    assert.ok(!path.win32.isAbsolute(p), "引用符付きのままでは絶対パスにならない（だから外す）");
   }
 });

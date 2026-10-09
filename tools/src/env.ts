@@ -28,6 +28,13 @@ const NAMES = {
   pluginZip: ["PCRAFT_PLUGIN_ZIP"]
 } as const;
 
+/** 前後の空白と、対になった外側の " / ' を外す（Windows の「パスのコピー」で付く引用符。.env と OS の環境変数の両方。引用符の中の空白は値のうち） */
+export function unquote(raw: string): string {
+  const value = raw.trim();
+  if (value.length >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) return value.slice(1, -1);
+  return value;
+}
+
 /** .env の形（KEY=VALUE。# の行と空行は無視。両端の " ' は外す。export KEY=… も可） */
 export function parseDotEnv(text: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -36,9 +43,7 @@ export function parseDotEnv(text: string): Record<string, string> {
     if (!line || line.startsWith("#")) continue;
     const m = line.match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
     if (!m) continue;
-    let value = m[2].trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
-    out[m[1]] = value;
+    out[m[1]] = unquote(m[2]);
   }
   return out;
 }
@@ -70,8 +75,8 @@ function pickerWithSource(opt: LoadAuthOptions): (names: readonly string[]) => P
   return (names) => {
     for (const [src, source] of [[osEnv, "process"], [fromFile, "file"]] as const) {
       for (const n of names) {
-        const v = src[n];
-        if (v && v.trim()) return { value: v.trim(), source, ...(source === "file" ? { file } : {}) };
+        const v = unquote(src[n] ?? "");
+        if (v) return { value: v, source, ...(source === "file" ? { file } : {}) };
       }
     }
     return undefined;

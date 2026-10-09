@@ -3,7 +3,7 @@
  * プレビュー用の代表の 1 件を選ぶため。値・ファイル名・ユーザー名は返さない（形だけ。record --summary と同じ shapeLines）。保存もしない。
  *   - query は条件と並べ替えだけ。limit / offset を含めば止める（件数は AI に決めさせない。サーバーが末尾に limit を付ける）
  *   - query は 500 文字まで（URL の 8 KB の上限に届かないように）
- *   - 返す文字の合計に上限を付け、超えたら打ち切る（truncated）
+ *   - 返す JSON の UTF-8 のバイト数に上限を付け、超える前の件で打ち切る（truncated。項目コードの日本語・エスケープ・query を含めて測る）
  */
 import type { RestClient } from "../kintone-rest.ts";
 import { shapeLines } from "./record.ts";
@@ -11,7 +11,7 @@ import type { KintoneRecord } from "./record.ts";
 
 export const LIST_LIMIT = 5;
 export const QUERY_MAX = 500;
-/** AI に返す文字の合計の上限（docs/api-table.md の 64 KiB の案。文字数で数える） */
+/** AI に返す JSON の上限（docs/api-table.md の 64 KiB。JSON.stringify した UTF-8 のバイト数。Codex レビュー MINOR 7） */
 export const SHAPE_TEXT_MAX = 64 * 1024;
 
 export class QueryError extends Error {}
@@ -48,17 +48,15 @@ export async function listRecordShapes(client: RestClient, opt: { app: number; q
   const query = listQueryOf(opt.query);
   const res = await client.get<{ records?: KintoneRecord[] }>("records", { app: opt.app, query }, opt.guestSpaceId);
   const out: RecordShape[] = [];
-  let used = 0;
   let truncated = false;
   for (const record of (res.records ?? []).slice(0, LIST_LIMIT)) {
     const idValue = (record.$id as { value?: unknown } | undefined)?.value;
     const shape = { id: typeof idValue === "string" ? idValue : String(idValue ?? ""), lines: shapeLines(record) };
-    const size = shape.lines.reduce((n, l) => n + l.length + 1, shape.id.length);
-    if (used + size > SHAPE_TEXT_MAX) {
+    // 足した後の応答全体（truncated: true の形。長い方）で測る
+    if (Buffer.byteLength(JSON.stringify({ appId: opt.app, query, records: [...out, shape], truncated: true }), "utf8") > SHAPE_TEXT_MAX) {
       truncated = true;
       break;
     }
-    used += size;
     out.push(shape);
   }
   return { appId: opt.app, query, records: out, truncated };
