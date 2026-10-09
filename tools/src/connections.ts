@@ -10,7 +10,7 @@
  *   - 誤りの文は決まった文だけ（profile の名前、アプリの番号、キーの名前、ファイルの名前まで。値・絶対パス・環境変数の名前・JSON の断片を入れない）
  */
 import { createHash } from "node:crypto";
-import { closeSync, fstatSync, openSync, readSync, realpathSync } from "node:fs";
+import { closeSync, fstatSync, openSync, readSync, realpathSync, statSync, type Stats } from "node:fs";
 import path from "node:path";
 import type { KintoneAuth } from "./env.ts";
 import { normalizeKintoneBaseUrl } from "./kintone-url.ts";
@@ -23,10 +23,12 @@ const ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 /** kSQL と同じ: 引数も defaultProfile も無ければ dev（15.1 の 8） */
 export const FALLBACK_PROFILE = "dev";
 
+/** 誤りの種類（15.10。status は呼ぶ側が決める: inside-workspace は denied、unknown-profile と guest-mismatch は invalid、印と connection-changed は conflict、ほかは failed） */
 export type ConnectionErrorCode =
   | "not-configured"
   | "unreadable"
   | "inside-workspace"
+  | "legacy-config-present"
   | "unknown-profile"
   | "no-default-profile"
   | "profile-invalid"
@@ -34,6 +36,9 @@ export type ConnectionErrorCode =
   | "env-missing"
   | "no-userpass"
   | "guest-mismatch"
+  | "app-marker-missing"
+  | "app-marker-invalid"
+  | "app-identity-conflict"
   | "connection-changed";
 
 export class ConnectionError extends Error {
@@ -81,9 +86,21 @@ export interface ConnectionSet {
   warnings: readonly string[];
 }
 
+/**
+ * 接続のスナップショット（15.6）: 呼び出しの初めに選んだ profile の秘密でない値。kintone の API・保存先・アプリのフォルダーの印・preview の接続先に同じものを使い、
+ * 確定の直前に読み直した profile の意味の digest（semanticDigest）と比べる。ファイル全体の digest は使わない（ほかの profile だけの書き換えでは止めない）
+ */
+export interface ConnectionSnapshot extends ProfileIdentity {
+  auth: "token" | "userpass";
+  /** 読んだ接続のファイルの名前（文に出してよいのはこれだけ） */
+  fileName: string;
+}
+
 interface ProfileSecrets {
   username?: string;
   password?: string;
+  /** パスワードの参照の形（passwordEnv の名前か "inline"。意味の digest に使う） */
+  passwordRef?: string;
   /** アプリの番号 → 値（env:<NAME> か、トークンそのもの） */
   tokens: Map<number, string>;
 }
@@ -143,7 +160,12 @@ function readProfile(name: string, raw: unknown, env: Env): { def: ProfileDef; s
   const host = new URL(baseUrl).hostname;
   return {
     def: { profile: name, baseUrl, host, guestSpaceId, auth, tokenApps, tokenReady, userpassReady: !!(username && password) },
-    secrets: { ...(username ? { username } : {}), ...(password ? { password } : {}), tokens }
+    secrets: {
+      ...(username ? { username } : {}),
+      ...(password ? { password } : {}),
+      ...(typeof raw.passwordEnv === "string" && nonblank(env[raw.passwordEnv]) ? { passwordRef: `env:${raw.passwordEnv}` } : nonblank(raw.password) ? { passwordRef: "inline" } : {}),
+      tokens
+    }
   };
 }
 
@@ -151,25 +173,37 @@ function realOf(p: string): string {
   return realpathSync.native(p);
 }
 
-/** 開いたファイル（fd）が普通のファイルで上限以下なら中身を読む */
-function readRegularFile(real: string): { bytes: Buffer; mode: number } {
+/** ファイルの識別（読み込みの途中の書き換え・名前の付け替えを見つける。Windows で ino が 0 のときは大きさと更新日時で比べる。15.3） */
+const sameFile = (a: Stats, b: Stats): boolean => a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs;
+
+/** 実際のパスを開き、開いた fd が普通のファイルで上限以下なら fd から読む。読んだ後に fd と実際のパスの識別が読む前と同じか確かめる */
+function readRegularFile(real: string, name: string): { bytes: Buffer; mode: number } {
   let fd: number | undefined;
   try {
     fd = openSync(real, "r");
-    const st = fstatSync(fd);
-    if (!st.isFile()) throw new ConnectionError("接続のファイルが普通のファイルでない（フォルダーなど）", "unreadable");
-    if (st.size > CONNECTION_MAX_BYTES) throw new ConnectionError(`接続のファイルが大きすぎる（上限 ${CONNECTION_MAX_BYTES} バイト）`, "unreadable");
-    const buf = Buffer.alloc(st.size);
+    const before = fstatSync(fd);
+    if (!before.isFile()) throw new ConnectionError(`接続のファイル（${name}）が普通のファイルでない（フォルダーなど）`, "unreadable");
+    if (before.size > CONNECTION_MAX_BYTES) throw new ConnectionError(`接続のファイル（${name}）が大きすぎる（上限 ${CONNECTION_MAX_BYTES} バイト）`, "unreadable");
+    const buf = Buffer.alloc(CONNECTION_MAX_BYTES + 1);
     let off = 0;
-    while (off < st.size) {
-      const n = readSync(fd, buf, off, st.size - off, off);
+    for (;;) {
+      const n = readSync(fd, buf, off, buf.length - off, off);
       if (n === 0) break;
       off += n;
+      if (off > CONNECTION_MAX_BYTES) throw new ConnectionError(`接続のファイル（${name}）が大きすぎる（上限 ${CONNECTION_MAX_BYTES} バイト）`, "unreadable");
     }
-    return { bytes: buf.subarray(0, off), mode: st.mode };
+    const after = fstatSync(fd);
+    let onPath: Stats;
+    try {
+      onPath = statSync(real);
+    } catch {
+      throw new ConnectionError(`接続のファイル（${name}）が読み込みの途中で変わった`, "unreadable");
+    }
+    if (!sameFile(before, after) || !sameFile(before, onPath) || off !== before.size) throw new ConnectionError(`接続のファイル（${name}）が読み込みの途中で変わった`, "unreadable");
+    return { bytes: buf.subarray(0, off), mode: before.mode };
   } catch (e) {
     if (e instanceof ConnectionError) throw e;
-    throw new ConnectionError("接続のファイルを読めない", "unreadable");
+    throw new ConnectionError(`接続のファイル（${name}）を読めない`, "unreadable");
   } finally {
     if (fd !== undefined) closeSync(fd);
   }
@@ -209,7 +243,7 @@ export function loadConnections(file: string | undefined, opt: LoadConnectionsOp
       throw new ConnectionError(`接続のファイル（${name}）が作業フォルダーの中にある。作業フォルダーの外に置く`, "inside-workspace");
     }
   }
-  const { bytes, mode } = readRegularFile(real);
+  const { bytes, mode } = readRegularFile(real, name);
   let again: string | undefined;
   try {
     again = realOf(file);
@@ -248,7 +282,8 @@ export function loadConnections(file: string | undefined, opt: LoadConnectionsOp
       invalid.push({ name: key, reason: `大文字小文字だけが違う profile がある（${keys.join("、")}）` });
     }
   }
-  const defaultProfile = typeof data.defaultProfile === "string" ? data.defaultProfile : undefined;
+  if (data.defaultProfile !== undefined && typeof data.defaultProfile !== "string") throw new ConnectionError(`接続のファイル（${name}）の defaultProfile が文字列でない`, "unreadable");
+  const defaultProfile = data.defaultProfile as string | undefined;
   const warnings: string[] = [];
   const inlineSecrets = [...byProfile.values()].some((s) => s.password !== undefined || [...s.tokens.values()].some((v) => !v.startsWith("env:")));
   if (process.platform !== "win32" && inlineSecrets && (mode & 0o077) !== 0) warnings.push(`接続のファイル（${name}）に秘密の値が直接書いてあり、ほかの利用者も読める。chmod 600 を勧める`);
@@ -278,6 +313,40 @@ export function pickProfile(set: ConnectionSet, name?: string): ProfileDef {
   const reason = bad(FALLBACK_PROFILE);
   if (reason) throw new ConnectionError(`profile「${FALLBACK_PROFILE}」は使えない: ${reason}`, "profile-invalid");
   throw new ConnectionError(`profile を指定するか、接続のファイル（${set.fileName}）に defaultProfile を書く（無ければ "${FALLBACK_PROFILE}" を使うが、それも無い）`, "no-default-profile");
+}
+
+/** 選んだ profile のスナップショット（15.6） */
+export function snapshotOf(set: ConnectionSet, def: ProfileDef): ConnectionSnapshot {
+  return { ...identityOf(def), auth: def.auth, fileName: set.fileName };
+}
+
+/**
+ * 選んだ profile の意味の digest（15.6）: profile、接続先、ゲストスペース、認証の種類と、対象のアプリの資格情報の参照の形（token なら env:<名前> か直接、
+ * userpass なら passwordEnv の名前か直接）。秘密の値そのものは入れない（同じ参照のまま値だけを入れ替えても取り違えにならない）
+ */
+export function semanticDigest(set: ConnectionSet, def: ProfileDef, appId?: number): string {
+  const secrets = SECRETS.get(set)?.byProfile.get(def.profile);
+  let credential = "none";
+  if (def.auth === "userpass") credential = `userpass:${secrets?.passwordRef ?? "none"}`;
+  else if (appId !== undefined) {
+    const v = secrets?.tokens.get(appId);
+    credential = v === undefined ? "token:none" : v.startsWith("env:") ? `token:${v}` : "token:inline";
+  }
+  return createHash("sha256").update(JSON.stringify([def.profile, def.baseUrl, def.guestSpaceId, def.auth, credential, appId ?? null])).digest("hex");
+}
+
+/** 確定の直前に、読み直した接続で同じ profile の意味の digest が同じか（違えば connection-changed） */
+export function assertSameConnection(before: { set: ConnectionSet; def: ProfileDef }, reload: () => ConnectionSet, appId?: number): void {
+  const want = semanticDigest(before.set, before.def, appId);
+  let now: string;
+  try {
+    const set = reload();
+    now = semanticDigest(set, pickProfile(set, before.def.profile), appId);
+  } catch (e) {
+    if (e instanceof ConnectionError && (e.code === "unknown-profile" || e.code === "profile-invalid")) throw new ConnectionError(`profile「${before.def.profile}」の接続が途中で変わった（使えなくなった）。もう一度やり直す`, "connection-changed");
+    throw e;
+  }
+  if (now !== want) throw new ConnectionError(`profile「${before.def.profile}」の接続が途中で変わった。もう一度やり直す`, "connection-changed");
 }
 
 /** アプリ N の認証（15.2）。対象のアプリのトークンだけを解決する */

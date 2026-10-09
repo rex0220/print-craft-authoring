@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ConnectionError, authFor, identityOf, loadConnections, pickProfile, sameIdentity } from "../src/connections.ts";
+import { ConnectionError, assertSameConnection, authFor, identityOf, loadConnections, pickProfile, sameIdentity, semanticDigest, snapshotOf } from "../src/connections.ts";
 
 const SECRET = "SECRET-token-value-0123456789";
 const PASSWORD = "SECRET-password-value";
@@ -203,6 +203,42 @@ test("秘密の値を直接書いたファイルがほかの利用者に読め�
     assert.match(loadConnections(t.write("open.json", inline, 0o644), { workspaceRoots: [], env: {} }).warnings.join(), /ほかの利用者も読める。chmod 600/);
     assert.deepEqual(loadConnections(t.write("closed.json", inline, 0o600), { workspaceRoots: [], env: {} }).warnings, []);
     assert.deepEqual(loadConnections(t.write("env.json", { profiles: { dev: { baseUrl: "https://a.cybozu.com", tokenMap: { 1: "env:T" } } } }, 0o644), { workspaceRoots: [], env: {} }).warnings, []);
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("スナップショットと意味の digest（15.6）: 接続先・ゲストスペース・認証・参照の形が変われば違い、ほかの profile や直接書いたトークンの値だけの入れ替えでは同じ。確定の前の確かめ", () => {
+  const t = setup();
+  try {
+    const base = { defaultProfile: "dev", profiles: { dev: { baseUrl: "https://a.cybozu.com", tokenMap: { 1: "env:T1", 2: SECRET } }, other: { baseUrl: "https://b.cybozu.com" } } };
+    const file = t.write("a.json", base);
+    const opt = { workspaceRoots: [], env: { T1: SECRET } };
+    const set = loadConnections(file, opt);
+    const dev = pickProfile(set);
+    assert.deepEqual(snapshotOf(set, dev), { profile: "dev", baseUrl: "https://a.cybozu.com", host: "a.cybozu.com", guestSpaceId: null, auth: "token", fileName: "a.json" });
+    assert.ok(!JSON.stringify(snapshotOf(set, dev)).includes(SECRET));
+    const digestWith = (data, appId) => {
+      const f = t.write("b.json", data);
+      const s2 = loadConnections(f, opt);
+      return semanticDigest(s2, pickProfile(s2, "dev"), appId);
+    };
+    const d1 = semanticDigest(set, dev, 1);
+    assert.equal(digestWith({ ...base, profiles: { ...base.profiles, other: { baseUrl: "https://c.cybozu.com" } } }, 1), d1, "ほかの profile だけの書き換え");
+    assert.equal(digestWith({ ...base, profiles: { ...base.profiles, dev: { ...base.profiles.dev, tokenMap: { 1: "env:T1", 2: "other-inline" } } } }, 2), semanticDigest(set, dev, 2), "直接書いた値だけの入れ替え（参照の形は同じ）");
+    assert.notEqual(digestWith({ ...base, profiles: { ...base.profiles, dev: { ...base.profiles.dev, baseUrl: "https://x.cybozu.com" } } }, 1), d1, "接続先");
+    assert.notEqual(digestWith({ ...base, profiles: { ...base.profiles, dev: { ...base.profiles.dev, guestSpaceId: 3 } } }, 1), d1, "ゲストスペース");
+    assert.notEqual(digestWith({ ...base, profiles: { ...base.profiles, dev: { ...base.profiles.dev, tokenMap: { 1: "env:T9", 2: SECRET } } } }, 1), d1, "参照の環境変数");
+    assert.notEqual(semanticDigest(set, dev, 2), d1, "アプリ");
+    // 確定の前の確かめ
+    assert.doesNotThrow(() => assertSameConnection({ set, def: dev }, () => loadConnections(file, opt), 1));
+    t.write("a.json", { ...base, profiles: { ...base.profiles, dev: { ...base.profiles.dev, baseUrl: "https://x.cybozu.com" } } });
+    assert.throws(() => assertSameConnection({ set, def: dev }, () => loadConnections(file, opt), 1), code("connection-changed"));
+    t.write("a.json", { profiles: { other: base.profiles.other } });
+    assert.throws(() => assertSameConnection({ set, def: dev }, () => loadConnections(file, opt), 1), code("connection-changed"), "profile が無くなった");
+    t.write("a.json", "{ broken");
+    assert.throws(() => assertSameConnection({ set, def: dev }, () => loadConnections(file, opt), 1), code("unreadable"), "読めなければ前の値に戻らない");
+    assert.throws(() => loadConnections(t.write("c.json", { defaultProfile: 1, profiles: {} }), opt), code("unreadable"), "defaultProfile が文字列でない");
   } finally {
     t.cleanup();
   }
