@@ -209,8 +209,14 @@ function columnShape(type: string, values: unknown[]): string {
  * SECURITY.md「レコードの値を標準出力に出さない」）。プレビューのレコードとして使えるか（備考に改行、明細が複数行、添付あり）を見るため（2026-10-05）
  */
 export function describeRecord(file: RecordFile): string {
+  const header = `アプリ ${file.appId} レコード ${file.id}（取得 ${file.fetchedAt}${file.keptFields ? `、--fields-from で ${file.keptFields.length} 項目に絞った` : ""}）。値は出さない（形だけ）`;
+  return [header, ...shapeLines(file.record)].join("\n");
+}
+
+/** レコードの形を 1 項目 1 行で（値は出さない。record --summary と kintone_list_records が使う） */
+export function shapeLines(record: KintoneRecord): string[] {
   const lines: string[] = [];
-  for (const [code, fv] of Object.entries(file.record)) {
+  for (const [code, fv] of Object.entries(record)) {
     if (code === "$id" || code === "$revision" || !fv) continue;
     if (fv.type === "SUBTABLE" && Array.isArray(fv.value)) {
       const rows = fv.value as Array<{ value: KintoneRecord }>;
@@ -228,8 +234,7 @@ export function describeRecord(file: RecordFile): string {
     }
     lines.push(`${code}  ${fv.type}  ${shapeOf(fv)}`);
   }
-  const header = `アプリ ${file.appId} レコード ${file.id}（取得 ${file.fetchedAt}${file.keptFields ? `、--fields-from で ${file.keptFields.length} 項目に絞った` : ""}）。値は出さない（形だけ）`;
-  return [header, ...lines].join("\n");
+  return lines;
 }
 
 /** 画面に出す要約（項目の数だけ。値は出さない） */

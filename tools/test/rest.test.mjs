@@ -19,10 +19,11 @@ const NO_FILE = "C:/nonexistent/.env";
 test("許可した API だけパスになる。他は送信前に止まる", () => {
   assert.equal(apiPathOf("app/form/fields"), "/k/v1/app/form/fields.json");
   assert.equal(apiPathOf("record", 5), "/k/guest/5/v1/record.json");
-  assert.throws(() => apiPathOf("records"), NotAllowedError);
+  assert.equal(apiPathOf("records"), "/k/v1/records.json", "records は段階 0-2 の段 4 で足した（kintone_list_records。形だけ返す）");
+  assert.throws(() => apiPathOf("apps"), NotAllowedError, "apps.json は API トークンで使えないので足さない");
   assert.throws(() => apiPathOf("record/comments"), NotAllowedError);
   assert.throws(() => apiPathOf("file"), NotAllowedError);
-  assert.deepEqual([...ALLOWED_APIS], ["app", "app/form/fields", "app/form/layout", "record", "preview/app/form/fields", "preview/app/form/layout", "app/plugin/config", "preview/app/plugin/config"]);
+  assert.deepEqual([...ALLOWED_APIS], ["app", "app/form/fields", "app/form/layout", "record", "records", "preview/app/form/fields", "preview/app/form/layout", "app/plugin/config", "preview/app/plugin/config"]);
 });
 
 test("GET だけ送り、クエリと認証ヘッダーが付く（トークン優先）", async () => {

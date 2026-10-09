@@ -13,7 +13,23 @@ import { KintoneUrlError, normalizeKintoneBaseUrl } from "./kintone-url.ts";
  * 許可する API（/k/v1/ と /k/guest/<id>/v1/ の後ろ）。app/plugin/config と preview/app/plugin/config は pull が使う（API ラボの
  * 「アプリに追加されているプラグインの設定情報を取得する」。GET だけ。変更の PUT は呼ばない。Takashi 2026-10-05「tools のみで GET だけ」）
  */
-export const ALLOWED_APIS = ["app", "app/form/fields", "app/form/layout", "record", "preview/app/form/fields", "preview/app/form/layout", "app/plugin/config", "preview/app/plugin/config"] as const;
+export const ALLOWED_APIS = ["app", "app/form/fields", "app/form/layout", "record", "records", "preview/app/form/fields", "preview/app/form/layout", "app/plugin/config", "preview/app/plugin/config"] as const;
+
+/**
+ * 受け取る本文の上限（バイト。段階 0-2 の段 4。print-craft-authoring-mcp の docs/api-table.md 2 章）。CLI にも効くので、大きなアプリ
+ * （項目 500 前後、テーブルが多い）でも引っかからない値にする。超えたら本文を読み切らずに RestError（code LimitError）
+ */
+export const RECEIVE_LIMITS: Record<(typeof ALLOWED_APIS)[number], number> = {
+  app: 64 * 1024,
+  "app/form/fields": 8 * 1024 * 1024,
+  "app/form/layout": 8 * 1024 * 1024,
+  "preview/app/form/fields": 8 * 1024 * 1024,
+  "preview/app/form/layout": 8 * 1024 * 1024,
+  record: 8 * 1024 * 1024,
+  records: 8 * 1024 * 1024,
+  "app/plugin/config": 2 * 1024 * 1024,
+  "preview/app/plugin/config": 2 * 1024 * 1024
+};
 export type AllowedApi = (typeof ALLOWED_APIS)[number];
 
 export class RestError extends Error {
@@ -31,7 +47,49 @@ export class RestError extends Error {
 
 export class NotAllowedError extends Error {}
 
-export type FetchLike = (url: string, init: { method: "GET"; headers: Record<string, string> }) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
+/** fetch の応答のうち使う部分。headers と body は試験の偽物に無くてもよい（無ければ text() を読んでから大きさを確かめる） */
+export interface FetchResponseLike {
+  ok: boolean;
+  status: number;
+  text(): Promise<string>;
+  headers?: { get(name: string): string | null };
+  body?: { getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array }>; cancel(): Promise<void> } } | null;
+}
+
+export type FetchLike = (url: string, init: { method: "GET"; headers: Record<string, string> }) => Promise<FetchResponseLike>;
+
+/**
+ * 上限を守って本文を読む。Content-Length が上限を超えれば読まずに止める。無い・偽りでも、読みながら上限 + 1 バイトで止める。
+ * JSON にするのは上限の確認の後だけ（呼ぶ側）
+ */
+export async function readCapped(res: FetchResponseLike, limit: number, apiPath: string): Promise<string> {
+  const tooLarge = (): RestError => new RestError(`kintone ${apiPath} の応答が大きすぎる（上限 ${limit} バイト）`, res.status, "LimitError", apiPath);
+  const declared = Number(res.headers?.get("content-length") ?? Number.NaN);
+  if (Number.isFinite(declared) && declared > limit) {
+    await res.body?.getReader().cancel().catch(() => {});
+    throw tooLarge();
+  }
+  const reader = res.body?.getReader();
+  if (!reader) {
+    const text = await res.text();
+    if (Buffer.byteLength(text, "utf8") > limit) throw tooLarge();
+    return text;
+  }
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    total += value.length;
+    if (total > limit) {
+      await reader.cancel().catch(() => {});
+      throw tooLarge();
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks.map((c) => Buffer.from(c))).toString("utf8");
+}
 
 export interface RestClient {
   readonly baseUrl: string;
@@ -68,7 +126,7 @@ export function createRestClient(auth: KintoneAuth, fetchImpl: FetchLike = fetch
       for (const [k, v] of Object.entries(params)) if (v !== undefined) url.searchParams.set(k, String(v));
       if (url.origin !== baseUrl || url.username || url.password) throw new NotAllowedError(`送信先が kintone の接続先と違うので送らない: ${url.origin}`);
       const res = await fetchImpl(url.href, { method: "GET", headers });
-      const text = await res.text();
+      const text = await readCapped(res, RECEIVE_LIMITS[api], apiPath);
       if (!res.ok) {
         let code: string | undefined;
         try {
