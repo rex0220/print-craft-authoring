@@ -266,3 +266,17 @@ export function checkCss(css: string): CssCheckResult {
   }
   return { errors, externals };
 }
+
+/**
+ * CSS が外へ読み込みをするか（preview の掃除用。tools 2.0.1。print-craft MCP の MCP App のレビュー BLOCKER 1）: @import、@font-face、
+ * data: の画像・# の参照・置き換えタグでない url() / image-set() / image() / src() の URL（https、相対、使えない形）。
+ * コメント・文字列・エスケープ（@\69mport、\75rl など）は tokenizeCss で解いてから見る
+ */
+export function hasCssFetch(css: string): boolean {
+  const { code } = tokenizeCss(css);
+  if (/@import\b/i.test(code) || /@font-face\b/i.test(code)) return true;
+  return extractUrls(css).some((u) => {
+    const kind = classifyUrl(u.url);
+    return kind !== "data-image" && kind !== "data-svg" && kind !== "fragment" && kind !== "placeholder";
+  });
+}

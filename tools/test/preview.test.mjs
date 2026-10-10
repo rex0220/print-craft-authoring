@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { loadEngine } from "./helpers.mjs";
 import { runPreview, extractRecord } from "../src/commands/preview.ts";
 import { InputError } from "../src/commands/normalize.ts";
-import { PREVIEW_CSP, escapeHtml } from "../src/preview/render.ts";
+import { PREVIEW_CSP, PREVIEW_WITHHELD, escapeHtml, previewContent, verifyPreviewHtml } from "../src/preview/render.ts";
 import { FIELDS_FILE, aiSettings } from "./fixtures.mjs";
 
 const engine = await loadEngine();
@@ -112,6 +112,105 @@ test("preview の文書は閉じている: CSS の </style> で抜けられな�
   assert.ok(inner.includes(">link</a>") && inner.includes("in</a>"), "リンクの文字は残る");
   assert.ok(!PREVIEW_CSP.includes("blob:"));
   assert.match(PREVIEW_CSP, /img-src data:;/);
+});
+
+const GOOGLE_FONT = { enabled: true, preset: "biz-udpmincho", family: "BIZ UDPMincho", cssUrl: "https://fonts.googleapis.com/css2?family=BIZ+UDPMincho:wght@400;700&display=swap" };
+/** 外部参照を "allow" にした設定は、利用者が policy で承認する（印刷屋の除去は働かない。preview の掃除だけが守る） */
+const ALLOW_REFS = { allowExternalRefs: ["settings/見積書.json"] };
+/** 明細の 1 行目の商品名を value にしたレコード（TABLE_HTML でレコードの値が HTML として入る） */
+const withItemName = (value) => {
+  const rec = JSON.parse(JSON.stringify(recordFile));
+  rec.record.見積明細.value[0].value.商品名.value = value;
+  return rec;
+};
+/** 帳票の文書の body（掃除した帳票の HTML） */
+const bodyOf = (inner) => inner.slice(inner.indexOf("<body>"));
+/** <style> の中身（Chrome の RAWTEXT と同じく、最初の </style（後ろが空白・/・>）まで） */
+const styleTexts = (html) => [...html.matchAll(/<style\b[^>]*>([\s\S]*?)(?=<\/style[\t\n\f\r />]|$)/gi)].map((m) => m[1]);
+
+test("レコードの値から作った CSS で外へ読み込まない（tools 2.0.1。Web フォントの配信元を CSP で許していても、<style> の @import・@font-face・外の url() と style 属性の外の url() は外す。外部参照が block でも allow でも。print-craft MCP の MCP App のレビュー BLOCKER 1）", async () => {
+  const value = [
+    '<style>@import url("https://fonts.googleapis.com/css2?family=LEAK1");.x{color:red}</style>',
+    "<style>@font-face{font-family:y;src:url(https://fonts.gstatic.com/LEAK2)}</style>",
+    "<style>@\\69mport url(https://fonts.googleapis.com/LEAK3);</style>",
+    "<style>.z{background:\\75rl(https://fonts.gstatic.com/LEAK4)}</style>",
+    '<span style="background:url(https://fonts.gstatic.com/LEAK5)">s</span>',
+    '<style>@import "https://fonts.googleapis.com/LEAK7";</style>',
+    '<i style="background-image:image-set(&quot;https://fonts.gstatic.com/LEAK8&quot; 1x)">i</i>',
+    "<style>.keep{color:blue}</style>",
+    '<span style="color:green">g</span>',
+    "<svg><style>@import url(https://fonts.googleapis.com/LEAK6);</style></svg>"
+  ].join("");
+  for (const externalRefs of ["block", "allow"]) {
+    const r = await run(aiSettings({ externalRefs, fontInfo: GOOGLE_FONT }), { recordFile: withItemName(value), policy: ALLOW_REFS });
+    assert.ok(!r.findings.hasErrors, r.findings.format());
+    const b = r.results[0];
+    assert.deepEqual(b.errors, [], externalRefs);
+    const body = bodyOf(b.inner);
+    for (const css of styleTexts(body)) assert.doesNotMatch(css, /@import|@font-face|url\(|image-set\(/i, `${externalRefs}: 外へ読み込む <style> を残さない: ${css}`);
+    assert.doesNotMatch(body, /style="[^"]*(?:url\(|image-set\()/i, `${externalRefs}: 外へ読み込む style 属性を残さない`);
+    assert.doesNotMatch(body, /LEAK[1235678]/, externalRefs);
+    // \ は描く前に &yen; になる（印刷屋と同じ）ので、\75rl( は url( にならず文字として残る
+    assert.ok(!body.includes("\\"), "\\ は残らない");
+    assert.ok(!/LEAK4/.test(body) || body.includes("&yen;75rl(https://fonts.gstatic.com/LEAK4)"), externalRefs);
+    assert.ok(body.includes("<style>.keep{color:blue}</style>"), `${externalRefs}: 読み込まない <style> は残す`);
+    assert.match(body, /<span style="color:\s*green;?">g<\/span>/, `${externalRefs}: 読み込まない style 属性は残す`);
+    assert.ok(b.inner.includes('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPMincho'), "設定の Web フォントの <link>（固定の URL）は残る");
+  }
+});
+
+test("happy-dom と Chrome で読み方の違う書き方（<!-->、<![CDATA[、<?、<noembed> の中の <!-- など）でも、掃除していない <style> や <link> はできない（tools 2.0.1）", async () => {
+  const G = "https://fonts.googleapis.com/";
+  const cases = [
+    `<!--><style>@import url(${G}LEAKX1);</style>-->`,
+    `<!---><style>@import url(${G}LEAKX2);</style>-->`,
+    `<![CDATA[x--><style >@import url(${G}LEAKX3);</style>]]>`,
+    `<!x--><style >@import url(${G}LEAKX4);</style>`,
+    `<?x--><style >@import url(${G}LEAKX5);</style>`,
+    `<!--x--!><style>@import url(${G}LEAKX6);</style>-->`,
+    `<noembed><!--</noembed><style>@import url(${G}LEAKX7);</style>--></noembed>`,
+    `<noframes><!--</noframes><link rel="stylesheet" href="${G}css2?family=LEAKX8">--></noframes>`,
+    `<xmp><!--</xmp><style>@import url(${G}LEAKX9);</style>--></xmp>`,
+    `<svg><![CDATA[x--><style >@import url(${G}LEAKX10);</style>]]></svg>`,
+    `<svg><style>&#64;import "${G}LEAKX11";</style></svg>`,
+    `<!--><link rel="preload" as="font" href="https://fonts.gstatic.com/LEAKX12">-->`,
+    `<title><!--</title><style>@import url(${G}LEAKX13);</style>--></title>`,
+    `<math><mtext><table><mglyph><style><img src=x>@import url(${G}LEAKX14);</style>`
+  ];
+  for (const value of cases) {
+    const r = await run(aiSettings({ externalRefs: "allow", fontInfo: GOOGLE_FONT }), { recordFile: withItemName(value), policy: ALLOW_REFS });
+    assert.ok(!r.findings.hasErrors, r.findings.format());
+    const b = r.results[0];
+    assert.deepEqual(b.errors, [], value);
+    const body = bodyOf(b.inner);
+    assert.doesNotMatch(body, /<[!?]/, `注釈・CDATA・処理命令を残さない: ${value}`);
+    assert.doesNotMatch(body, /<(?:svg|math|noembed|noframes|xmp|title|plaintext|link|meta|template|noscript|textarea|script|iframe)[\t\n\f\r />]/i, value);
+    for (const css of styleTexts(body)) assert.doesNotMatch(css, /@import|@font-face|url\(|LEAKX/i, value);
+    for (const [tag] of body.matchAll(/<[a-z][^>]*>/gi)) assert.ok(!tag.includes("LEAKX"), `${value}: ${tag}`);
+  }
+});
+
+test("verifyPreviewHtml: 文字にした HTML を HTML の仕様の字句解析で読み直し、掃除した DOM と違えば理由を返す。previewContent は違えば帳票を出さない（tools 2.0.1）", () => {
+  const t = (tag, attrs = [], text) => (text === undefined ? { tag, attrs } : { tag, attrs, text });
+  assert.equal(verifyPreviewHtml('<p class="a">x &amp; y &lt;b&gt;</p><style>.a{}</style>', [t("p", [["class", "a"]]), t("style", [], ".a{}")]), null);
+  assert.equal(verifyPreviewHtml('<p title="a&quot;b&amp;c<d>\r\ne">t</p>', [t("p", [["title", 'a"b&c<d>\ne']])]), null, "属性の < > はそのまま、&quot; &amp; は文字参照、CRLF は LF");
+  assert.equal(verifyPreviewHtml('<br/><img src="data:image/png;base64,AA"><p title="x" / class="y"></p>', [t("br"), t("img", [["src", "data:image/png;base64,AA"]]), t("p", [["title", "x"], ["class", "y"]])]), null);
+  assert.equal(verifyPreviewHtml("<style>a{}</stylex></style ><p></p>", [t("style", [], "a{}</stylex>"), t("p")]), "<style> の中に「<」がある", "</stylex は <style> の終わりでない");
+  assert.equal(verifyPreviewHtml("<style>a{}</style ><p></p>", [t("style", [], "a{}"), t("p")]), null, "</style の後の空白で終わる");
+  for (const html of ["<!--><style>@import url(https://fonts.googleapis.com/x)</style>-->", "<![CDATA[x]]>", "<?x>", "</ x>", "a < b", "<"]) assert.equal(verifyPreviewHtml(html, []), "タグでない「<」がある（注釈・CDATA・処理命令など）", html);
+  for (const tag of ["noembed", "noframes", "xmp", "title", "textarea", "plaintext", "noscript", "script", "iframe", "svg", "math", "template", "select", "frameset"]) assert.equal(verifyPreviewHtml(`<${tag}></${tag}>`, [t(tag)]), "中身を文字として読む要素か、SVG・MathML などがある", tag);
+  assert.equal(verifyPreviewHtml("<p></p><b></b>", [t("p"), t("i")]), "要素の並びが掃除した DOM と違う");
+  assert.equal(verifyPreviewHtml("<p></p>", [t("p"), t("b")]), "要素の数が掃除した DOM と違う");
+  assert.equal(verifyPreviewHtml('<p a="1" b="2"></p>', [t("p", [["a", "1"]])]), "属性が掃除した DOM と違う");
+  assert.equal(verifyPreviewHtml('<p a="javascript&colon;x"></p>', [t("p", [["a", "javascript&colon;x"]])]), "属性が掃除した DOM と違う", "知らない文字参照（Chrome は : にする）");
+  assert.equal(verifyPreviewHtml('<p class="a', [t("p", [["class", "a"]])]), "閉じていないタグがある");
+  assert.equal(verifyPreviewHtml('<span style="background:url(https://fonts.gstatic.com/x)"></span>', [t("span", [["style", "background:url(https://fonts.gstatic.com/x)"]])]), "style 属性が外へ読み込む");
+  assert.equal(verifyPreviewHtml("<style>@import url(https://fonts.googleapis.com/x);</style>", [t("style", [], "@import url(https://fonts.googleapis.com/x);")]), "<style> が外へ読み込む");
+  assert.equal(verifyPreviewHtml("<style>a{}</style>", [t("style", [], "b{}")]), "<style> の中身が掃除した DOM と違う");
+  // previewContent: 確かめが通らなければ、帳票の代わりに決まった文
+  const fake = (innerHTML, elements = []) => ({ innerHTML, querySelectorAll: () => elements });
+  assert.deepEqual(previewContent(fake("<!--><style>@import url(https://fonts.googleapis.com/x)</style>-->")), { content: PREVIEW_WITHHELD, mismatch: "タグでない「<」がある（注釈・CDATA・処理命令など）" });
+  assert.deepEqual(previewContent(fake("<b>ok</b>", [{ tagName: "B", attributes: [], textContent: "ok" }])), { content: "<b>ok</b>", mismatch: null });
 });
 
 test("Web フォント: 承認済み（Google Fonts は既定）なら帳票の文書に <link> と CSP の配信元、未承認なら読まない（OS の書体）、policy で承認すれば読む", async () => {

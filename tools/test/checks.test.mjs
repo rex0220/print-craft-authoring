@@ -1,7 +1,7 @@
 /** HTML / CSS の検査、承認（policy）、${式} の安全判定の単体テスト */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkCss, classifyUrl, extractUrls, stripCssComments } from "../src/normalize/css-check.ts";
+import { checkCss, classifyUrl, extractUrls, hasCssFetch, stripCssComments } from "../src/normalize/css-check.ts";
 import { checkHtml, expressionsOf } from "../src/normalize/html-check.ts";
 import { isAllowed, isExternalRefsAllowed, parsePolicy, PolicyError } from "../src/normalize/policy.ts";
 import { backslashEscapes, callsOf, commentInsideString, isSafeExpression, parseCall, splitTopLevel, stringLiterals } from "../src/normalize/checks.ts";
@@ -169,4 +169,36 @@ test("policy: allowExternalRefs は externalRefs: \"allow\"（印刷屋が何も
   assert.throws(() => parsePolicy(JSON.stringify({ allowExternalRefs: ["../x.json"] }), "p"), /相対パス/);
   assert.throws(() => parsePolicy(JSON.stringify({ allowExternalRefs: ["C:/x.json"] }), "p"), /相対パス/);
   assert.throws(() => parsePolicy(JSON.stringify({ allowExternalRef: [] }), "p"), /使えるキーは allowExternal と allowExternalRefs/);
+});
+
+test("hasCssFetch（preview の掃除。tools 2.0.1）: @import・@font-face・外の url() / image-set() は読み込み。data: の画像・# の参照・置き換えタグ・文字列の中・コメントは読み込みでない。エスケープを解いて見る", () => {
+  const fetch = [
+    '@import url("https://fonts.googleapis.com/css2?family=X");',
+    "@import 'https://fonts.googleapis.com/css2?family=X';",
+    "@IMPORT url(https://a.example/x.css);",
+    "@\\69mport url(https://fonts.googleapis.com/x);",
+    "@\\000069mport url(x.css);",
+    "@font-face{font-family:x;src:url(https://fonts.gstatic.com/x.woff2)}",
+    "@font-face{font-family:x;src:local(x)}",
+    "@\\66 ont-face{font-family:x}",
+    ".a{background:url(https://fonts.gstatic.com/LEAK)}",
+    ".a{background:\\75rl(https://fonts.gstatic.com/LEAK)}",
+    ".a{background:url(/relative.png)}",
+    ".a{background:url(//evil.example/x)}",
+    '.a{background-image:image-set("https://fonts.gstatic.com/x.png" 1x)}',
+    '.a{background-image:-webkit-image-set("x.png" 1x)}',
+    ".a{cursor:url(javascript:x),auto}"
+  ];
+  for (const css of fetch) assert.equal(hasCssFetch(css), true, css);
+  const quiet = [
+    ".a{color:red;font-family:'BIZ UDPMincho'}",
+    ".a{background:url(data:image/png;base64,AAAA)}",
+    '.a{background:url("data:image/svg+xml,%3Csvg%3E")}',
+    ".a{fill:url(#grad)}",
+    ".a{background:url(#{&f(abc)})}",
+    '.a{content:"@import url(https://x.example/)"}',
+    ".a{color:red} /* @import url(https://x.example/) */",
+    ""
+  ];
+  for (const css of quiet) assert.equal(hasCssFetch(css), false, css);
 });
