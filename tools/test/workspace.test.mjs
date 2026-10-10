@@ -218,6 +218,30 @@ test("take: 呼び出しの途中で選んだ profile の接続が変われば�
   }
 });
 
+test("take: 同じアプリでアプリ名の違うダウンロードを一度に置いても、アプリのフォルダーは 1 つ（一番新しいダウンロードのアプリ名）。名前が変わっても番号で探す（Codex の実装レビュー r2 MAJOR）", async () => {
+  const t = makeConnWorkspace();
+  const inbox = path.join(t.root, "inbox");
+  mkdirSync(inbox);
+  try {
+    const base = JSON.parse(await snapshotText(3740));
+    const older = "rex0220-print-craft-app3740-20261001-090000.json";
+    const newer = "rex0220-print-craft-app3740-20261002-090000.json";
+    writeFileSync(path.join(inbox, older), JSON.stringify({ ...base, appName: "旧名" }));
+    writeFileSync(path.join(inbox, newer), JSON.stringify({ ...base, appName: "新名" }));
+    const r = takeInbox(t.root, t.mode());
+    assert.deepEqual(r.skipped, []);
+    const dev = path.join(t.root, "kintone", "dev");
+    assert.deepEqual(readdirSync(dev).filter((n) => !n.startsWith(".")), ["3740-新名"], "同じ番号のフォルダーを 2 つ作らない");
+    assert.deepEqual(r.moved.map((m) => m.to.replace(/\\/g, "/")).sort(), [`kintone/dev/3740-新名/${newer}`, `kintone/dev/3740-新名/${older}`].sort());
+    assert.equal(findAppDir(t.root, "dev", 3740), path.join(dev, "3740-新名"));
+    const newest = "rex0220-print-craft-app3740-20261003-090000.json";
+    writeFileSync(path.join(inbox, newest), JSON.stringify({ ...base, appName: "もっと新しい名前" }));
+    assert.deepEqual(takeInbox(t.root, t.mode()).moved.map((m) => path.dirname(m.to).replace(/\\/g, "/")), ["kintone/dev/3740-新名"], "今あるフォルダーへ（名前を付け替えない）");
+  } finally {
+    t.cleanup();
+  }
+});
+
 test("take: 読めない inbox のファイルの理由は決まった文（JSON の断片・秘密の値・環境変数の名前・絶対パスを出さない。Codex の実装レビュー BLOCKER 1）。CLI の出力にも出さない", async () => {
   const t = makeConnWorkspace();
   const inbox = path.join(t.root, "inbox");

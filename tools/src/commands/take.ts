@@ -16,7 +16,7 @@ import { realResolve, resolveRead, resolveWrite, WRITE_ROOTS } from "../safe-pat
 import { assertChangeAllowed, PermissionError } from "../permission.ts";
 import { FileExistsError, withRetry, writeNewFile } from "../commit-file.ts";
 import { assertSameConnection, ConnectionError, pickProfile } from "../connections.ts";
-import { appDirFor, assertAppMark, assertInsideWorkspace, ensureAppFolder, INBOX, requireProfiles, SNAPSHOT_RE, type WorkspaceMode } from "../workspace.ts";
+import { appDirFor, assertAppMark, assertInsideWorkspace, ensureAppFolder, findAppDir, INBOX, requireProfiles, SNAPSHOT_RE, type WorkspaceMode } from "../workspace.ts";
 
 /** 印刷屋の設定の封筒の pluginID（印刷屋の PLUGIN_ID_NAME と同じ。engine の api.pluginId で確かめている） */
 export const PRINT_CRAFT_PLUGIN_ID = "rex0220 Print craft plugin";
@@ -76,14 +76,18 @@ function readInbox(src: string): { text: string; data: Record<string, unknown> }
   return { text, data: data as Record<string, unknown> };
 }
 
-interface Plan {
+interface Candidate {
   rel: string;
   src: string;
   name: string;
   appId: number;
+  appName: string;
+  text: string;
+}
+
+interface Plan extends Candidate {
   dir: string;
   dest: string;
-  text: string;
 }
 
 export function takeInbox(cwdIn: string, mode: WorkspaceMode, profile?: string): TakeResult {
@@ -99,7 +103,7 @@ export function takeInbox(cwdIn: string, mode: WorkspaceMode, profile?: string):
   assertInsideWorkspace(cwd, inbox);
 
   // 1. 読んで確かめ、行き先を決める（まだ何も変えない）
-  const plans: Plan[] = [];
+  const candidates: Candidate[] = [];
   for (const name of readdirSync(inbox).filter((n) => n.toLowerCase().endsWith(".json")).sort()) {
     const rel = `${INBOX}/${name}`;
     const src = resolveRead(rel, cwd);
@@ -128,10 +132,19 @@ export function takeInbox(cwdIn: string, mode: WorkspaceMode, profile?: string):
       result.skipped.push({ file: rel, reason: `ファイル名のアプリ ${m[1]} と封筒の appId ${appId} が違う` });
       continue;
     }
-    const dir = appDirFor(cwd, def.profile, appId, typeof data.appName === "string" ? data.appName : "");
-    const dest = resolveWrite(path.join(dir, name), WRITE_ROOTS.kintone, cwd);
-    plans.push({ rel, src, name, appId, dir, dest, text: read.text });
+    candidates.push({ rel, src, name, appId, appName: typeof data.appName === "string" ? data.appName : "", text: read.text });
   }
+  // 行き先のフォルダーはアプリごとに 1 つ（今あるフォルダー。無ければ、一番新しいダウンロード（名前の日時が最後のもの）のアプリ名で作る。
+  // ファイルごとに決めると、同じアプリでアプリ名の違うダウンロードから、同じ番号のフォルダーを 2 つ作ってしまう。Codex の実装レビュー r2 MAJOR）
+  const dirByApp = new Map<number, string>();
+  for (const appId of new Set(candidates.map((c) => c.appId))) {
+    const newest = candidates.filter((c) => c.appId === appId).reduce((a, b) => (b.name > a.name ? b : a));
+    dirByApp.set(appId, appDirFor(cwd, def.profile, appId, newest.appName));
+  }
+  const plans: Plan[] = candidates.map((c) => {
+    const dir = dirByApp.get(c.appId) as string;
+    return { ...c, dir, dest: resolveWrite(path.join(dir, c.name), WRITE_ROOTS.kintone, cwd) };
+  });
 
   // 2. 今あるアプリのフォルダーの印を、何かを変える前にすべて確かめる（印の無い・合わないフォルダーの中は読まない。食い違いは止める。15.5）
   const checked = new Set<string>();
@@ -155,6 +168,14 @@ export function takeInbox(cwdIn: string, mode: WorkspaceMode, profile?: string):
         const removed = removeSource(p.src, result.warnings, p.rel);
         result.moved.push({ file: p.rel, to: path.relative(cwd, p.dest), same: true, ...(removed ? {} : { leftInInbox: true }) });
         continue;
+      }
+      // フォルダーを新しく作る前に、同じアプリのフォルダーが（別の処理で）別の名前で作られていないか探し直す（同じ番号のフォルダーを 2 つ作らない）
+      if (!existsSync(p.dir)) {
+        const found = findAppDir(cwd, def.profile, p.appId);
+        if (found !== null && found !== p.dir) {
+          result.skipped.push({ file: p.rel, reason: `同じアプリのフォルダーが移す途中で別の名前で作られた: ${path.relative(cwd, found)}。もう一度 take する` });
+          continue;
+        }
       }
       // 新しい名前のダウンロードを足すことだけ（permission.ts。profile、印、接続のファイルを読み直して接続が同じか）。フォルダーが無ければ印を置いてから作る（15.5）。
       // 確定の直前にも確かめ直し、新しいファイルとしてだけ置く（確かめた後に同じ名前ができても上書きしない。Codex 再レビュー BLOCKER 2）。inbox の元は置けてから消す
