@@ -20,6 +20,7 @@
  * パスは作業フォルダーからの相対で受け取る（..・絶対パス・ドライブ名は safe-path.ts が止める）。
  */
 import { createHash } from "node:crypto";
+import { jsonErrorWhere } from "../json-error.ts";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { Engine } from "../engine.ts";
@@ -239,9 +240,13 @@ export async function updateButton(ctx: SaveContext, opt: { path: string; button
   let replacement: Record<string, unknown>;
   try {
     settings = JSON.parse(current.toString("utf8")) as Record<string, unknown>;
+  } catch (e) {
+    return { status: "invalid", code: "InputError", path: rel(ctx.root, target), findings: [], message: `設定のファイルを JSON として読めない${jsonErrorWhere(e)}（中身は返さない）` };
+  }
+  try {
     replacement = JSON.parse(opt.replacement) as Record<string, unknown>;
   } catch (e) {
-    return { status: "invalid", code: "InputError", path: rel(ctx.root, target), findings: [], message: `JSON として読めない: ${(e as Error).message}` };
+    return { status: "invalid", code: "InputError", path: rel(ctx.root, target), findings: [], message: `replacement を JSON として読めない${jsonErrorWhere(e)}（中身は返さない）` };
   }
   if (!replacement || typeof replacement !== "object" || Array.isArray(replacement) || replacement.menu !== opt.button) {
     return { status: "invalid", code: "InputError", path: rel(ctx.root, target), findings: [], message: "replacement はボタン 1 つ（pluginInfos の 1 行）のオブジェクトで、menu が button と同じ" };

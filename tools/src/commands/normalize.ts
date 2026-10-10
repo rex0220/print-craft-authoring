@@ -7,6 +7,7 @@
  * 互換のために受ける "false" などの緩い真偽値を !!x で真にしない）、appId は正の整数（MAJOR 1）。
  */
 import { readFileSync, statSync } from "node:fs";
+import { jsonErrorText, jsonErrorWhere } from "../json-error.ts";
 import path from "node:path";
 import type { Engine } from "../engine.ts";
 import type { FieldsFile } from "./fields.ts";
@@ -77,7 +78,7 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   try {
     envelope = api.parseJsonSafely(input.settingsText, api.CONFIG_LIMITS) as Record<string, unknown>;
   } catch (e) {
-    f.error("json", where, `JSON として読めない、または大きすぎる（${api.CONFIG_LIMITS.maxBytes.toLocaleString()} バイトまで）: ${(e as Error).message}`);
+    f.error("json", where, `JSON として読めない、または大きすぎる（${api.CONFIG_LIMITS.maxBytes.toLocaleString()} バイトまで）: ${jsonErrorText(e)}`);
     return { findings: f, summary: "JSON を読めない" };
   }
   if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) {
@@ -164,14 +165,14 @@ export function readTextLimited(file: string, maxBytes = MAX_INPUT_BYTES): strin
   return readFileSync(file, "utf8");
 }
 
-/** 大きさの上限を確かめてから JSON を読む（最上位はオブジェクト） */
+/** 大きさの上限を確かめてから JSON を読む（最上位はオブジェクト）。読めないときの文は位置だけ（中身を入れない） */
 export function readJsonLimited(file: string, maxBytes = MAX_INPUT_BYTES): Record<string, unknown> {
   let v: unknown;
   try {
     v = JSON.parse(readTextLimited(file, maxBytes));
   } catch (e) {
     if (e instanceof InputError) throw e;
-    throw new InputError(`${file} を JSON として読めない: ${(e as Error).message}`);
+    throw new InputError(`${file} を JSON として読めない${jsonErrorWhere(e)}（中身は表示しない）`);
   }
   if (!v || typeof v !== "object" || Array.isArray(v)) throw new InputError(`${file} の最上位はオブジェクト`);
   return v as Record<string, unknown>;

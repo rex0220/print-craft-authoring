@@ -17,6 +17,7 @@
  *   無い設定ファイルの "allow" はエラー
  */
 import { existsSync, readFileSync, statSync } from "node:fs";
+import { jsonErrorWhere } from "../json-error.ts";
 import path from "node:path";
 import { cleanUrl } from "./css-check.ts";
 
@@ -61,7 +62,7 @@ export function parsePolicy(text: string, file: string): Policy {
   try {
     raw = JSON.parse(text);
   } catch (e) {
-    fail(file, "$", `JSON として読めない: ${(e as Error).message}`);
+    fail(file, "$", `JSON として読めない${jsonErrorWhere(e)}`);
   }
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail(file, "$", "最上位はオブジェクト");
   const obj = raw as Record<string, unknown>;

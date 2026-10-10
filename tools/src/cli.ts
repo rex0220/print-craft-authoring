@@ -7,6 +7,7 @@
  * 終了コード: 0 成功、1 検査のエラー・認証・kintone・zip・入力の誤り、2 使い方の誤り（パスの制限を含む）。
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { jsonErrorWhere } from "./json-error.ts";
 import path from "node:path";
 import { AuthError, baseUrlFromEnv, describeAuth, kintoneConfigPath, loadAuth, pluginZipPath } from "./env.ts";
 import { appDirFor, appFolderOfFile, assertAppMark, assertUsableInKintone, editNameOf, ensureAppFolder, findAppDir, INBOX, KINTONE_ROOT, legacyBlockedError, listAppFolder, modeOf, SNAPSHOT_RE, snapshotNameOf, WorkspaceError, type WorkspaceMode } from "./workspace.ts";
@@ -321,16 +322,21 @@ function folderDefaults(settingsFile: string, args: string[]): { dir: string; pr
   return folder;
 }
 
-/** --fields（無ければ、アプリのフォルダーの中のファイルなら同じフォルダーの fields.json） */
+/**
+ * 項目定義のファイル。アプリのフォルダーの中のファイルは、いつも同じフォルダーの fields.json（--fields はそれと同じときだけ。別のアプリ・profile・settings/ の
+ * 項目定義で検査しない。保存の中核と同じ。Codex の実装レビュー MAJOR 3）。ほかは --fields が要る
+ */
 function fieldsFileOf(args: string[], folder: { dir: string; appId: number } | null): string {
   const arg = option(args, "fields");
-  if (arg) {
-    const file = resolveRead(arg);
-    usable(file);
-    return file;
+  if (folder) {
+    const own = existingFile(path.join(folder.dir, "fields.json"), `fields --app ${folder.appId}`);
+    if (arg && resolveRead(arg) !== own) throw new PermissionError(`アプリのフォルダーの中のファイルは、同じフォルダーの fields.json で検査する（--fields は付けないか、${shown(own)} にする）`);
+    return own;
   }
-  if (!folder) throw new UsageError("--fields <fields.json> が要る（fields コマンドの出力。kintone/<profile>/<番号>-…/ の中のファイルなら同じフォルダーの fields.json を使う）");
-  return existingFile(path.join(folder.dir, "fields.json"), `fields --app ${folder.appId}`);
+  if (!arg) throw new UsageError("--fields <fields.json> が要る（fields コマンドの出力。kintone/<profile>/<番号>-…/ の中のファイルなら同じフォルダーの fields.json を使う）");
+  const file = resolveRead(arg);
+  usable(file);
+  return file;
 }
 
 /**
@@ -528,7 +534,7 @@ async function buttons(args: string[]): Promise<number> {
   try {
     settings = JSON.parse(bytes.toString("utf8")) as Record<string, unknown>;
   } catch (e) {
-    throw new InputError(`${shown(file)} を JSON として読めない: ${(e as Error).message}`);
+    throw new InputError(`${shown(file)} を JSON として読めない${jsonErrorWhere(e)}（中身は表示しない）`);
   }
   if (!settings || typeof settings !== "object" || Array.isArray(settings)) throw new InputError(`${shown(file)} の最上位はオブジェクト`);
   const text = listButtons(settings, { file: settingsArg, button });

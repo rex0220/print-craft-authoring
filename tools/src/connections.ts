@@ -10,13 +10,35 @@
  *   - 誤りの文は決まった文だけ（profile の名前、アプリの番号、キーの名前、ファイルの名前まで。値・絶対パス・環境変数の名前・JSON の断片を入れない）
  */
 import { createHash, createHmac, randomBytes } from "node:crypto";
-import { closeSync, fstatSync, openSync, readSync, realpathSync, statSync, type Stats } from "node:fs";
+import * as nodeFs from "node:fs";
+import { realpathSync, type Stats } from "node:fs";
 import path from "node:path";
 import type { KintoneAuth } from "./env.ts";
 import { normalizeKintoneBaseUrl } from "./kintone-url.ts";
 import { isInside } from "./safe-path.ts";
 
 export const CONNECTION_MAX_BYTES = 256 * 1024;
+
+/** 接続のファイルを読むときの fs の呼び出し（試験だけが差し替える。読み込みの途中の書き換えを再現するため。中核の入口 core.ts からは出さない） */
+interface FsOps {
+  openSync: (p: string, flags: string) => number;
+  fstatSync: (fd: number) => Stats;
+  readSync: (fd: number, buf: Buffer, offset: number, length: number, position: number) => number;
+  closeSync: (fd: number) => void;
+  statSync: (p: string) => Stats;
+}
+const REAL_FS: FsOps = {
+  openSync: (p, flags) => nodeFs.openSync(p, flags),
+  fstatSync: (fd) => nodeFs.fstatSync(fd),
+  readSync: (fd, buf, offset, length, position) => nodeFs.readSync(fd, buf, offset, length, position),
+  closeSync: (fd) => nodeFs.closeSync(fd),
+  statSync: (p) => nodeFs.statSync(p)
+};
+let fsOps: FsOps = REAL_FS;
+/** 試験用: fs の呼び出しを差し替える（undefined で元に戻す） */
+export function setFsOpsForTest(ops?: Partial<FsOps>): void {
+  fsOps = ops ? { ...REAL_FS, ...ops } : REAL_FS;
+}
 /** profile の名前（kintone/<profile>/ のフォルダーの名前になる） */
 export const PROFILE_NAME_RE = /^[A-Za-z0-9_-]{1,40}$/;
 const ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -109,7 +131,8 @@ const SECRETS = new WeakMap<ConnectionSet, { env: Env; byProfile: Map<string, Pr
 const FINGERPRINT_KEY = randomBytes(32);
 const fingerprint = (parts: readonly string[]): string => createHmac("sha256", FINGERPRINT_KEY).update(JSON.stringify(parts)).digest("hex");
 
-const nonblank = (v: unknown): string | undefined => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+/** 空白だけ・文字列でないものは無いとみなす。値はそのまま返す（前後の空白も変えない。kSQL と同じく値は加工しない。Codex の実装レビュー MAJOR 2） */
+const nonblank = (v: unknown): string | undefined => (typeof v === "string" && v.trim() ? v : undefined);
 const own = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 const isPlainObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
@@ -125,9 +148,14 @@ function appKeyOf(key: string): number | undefined {
 function readProfile(name: string, raw: unknown, env: Env): { def: ProfileDef; secrets: ProfileSecrets } | { reason: string } {
   if (!PROFILE_NAME_RE.test(name)) return { reason: "profile の名前は英数字と - _ の 40 文字まで（フォルダーの名前になる）" };
   if (!isPlainObject(raw)) return { reason: "profile がオブジェクトでない" };
+  // 型は 15.2 のとおり厳しく（文字列に直して受け付けない。Codex の実装レビュー MAJOR 2）
+  if (typeof raw.baseUrl !== "string") return { reason: "baseUrl が無い、または文字列でない" };
+  for (const k of ["username", "password", "passwordEnv"] as const) {
+    if (raw[k] !== undefined && typeof raw[k] !== "string") return { reason: `${k} が文字列でない` };
+  }
   let baseUrl: string;
   try {
-    baseUrl = normalizeKintoneBaseUrl(String(raw.baseUrl ?? ""));
+    baseUrl = normalizeKintoneBaseUrl(raw.baseUrl);
   } catch {
     return { reason: "baseUrl が kintone の URL でない（https://<サブドメイン>.cybozu.com / .kintone.com / .cybozu.cn だけ。パス・ポート・ユーザー情報なし）" };
   }
@@ -176,60 +204,69 @@ function realOf(p: string): string {
 /** ファイルの識別（読み込みの途中の書き換え・名前の付け替えを見つける。Windows で ino が 0 のときは大きさと更新日時で比べる。15.3） */
 const sameFile = (a: Stats, b: Stats): boolean => a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs;
 
-/** ino が取れないときの読み直し（同じ検査） */
-function readAgain(real: string, name: string): Buffer {
-  let fd: number | undefined;
-  try {
-    fd = openSync(real, "r");
-    const st = fstatSync(fd);
-    if (!st.isFile() || st.size > CONNECTION_MAX_BYTES) throw new ConnectionError(`接続のファイル（${name}）が読み込みの途中で変わった`, "unreadable");
-    const buf = Buffer.alloc(st.size);
-    let off = 0;
-    while (off < st.size) {
-      const n = readSync(fd, buf, off, st.size - off, off);
-      if (n === 0) break;
-      off += n;
-    }
-    return buf.subarray(0, off);
-  } finally {
-    if (fd !== undefined) closeSync(fd);
-  }
-}
+const changed = (name: string): ConnectionError => new ConnectionError(`接続のファイル（${name}）が読み込みの途中で変わった`, "unreadable");
 
-/** 実際のパスを開き、開いた fd が普通のファイルで上限以下なら fd から読む。読んだ後に fd と実際のパスの識別が読む前と同じか確かめる */
-function readRegularFile(real: string, name: string): { bytes: Buffer; mode: number } {
+/**
+ * 1 回の安定した読み込み: 実際のパスを開き、開いた fd が普通のファイルで上限以下なら fd から読む（上限 + 1 バイトで止める）。
+ * 読んだ後に fd と実際のパスの識別（dev・ino・大きさ・更新日時）が読む前と同じで、読んだバイト数が大きさと同じかを確かめる（15.3）
+ */
+function readStable(real: string, name: string): { bytes: Buffer; stat: Stats } {
   let fd: number | undefined;
   try {
-    fd = openSync(real, "r");
-    const before = fstatSync(fd);
+    fd = fsOps.openSync(real, "r");
+    const before = fsOps.fstatSync(fd);
     if (!before.isFile()) throw new ConnectionError(`接続のファイル（${name}）が普通のファイルでない（フォルダーなど）`, "unreadable");
     if (before.size > CONNECTION_MAX_BYTES) throw new ConnectionError(`接続のファイル（${name}）が大きすぎる（上限 ${CONNECTION_MAX_BYTES} バイト）`, "unreadable");
     const buf = Buffer.alloc(CONNECTION_MAX_BYTES + 1);
     let off = 0;
     for (;;) {
-      const n = readSync(fd, buf, off, buf.length - off, off);
+      const n = fsOps.readSync(fd, buf, off, buf.length - off, off);
       if (n === 0) break;
       off += n;
       if (off > CONNECTION_MAX_BYTES) throw new ConnectionError(`接続のファイル（${name}）が大きすぎる（上限 ${CONNECTION_MAX_BYTES} バイト）`, "unreadable");
     }
-    const after = fstatSync(fd);
+    const after = fsOps.fstatSync(fd);
     let onPath: Stats;
     try {
-      onPath = statSync(real);
+      onPath = fsOps.statSync(real);
     } catch {
-      throw new ConnectionError(`接続のファイル（${name}）が読み込みの途中で変わった`, "unreadable");
+      throw changed(name);
     }
-    if (!sameFile(before, after) || !sameFile(before, onPath) || off !== before.size) throw new ConnectionError(`接続のファイル（${name}）が読み込みの途中で変わった`, "unreadable");
-    const bytes = buf.subarray(0, off);
-    // ino が取れない（0 の）とき（Windows の一部）は、同じ大きさ・更新日時のファイルへの付け替えを見分けられないので、もう一度読んで中身で比べる（r3 MAJOR 2）
-    if (before.ino === 0 && !bytes.equals(readAgain(real, name))) throw new ConnectionError(`接続のファイル（${name}）が読み込みの途中で変わった`, "unreadable");
-    return { bytes, mode: before.mode };
+    if (!sameFile(before, after) || !sameFile(before, onPath) || off !== before.size) throw changed(name);
+    return { bytes: Buffer.from(buf.subarray(0, off)), stat: before };
   } catch (e) {
     if (e instanceof ConnectionError) throw e;
     throw new ConnectionError(`接続のファイル（${name}）を読めない`, "unreadable");
   } finally {
-    if (fd !== undefined) closeSync(fd);
+    if (fd !== undefined) fsOps.closeSync(fd);
   }
+}
+
+/**
+ * 接続のファイルを読む。ino が取れない（0 の）とき（Windows の一部）は、同じ大きさ・更新日時のファイルへの付け替えを識別で見分けられないので、
+ * もう一度同じ検査で読み、2 回の中身が同じときだけ使う（r3 MAJOR 2。2 回目も同じ検査にする。Codex の実装レビュー MAJOR 5）
+ */
+function readRegularFile(real: string, name: string): { bytes: Buffer; mode: number } {
+  const first = readStable(real, name);
+  if (first.stat.ino === 0) {
+    const second = readStable(real, name);
+    if (!first.bytes.equals(second.bytes)) throw changed(name);
+  }
+  return { bytes: first.bytes, mode: first.stat.mode };
+}
+
+/**
+ * 秘密の値（パスワード、env: でないトークン）がファイルに直接書いてあるか（使えない profile も数える。passwordEnv と env: の参照は数えない。
+ * ほかの利用者が読める権限の警告に使う。Codex の実装レビュー MAJOR 2）
+ */
+function hasInlineSecrets(rawProfiles: Record<string, unknown>): boolean {
+  for (const key of Object.keys(rawProfiles)) {
+    const p = rawProfiles[key];
+    if (!isPlainObject(p)) continue;
+    if (nonblank(p.password)) return true;
+    if (isPlainObject(p.tokenMap) && Object.values(p.tokenMap).some((v) => typeof v === "string" && v.trim() !== "" && !v.startsWith("env:"))) return true;
+  }
+  return false;
 }
 
 export interface LoadConnectionsOptions {
@@ -308,8 +345,7 @@ export function loadConnections(file: string | undefined, opt: LoadConnectionsOp
   if (data.defaultProfile !== undefined && typeof data.defaultProfile !== "string") throw new ConnectionError(`接続のファイル（${name}）の defaultProfile が文字列でない`, "unreadable");
   const defaultProfile = data.defaultProfile as string | undefined;
   const warnings: string[] = [];
-  const inlineSecrets = [...byProfile.values()].some((s) => s.password !== undefined || [...s.tokens.values()].some((v) => !v.startsWith("env:")));
-  if (process.platform !== "win32" && inlineSecrets && (mode & 0o077) !== 0) warnings.push(`接続のファイル（${name}）に秘密の値が直接書いてあり、ほかの利用者も読める。chmod 600 を勧める`);
+  if (process.platform !== "win32" && hasInlineSecrets(rawProfiles) && (mode & 0o077) !== 0) warnings.push(`接続のファイル（${name}）に秘密の値が直接書いてあり、ほかの利用者も読める。chmod 600 を勧める`);
   const set: ConnectionSet = { fileName: name, digest: createHash("sha256").update(bytes).digest("hex"), ...(defaultProfile !== undefined ? { defaultProfile } : {}), profiles, invalid, warnings };
   SECRETS.set(set, { env: opt.env, byProfile });
   return set;
@@ -355,7 +391,7 @@ export function semanticDigest(set: ConnectionSet, def: ProfileDef, appId?: numb
   if (def.auth === "userpass") credential = fingerprint(["userpass", secrets?.username ?? "", secrets?.password ?? ""]);
   else if (appId !== undefined) {
     const v = secrets?.tokens.get(appId);
-    const value = v === undefined ? "" : v.startsWith("env:") ? (nonblank(held?.env[v.slice(4)]) ?? "") : v.trim();
+    const value = v === undefined ? "" : v.startsWith("env:") ? (nonblank(held?.env[v.slice(4)]) ?? "") : v;
     credential = fingerprint(["token", v?.startsWith("env:") ? v : "inline", value]);
   }
   return createHash("sha256").update(JSON.stringify([def.profile, def.baseUrl, def.guestSpaceId, def.auth, credential, appId ?? null])).digest("hex");
@@ -391,7 +427,7 @@ export function authFor(set: ConnectionSet, profile: ProfileDef, appId: number):
     if (!token) throw new ConnectionError(`profile「${profile.profile}」の APP${appId} のトークンの環境変数が無い（設定した後、print-craft を再接続する。Desktop は起動し直す）`, "env-missing");
     return { baseUrl: profile.baseUrl, token };
   }
-  return { baseUrl: profile.baseUrl, token: value.trim() };
+  return { baseUrl: profile.baseUrl, token: value };
 }
 
 export function identityOf(def: ProfileDef): ProfileIdentity {

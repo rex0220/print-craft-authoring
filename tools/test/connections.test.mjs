@@ -4,10 +4,11 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import * as fs from "node:fs";
 import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ConnectionError, assertSameConnection, authFor, identityOf, loadConnections, pickProfile, sameIdentity, semanticDigest, snapshotOf } from "../src/connections.ts";
+import { ConnectionError, assertSameConnection, authFor, identityOf, loadConnections, pickProfile, sameIdentity, semanticDigest, setFsOpsForTest, snapshotOf } from "../src/connections.ts";
 
 const SECRET = "SECRET-token-value-0123456789";
 const PASSWORD = "SECRET-password-value";
@@ -251,6 +252,100 @@ test("スナップショットと意味の digest（15.6）: 接続先・ゲス�
     assert.throws(() => assertSameConnection({ set, def: dev }, () => loadConnections(file, opt), 1), code("unreadable"), "読めなければ前の値に戻らない");
     assert.throws(() => loadConnections(t.write("c.json", { defaultProfile: 1, profiles: {} }), opt), code("unreadable"), "defaultProfile が文字列でない");
   } finally {
+    t.cleanup();
+  }
+});
+
+test("型は 15.2 のとおり厳しく（Codex の実装レビュー MAJOR 2）: baseUrl・username・password・passwordEnv が文字列でなければその profile は使えない。資格情報の値は前後の空白も含めてそのまま使う", () => {
+  const t = setup();
+  try {
+    const file = t.write("a.json", {
+      profiles: {
+        arr: { baseUrl: ["https://a.cybozu.com"] },
+        none: { tokenMap: { 1: SECRET } },
+        num: { baseUrl: "https://a.cybozu.com", username: 1, password: PASSWORD },
+        nul: { baseUrl: "https://a.cybozu.com", username: "u", password: null },
+        pe: { baseUrl: "https://a.cybozu.com", username: "u", passwordEnv: 5 },
+        sp: { baseUrl: "https://a.cybozu.com", username: " u ", password: ` ${PASSWORD} ` },
+        tok: { baseUrl: "https://a.cybozu.com", tokenMap: { 1: ` ${SECRET} `, 2: "env:T2" } }
+      }
+    });
+    const set = loadConnections(file, { workspaceRoots: [], env: { T2: ` ${SECRET}-env ` } });
+    const reasons = Object.fromEntries(set.invalid.map((p) => [p.name, p.reason]));
+    assert.deepEqual(Object.keys(reasons).sort(), ["arr", "none", "nul", "num", "pe"]);
+    assert.match(reasons.arr, /baseUrl が無い、または文字列でない/, "配列を文字列に直して通さない");
+    assert.match(reasons.none, /baseUrl/);
+    assert.match(reasons.num, /username が文字列でない/);
+    assert.match(reasons.nul, /password が文字列でない/);
+    assert.match(reasons.pe, /passwordEnv が文字列でない/);
+    assert.ok(!JSON.stringify(set.invalid).includes(SECRET) && !JSON.stringify(set.invalid).includes(PASSWORD));
+    assert.deepEqual(authFor(set, pickProfile(set, "sp"), 1), { baseUrl: "https://a.cybozu.com", username: " u ", password: ` ${PASSWORD} ` }, "ログイン名とパスワードを変えない");
+    assert.equal(authFor(set, pickProfile(set, "tok"), 1).token, ` ${SECRET} `, "直接書いたトークンを変えない");
+    assert.equal(authFor(set, pickProfile(set, "tok"), 2).token, ` ${SECRET}-env `, "env: の値を変えない");
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("権限の警告は直接書いた秘密の値だけ（passwordEnv と env: は数えない。使えない profile に直接書いたトークンは数える。Codex の実装レビュー MAJOR 2）", { skip: process.platform === "win32" }, () => {
+  const t = setup();
+  try {
+    const opt = { workspaceRoots: [], env: { PW: PASSWORD } };
+    const warn = (name, data) => loadConnections(t.write(name, data, 0o644), opt).warnings.join();
+    assert.equal(warn("pwenv.json", { profiles: { dev: { baseUrl: "https://a.cybozu.com", username: "u", passwordEnv: "PW" } } }), "", "passwordEnv だけなら警告しない");
+    assert.match(warn("pw.json", { profiles: { dev: { baseUrl: "https://a.cybozu.com", username: "u", password: PASSWORD } } }), /chmod 600/);
+    assert.match(warn("bad.json", { profiles: { bad: { baseUrl: "http://a.cybozu.com", tokenMap: { 1: SECRET } } } }), /chmod 600/, "使えない profile の直接書いたトークン");
+    assert.equal(warn("blank.json", { profiles: { dev: { baseUrl: "https://a.cybozu.com", password: "   " } } }), "", "空白だけは秘密の値でない");
+  } finally {
+    t.cleanup();
+  }
+});
+
+/** fs の Stats を写して値を変える（試験の差し替え用） */
+const statWith = (st, over) => Object.assign(Object.create(Object.getPrototypeOf(st)), st, over);
+
+test("読み込みの途中の書き換え（15.3。Codex の実装レビュー MAJOR 5）: 読んだ後の識別が違えば unreadable。ino が 0 なら 2 回目も同じ検査で読み、中身か識別が違えば unreadable", () => {
+  const t = setup();
+  const file = t.write("a.json", { profiles: { dev: { baseUrl: "https://a.cybozu.com", tokenMap: { 1: SECRET } } } });
+  const opt = { workspaceRoots: [], env: {} };
+  const ino0 = { fstatSync: (fd) => statWith(fs.fstatSync(fd), { ino: 0 }), statSync: (p) => statWith(fs.statSync(p), { ino: 0 }) };
+  try {
+    // 1 回目の読み込みの途中に伸びた（読んだ後の fd の大きさが違う）
+    let fstatCalls = 0;
+    setFsOpsForTest({ fstatSync: (fd) => (++fstatCalls === 2 ? statWith(fs.fstatSync(fd), { size: fs.fstatSync(fd).size + 1 }) : fs.fstatSync(fd)) });
+    assert.throws(() => loadConnections(file, opt), code("unreadable"), "読んだ後の大きさが違う");
+    // 1 回目の読み込みの途中に同じパスへ付け替えた（読んだ後のパスの ino が違う）
+    setFsOpsForTest({ statSync: (p) => statWith(fs.statSync(p), { ino: fs.statSync(p).ino + 1 }) });
+    assert.throws(() => loadConnections(file, opt), code("unreadable"), "読んだ後のパスの識別が違う");
+    // ino が 0: 変わらなければ読める（2 回読む）
+    let opens = 0;
+    setFsOpsForTest({ ...ino0, openSync: (p, f) => (opens++, fs.openSync(p, f)) });
+    assert.equal(loadConnections(file, opt).profiles.size, 1);
+    assert.equal(opens, 2, "ino が 0 なら 2 回読む");
+    // ino が 0: 2 回目の中身が違う（同じ大きさ・同じ日時のファイルへの付け替え）
+    let reads = 0;
+    setFsOpsForTest({
+      ...ino0,
+      readSync: (fd, buf, off, len, pos) => {
+        const n = fs.readSync(fd, buf, off, len, pos);
+        if (++reads === 3 && n > 0) buf[off] ^= 0x01;
+        return n;
+      }
+    });
+    assert.throws(() => loadConnections(file, opt), code("unreadable"), "2 回目の中身が違う");
+    // ino が 0: 2 回目の読み込みの途中に伸びた（2 回目の読んだ後のパスの日時が違う）
+    let statCalls = 0;
+    setFsOpsForTest({ ...ino0, statSync: (p) => (++statCalls === 2 ? statWith(fs.statSync(p), { ino: 0, mtimeMs: fs.statSync(p).mtimeMs + 1 }) : statWith(fs.statSync(p), { ino: 0 })) });
+    assert.throws(() => loadConnections(file, opt), code("unreadable"), "2 回目も同じ検査");
+    // fs の誤りの文（絶対パスを含む）を出さない
+    setFsOpsForTest({
+      readSync: () => {
+        throw Object.assign(new Error(`EIO: i/o error, read '${file}'`), { code: "EIO" });
+      }
+    });
+    assert.throws(() => loadConnections(file, opt), (e) => code("unreadable")(e) && !e.message.includes(t.dir));
+  } finally {
+    setFsOpsForTest();
     t.cleanup();
   }
 });
