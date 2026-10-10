@@ -8,7 +8,7 @@
 import { DEFAULT_CONTEXT_BASE_URL, type Engine } from "../engine.ts";
 import type { FieldsFile } from "./fields.ts";
 import { missingInRecord, type KintoneRecord, type RecordFile } from "./record.ts";
-import { isAllowed, type Policy } from "../normalize/policy.ts";
+import type { Policy } from "../normalize/policy.ts";
 import { Findings } from "../normalize/findings.ts";
 import { buildModel } from "../normalize/model.ts";
 import { InputError, normalizeSettings } from "./normalize.ts";
@@ -72,15 +72,14 @@ export async function runPreview(input: PreviewInput): Promise<PreviewResult> {
   const rows = (normalized.body.pluginInfos ?? []) as MenuRow[];
   const targets = rows.filter((row) => row.state && row.tagsInfo && (input.button === undefined || row.menu === input.button));
   const names = previewFileNames(targets);
-  // Web フォント: 設定で有効なら、配信元が承認済み（policy の allowExternal。Google Fonts は既定）のときだけ帳票の文書に入れる（normalize の external.allowed / external.url と同じ判定）
-  const font = input.engine.api.webFontOf(normalized.body.fontInfo);
-  const webFont = font ? { font: { family: font.family, cssUrl: font.cssUrl }, approved: isAllowed(input.policy ?? { allowExternal: [] }, font.cssUrl, input.settingsFile) } : null;
   targets.forEach((row, i) => {
     if (row.list) {
       skipped.push(`${row.menu}: 一覧帳票は 1 レコードのプレビューの対象外（段階 2）`);
       return;
     }
-    const r = renderButton({ body: normalized.body!, row, model, engine: input.engine, record, webFont });
+    const r = renderButton({ body: normalized.body!, row, model, engine: input.engine, record });
+    // 正しいテンプレートでも、外へ読み込む書き方のある <style> / style 属性は preview で外れる（決まった文と件数だけ。レコードの値は入れない）
+    if (r.removedStyles) findings.warning("preview.style", row.menu, `HTML の行（レコードの値を含む）の <style> / style 属性のうち、外へ読み込む書き方（url()・@import・@font-face・image-set() など）があるもの ${r.removedStyles} 個を preview では外した（中の規則・宣言も効かない。preview は外部を読まない。印刷屋の PDF では効く。帳票の CSS は行の css に書けば preview でも効く）`);
     results.push({ ...r, file: names[i] });
   });
   if (input.button !== undefined && results.length === 0 && !skipped.length) findings.error("preview.button", input.button, "その名前の有効なボタンが無い");

@@ -54,7 +54,7 @@ tools のコマンドは 1 回に 1 つ実行する（`;`、`&&`、`if (…) { �
 4. **帳票** — レシピ集 0 章の既定の形: **HTML テンプレート + `${ESC_HTML(項目)}` + テーブルは `TABLE_HTML`**。CSS は共通 CSS の差分だけ書く
 5. **設定 JSON** — 雛形を写して**封筒形式**で `settings/APP<アプリ番号>-<アプリ名>-<帳票名>.json` に書く（例 `settings/APP3740-見積書-ご提案書.json`。アプリ名は記号を除いた短い名前。1 ファイルに 1 帳票）。`pluginID` は `"rex0220 Print craft plugin"`、`PluginVersion` は印刷屋の版（`version` が出す zip の版。例 `"7"`）、`externalRefs` は `"block"`。`filecode`（保存先。空ならダウンロード）、`pageSize`、`orientation`、`dpi`、`printMode` を明示する。派生値（`formula` / `usedFields` / `id` / `views` / `pluginUOG`、更新項目の `type` などのメタデータ）は書かない。`cssInfo`（共通 CSS）は共通 CSS を変えるときだけ書く（書くと、アップロードの一部置換・追加でアプリの共通 CSS を丸ごと置き換えるかを利用者が選ぶ。既定は置き換えない。帳票の CSS は行の `css` に書く）
 6. **normalize** — `normalize settings/<ファイル>.json --fields fields/N.json`。エラーを 0 にする（下の表）。**警告は消さずに利用者に伝える**
-7. **preview** — `preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json [--button <名前>]` → `out/<ボタン名>.html`。利用者に Chrome で開いてもらい、印刷屋のプレビューと比べてもらう（近似。画像はダミー）。**AI はブラウザーを起動しない（headless のスクリーンショットも撮らない）。帳票の文書を `out/*.html` の iframe から取り出して開かない**（sandbox と CSP が外れる）。ページ数と式のエラーは preview の出力で、置き換わった文字（ページ番号など）は `out/*.html` を Grep で確かめる
+7. **preview** — `preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json [--button <名前>]` → `out/<ボタン名>.html`。利用者に Chrome で開いてもらい、印刷屋のプレビューと比べてもらう（近似。画像はダミー、Web フォントは読まない）。**AI はブラウザーを起動しない（headless のスクリーンショットも撮らない）。帳票の文書を `out/*.html` の iframe から取り出して開かない**（sandbox と CSP が外れる）。ページ数と式のエラーは preview の出力で、置き換わった文字（ページ番号など）は `out/*.html` を Grep で確かめる
 8. **反映方法を伝える** — アプリの設定 → プラグイン → 印刷屋プラグインの設定 → **設定をアップロード** → 取り込み方を選ぶ → **保存する** → **運用環境に反映** → 詳細画面でボタンを押して PDF を確かめる。取り込み方は、印刷屋の設定がまだ無いアプリなら「全置換」、既存の設定があるアプリにボタンを足すなら「追加」（同じ名前があれば「名前 (2)」）、既存のボタンを差し替えるなら「一部置換」（ボタンごとに置き換え先を選ぶ）。一部置換と追加では外部参照・Web フォント・メニューなどはアプリの今の設定のまま。取り込んだボタンは保存のときに印刷屋が検査し、項目が合わなければ保存されない。確かめてほしい点（見た目、改行、ファイル名、保存先）を添える
 
 ## 既存の設定を変える（ボタンの追加・修正）
@@ -97,6 +97,7 @@ tools のコマンドは 1 回に 1 つ実行する（`;`、`&&`、`if (…) { �
 | `formula.rawHtml` | 生の HTML を入れる関数（`TABLE_HTML`、`FVAL` など）。想定どおりなら伝えるだけ |
 | `formula.attr` / `formula.html` | 要素名・属性にレコードの値や式を入れている、計算式の文字列の HTML / CSS の危険な書き方 |
 | `preview.record` | 設定が使う項目がプレビューのレコードに無い（帳票では空になる）。`record --app N --id R --fields-from <この設定>` で取り直す |
+| `preview.style` | HTML の行の `<style>` / style 属性に外へ読み込む書き方（`url()` など）があり、preview では外した（印刷屋の PDF では効く。帳票の CSS は行の `css` に書く） |
 | `external.url` / `external.blocked` | `"allow"` の設定の未承認の外部 URL（承認は利用者が policy の `allowExternal` に書く）/ 計算式の文字列の外部 URL（帳票に入れば除かれる） |
 | その他（`tags.rows`、`tags.pageSize`、`envelope.appId`、`fields.baseUrl`、`html.rule`） | 帳票の行が無い、設定画面の候補に無い用紙、appId が fields と違う、fields の接続先が `.env` と違う、HTML の注意 |
 

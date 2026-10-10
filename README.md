@@ -82,7 +82,7 @@ flowchart LR
    ```
    アプリ 3740（見積書）に、A4 縦の見積書を作って見積ファイルに保存するボタンを作って
    ```
-   AI が `fields/<app>.json` を取り、帳票を組み、`npx @rex0220/print-craft-authoring-tools normalize` で検査して `settings/` に設定 JSON（封筒形式）を保存し、`npx @rex0220/print-craft-authoring-tools preview` で `out/<ボタン名>.html` を作ります。**Chrome で開いて見た目を確かめてください**（近似。画像はダミー。Web フォントは配信元が承認済みのときだけ読みます。Google Fonts は既定で承認、他は `policy/authoring-policy.json` に書きます）
+   AI が `fields/<app>.json` を取り、帳票を組み、`npx @rex0220/print-craft-authoring-tools normalize` で検査して `settings/` に設定 JSON（封筒形式）を保存し、`npx @rex0220/print-craft-authoring-tools preview` で `out/<ボタン名>.html` を作ります。**Chrome で開いて見た目を確かめてください**（近似。画像はダミー。Web フォントは preview では読みません。その書体が PC に入っていなければ OS の書体で表示されるので、字形は印刷屋プラグインの PDF で確かめてください）
    - **アプリはできるだけ番号で指定**してください（番号はアプリの URL `/k/番号/` に出ています）
    - 保存先の添付ファイル項目、用紙、向き、ボタンを押したときの動き（プレビュー / 確認 / すぐに作成）を伝えると早いです
 7. **反映する** — アプリの設定 → プラグイン → 印刷屋プラグインの設定 → **設定をアップロード** → `settings/` のファイルを選ぶ → **取り込み方**（全置換 / 一部置換 / 追加）を選ぶ → **保存する** → アプリの設定を**運用環境に反映** → 詳細画面でボタンを押して PDF を確かめる。既存の設定があるアプリにボタンを足すときは「追加」、差し替えるときは「一部置換」（どちらも外部参照・Web フォント・メニューなどは今の設定のまま）。ファイルの検証に失敗した場合、既存の設定は変わりません

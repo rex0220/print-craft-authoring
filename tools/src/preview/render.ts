@@ -6,16 +6,16 @@
  *   - 描いた DOM から、動きや通信や遷移の元になる要素と属性を外す（script / meta / link / form / iframe / SMIL …、on*、href、srcdoc …）。
  *     レコードの値が TABLE_HTML などで HTML として入る経路があるため、テンプレートの検査（html-check）とは別にここでも外す。
  *     描いた DOM の <style> の中身と style 属性は、外へ読み込むもの（@import、@font-face、data: でない url() など）があれば外す（tools 2.0.1。
- *     承認済みの Web フォントの配信元は CSP で許すので、レコードの値から作った CSS でその配信元へ値を送れないように。print-craft MCP の MCP App のレビュー BLOCKER 1）
+ *     帳票の文書の CSP でも止まるが、レコードの値から作った CSS で外へ値を送れないように掃除でも外す。print-craft MCP の MCP App のレビュー BLOCKER 1）
  *   - happy-dom の HTML の解析は仕様と違うところがあり（<!-->、<![CDATA[…、<?…、<noembed> の中の <!-- など）、掃除した DOM を文字にした HTML を
  *     Chrome が読むと、掃除していない <style> などができる（tools 2.0.1）。そこで、注釈・SVG・中身を文字として読む要素・使えない名前を外し、
  *     残す要素はテンプレートの検査と同じ一覧（ALLOWED_TAGS。iframe を除く）に限る（ほかの要素は外して中身を残す。Chrome の木の構築が名前を変える
  *     <image> などは残らない）。文字にした HTML を HTML の仕様の字句解析（Chrome と同じ規則）で読み直して、開始タグ・属性・<style> の中身が
  *     掃除した DOM と同じかを確かめる（verifyPreviewHtml）。違えば帳票を出さない
  *   - 出力は 2 層の HTML: 外側の文書の中に sandbox 属性だけの iframe を置き、帳票の文書を srcdoc で入れる。帳票の文書にも CSP（img は data: だけ）
- *   - Web フォント（Takashi 2026-10-05「preview で、指定した WEB フォントを利用できるようにすることは可能か？」→ Go）: 配信元が承認済み（Google Fonts は既定、
- *     他は policy の allowExternal）のときだけ、帳票の文書に <link rel="stylesheet"> を入れ、CSP の style-src / font-src にその配信元を足す
- *     （Google Fonts は fonts.googleapis.com と fonts.gstatic.com）。preview の外部通信はこれだけで、送るのは設定に書いた固定の URL。未承認なら読まない（OS の書体）
+ *   - Web フォントは読まない（tools 2.0.1。2026-10-10 Takashi「Web フォントの読み込みは、印刷屋プラグインで処理。tools には読み込み処理なし」
+ *     「プラグイン設定の共通部分で切り替え」。2026-10-05 に足した読み込み（<link> と CSP の配信元）はやめた）。ページの CSS の font-family は印刷屋のまま
+ *     （その書体が PC に入っていれば使われる。無ければ OS の書体）。preview は外部と通信しない（帳票の文書の CSP は PREVIEW_CSP だけ）
  */
 import type { PrintCraftAuthoringApi } from "print-craft/src/authoring/api.ts";
 import type { MenuRow, TagRow } from "print-craft/src/config/schema.ts";
@@ -27,34 +27,6 @@ import { ALLOWED_TAGS } from "../normalize/html-check.ts";
 
 export const PREVIEW_CSP = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 export const OUTER_CSP = "script-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'";
-
-/** 帳票の文書に入れる Web フォント（印刷屋の webFontOf と同じ family / cssUrl） */
-export interface PreviewFont {
-  family: string;
-  cssUrl: string;
-}
-
-/** Web フォントの CSS とフォント本体の配信元（CSP に書く）。Google Fonts は CSS が fonts.googleapis.com、本体が fonts.gstatic.com。https 以外は null */
-export function fontOrigins(cssUrl: string): { style: string[]; font: string[] } | null {
-  let origin: string;
-  try {
-    const u = new URL(cssUrl);
-    if (u.protocol !== "https:") return null;
-    origin = u.origin;
-  } catch {
-    return null;
-  }
-  const font = [origin];
-  if (origin === "https://fonts.googleapis.com") font.push("https://fonts.gstatic.com");
-  return { style: [origin], font };
-}
-
-/** 帳票の文書の CSP。承認済みの Web フォントがあれば、その配信元だけを style-src / font-src に足す */
-export function previewCsp(font: PreviewFont | null): string {
-  const o = font ? fontOrigins(font.cssUrl) : null;
-  if (!o) return PREVIEW_CSP;
-  return `default-src 'none'; img-src data:; style-src 'unsafe-inline' ${o.style.join(" ")}; font-src data: ${o.font.join(" ")}; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'`;
-}
 
 /**
  * プレビューの DOM から外す要素（動き・通信・遷移の元。描画には要らない）。svg と、中身を文字として読む要素（xmp、noembed、noframes、plaintext、title）、
@@ -100,8 +72,10 @@ export interface RenderedButton {
   dpi: string;
   pages: number;
   errors: string[];
-  /** 帳票の文書に入れた Web フォントの CSS の URL（承認済みのときだけ。無ければ null） */
+  /** 帳票の文書に入れた Web フォントの CSS の URL。2.0.1 から常に null（preview は Web フォントを読まない。読むのは印刷屋プラグイン） */
   webFont: string | null;
+  /** 外へ読み込む書き方（url()・@import・@font-face など）があって preview で外した、HTML の行の <style> の中身と style 属性の数（2.0.1） */
+  removedStyles: number;
   inner: string;
   html: string;
 }
@@ -162,10 +136,11 @@ interface DomElement extends DomNode {
   removeAttribute(name: string): void;
 }
 
-/** 描いた DOM から動き・通信・遷移の元を外す。外した数を返す */
-export function sanitizePreviewDom(host: DomElement): { removedElements: number; removedAttributes: number } {
+/** 描いた DOM から動き・通信・遷移の元を外す。外した数を返す（removedStyles は、外へ読み込む書き方で外した <style> の中身と style 属性の数） */
+export function sanitizePreviewDom(host: DomElement): { removedElements: number; removedAttributes: number; removedStyles: number } {
   let removedElements = 0;
   let removedAttributes = 0;
+  let removedStyles = 0;
   for (const el of Array.from(host.querySelectorAll(PREVIEW_REMOVE_SELECTOR))) {
     el.remove();
     removedElements++;
@@ -202,18 +177,20 @@ export function sanitizePreviewDom(host: DomElement): { removedElements: number;
       if (!SAFE_ATTR.test(name) || name.startsWith("on") || REMOVE_ATTRS.has(name) || (isLink && !value.startsWith("#")) || /^[\u0000- ]*javascript:/i.test(value) || fetches) {
         el.removeAttribute(a.name);
         removedAttributes++;
+        if (fetches) removedStyles++;
       }
     }
     if (tag === "style") {
       const css = el.textContent ?? "";
-      // 外へ読み込む <style> は中身ごと外す（承認済みの Web フォントの配信元へも、レコードの値を載せて送らない）
+      // 外へ読み込む <style> は中身ごと外す（CSP でも止まるが、レコードの値を載せて外へ送る書き方を残さない）
       if (hasCssFetch(css)) {
         el.textContent = "";
         removedElements++;
+        removedStyles++;
       } else el.textContent = escapeCssText(css);
     }
   }
-  return { removedElements, removedAttributes };
+  return { removedElements, removedAttributes, removedStyles };
 }
 
 /** 掃除した DOM の開始タグ（verifyPreviewHtml と照らし合わせる。属性の値と <style> の中身は Chrome の入力の前処理と同じく改行を LF に、NUL を U+FFFD に） */
@@ -365,8 +342,6 @@ export interface RenderInput {
   model: Model;
   engine: Engine;
   record: KintoneRecord;
-  /** 設定の Web フォント（有効なとき）と、配信元が承認済みか（policy。Google Fonts は既定で承認） */
-  webFont?: { font: PreviewFont; approved: boolean } | null;
 }
 
 export function renderButton(input: RenderInput): RenderedButton {
@@ -392,16 +367,12 @@ export function renderButton(input: RenderInput): RenderedButton {
   const pages = api.mountReportHtml(host as unknown as HTMLElement, html, { sanitize: body.externalRefs !== "allow" });
   api.replaceTags(pages, {}, {}, api.DUMMY_IMAGE);
   if (pages.length === 0) errors.push("ページ要素（class=\"rex0220-pcraft-page\"）が無い。印刷屋は 0 ページの PDF を作る");
-  sanitizePreviewDom(host as unknown as DomElement);
+  const { removedStyles } = sanitizePreviewDom(host as unknown as DomElement);
   const { content, mismatch } = previewContent(host as unknown as DomElement);
   if (mismatch) errors.push(`帳票を表示しない: 掃除した帳票の HTML をブラウザーが読むと、掃除の結果と違う形になる（${mismatch}）。レコードの値や HTML 設定に、注釈・CDATA・SVG などの書き方が無いか確かめる`);
-  // Web フォント: 承認済みのときだけ <link> を入れて CSP に配信元を足す（preview の唯一の外部通信）
-  const wf = input.webFont ?? null;
-  const useFont = wf && wf.approved && fontOrigins(wf.font.cssUrl) ? wf.font : null;
-  const fontLink = useFont ? `\n<link rel="stylesheet" href="${escapeHtml(useFont.cssUrl)}">` : "";
   const inner = `<!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="${previewCsp(useFont)}">${fontLink}
+<meta http-equiv="Content-Security-Policy" content="${PREVIEW_CSP}">
 <title>${escapeHtml(row.menu)}</title>
 <style>${PAGES_CSS}</style>
 <style class="xp-rex0220-print-craft-page-style">${escapeCssText(css)}</style>
@@ -410,11 +381,9 @@ export function renderButton(input: RenderInput): RenderedButton {
   const width = paper.scr.width + 40;
   const height = Math.max(1, pages.length) * (paper.scr.height + 40) + 40;
   const errorList = errors.length ? `<ul class="errors">${errors.map((e) => `<li>${escapeHtml(e)}</li>`).join("")}</ul>` : "";
-  const fontNote = useFont
-    ? `Web フォント「${escapeHtml(useFont.family)}」は ${escapeHtml(fontOrigins(useFont.cssUrl)!.style[0])} から読みます（承認済み。preview の外部通信はこれだけ）。`
-    : wf
-      ? `Web フォント「${escapeHtml(wf.font.family)}」は配信元が未承認のため読みません（OS の書体で代替。利用者が policy/authoring-policy.json の allowExternal に書けば読みます）。`
-      : "Web フォントは使いません。";
+  const fontNote = font
+    ? `Web フォント「${escapeHtml(font.family)}」は preview では読みません（その書体が PC に入っていなければ OS の書体で近似。PDF では印刷屋プラグインが読みます）。`
+    : "Web フォントは使いません。";
   const outer = `<!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="${OUTER_CSP}">
@@ -430,11 +399,11 @@ iframe { display: block; margin: 12px auto; border: 0; background: #f7f7f7; }
 <header>
 <h1>${escapeHtml(row.menu)}</h1>
 <p>ファイル名: ${escapeHtml(fileName)} / 用紙: ${escapeHtml(tags.pageSize)} ${tags.orientation === "l" ? "横" : "縦"} ${escapeHtml(String(tags.dpi))} dpi / ページ: ${pages.length}</p>
-<p>これは近似のプレビューです。添付ファイルの画像と QR はダミーです。${fontNote} PDF の見た目は印刷屋プラグインで確かめてください。帳票は sandbox の iframe の中に置き、スクリプトと外部への通信（承認した Web フォントの配信元を除く）は CSP と sandbox で止め、リンクと埋め込みの要素は外してあります（文字だけ残る）。</p>
+<p>これは近似のプレビューです。添付ファイルの画像と QR はダミーです。${fontNote} PDF の見た目は印刷屋プラグインで確かめてください。帳票は sandbox の iframe の中に置き、スクリプトと外部への通信は CSP と sandbox で止め、リンクと埋め込みの要素は外してあります（文字だけ残る）。</p>
 ${errorList}
 </header>
 <iframe sandbox="" title="${escapeHtml(row.menu)}" width="${width}" height="${height}" srcdoc="${escapeHtml(inner)}"></iframe>
 </body></html>
 `;
-  return { menu: row.menu, fileName, pageSize: tags.pageSize, orientation: tags.orientation, dpi: String(tags.dpi), pages: pages.length, errors, webFont: useFont ? useFont.cssUrl : null, inner, html: outer };
+  return { menu: row.menu, fileName, pageSize: tags.pageSize, orientation: tags.orientation, dpi: String(tags.dpi), pages: pages.length, errors, webFont: null, removedStyles, inner, html: outer };
 }

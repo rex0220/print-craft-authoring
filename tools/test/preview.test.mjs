@@ -128,7 +128,7 @@ const bodyOf = (inner) => inner.slice(inner.indexOf("<body>") + "<body>".length)
 /** <style> の中身（Chrome の RAWTEXT と同じく、最初の </style（後ろが空白・/・>）まで） */
 const styleTexts = (html) => [...html.matchAll(/<style\b[^>]*>([\s\S]*?)(?=<\/style[\t\n\f\r />]|$)/gi)].map((m) => m[1]);
 
-test("レコードの値から作った CSS で外へ読み込まない（tools 2.0.1。Web フォントの配信元を CSP で許していても、<style> の @import・@font-face・外の url() と style 属性の外の url() は外す。外部参照が block でも allow でも。print-craft MCP の MCP App のレビュー BLOCKER 1）", async () => {
+test("レコードの値から作った CSS で外へ読み込まない（tools 2.0.1。<style> の @import・@font-face・外の url() と style 属性の外の url() は外す。帳票の文書の CSP でも止まるが掃除でも外す。外部参照が block でも allow でも、Web フォントの設定があっても。print-craft MCP の MCP App のレビュー BLOCKER 1）", async () => {
   const value = [
     '<style>@import url("https://fonts.googleapis.com/css2?family=LEAK1");.x{color:red}</style>',
     "<style>@font-face{font-family:y;src:url(https://fonts.gstatic.com/LEAK2)}</style>",
@@ -158,7 +158,8 @@ test("レコードの値から作った CSS で外へ読み込まない（tools 
     assert.ok(!/LEAK4/.test(body) || body.includes("&yen;75rl(https://fonts.gstatic.com/LEAK4)"), externalRefs);
     assert.ok(body.includes("<style>.keep{color:blue}</style>"), `${externalRefs}: 読み込まない <style> は残す`);
     assert.match(body, /<span style="color:\s*green;?">g<\/span>/, `${externalRefs}: 読み込まない style 属性は残す`);
-    assert.ok(b.inner.includes('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPMincho'), "設定の Web フォントの <link>（固定の URL）は残る");
+    assert.ok(!b.inner.includes("<link") && b.inner.includes(`content="${PREVIEW_CSP}"`), "Web フォントは読まない（帳票の文書の CSP は外部を許さない）");
+    assert.ok(r.findings.items.some((f) => f.rule === "preview.style"), "外した <style> / style 属性は preview.style の警告（件数だけ）");
   }
 });
 
@@ -237,37 +238,38 @@ test("verifyPreviewHtml: 文字にした HTML を HTML の仕様の字句解析�
   assert.deepEqual(previewContent(fake("<b>ok</b>", [{ tagName: "B", attributes: [], textContent: "ok" }])), { content: "<b>ok</b>", mismatch: null });
 });
 
-test("Web フォント: 承認済み（Google Fonts は既定）なら帳票の文書に <link> と CSP の配信元、未承認なら読まない（OS の書体）、policy で承認すれば読む", async () => {
-  const google = aiSettings({ fontInfo: { enabled: true, preset: "biz-udpmincho", family: "BIZ UDPMincho", cssUrl: "https://fonts.googleapis.com/css2?family=BIZ+UDPMincho:wght@400;700&display=swap" } });
-  const r = await run(google);
-  assert.ok(!r.findings.hasErrors, r.findings.format());
-  const b = r.results[0];
-  assert.equal(b.webFont, "https://fonts.googleapis.com/css2?family=BIZ+UDPMincho:wght@400;700&display=swap");
-  assert.ok(b.inner.includes('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPMincho:wght@400;700&amp;display=swap">'), "帳票の文書に <link>");
-  assert.ok(b.inner.includes("style-src 'unsafe-inline' https://fonts.googleapis.com; font-src data: https://fonts.googleapis.com https://fonts.gstatic.com;"), "CSP に CSS とフォント本体の配信元");
-  assert.ok(b.inner.includes('"BIZ UDPMincho"'), "ページの CSS に font-family");
-  assert.ok(b.html.includes("承認済み") && b.html.includes("BIZ UDPMincho"), "ヘッダーの注記");
-  assert.ok(!b.inner.includes("connect-src 'self'") && b.inner.includes("connect-src 'none'"), "通信の許可はフォントだけ");
-  // 未承認の配信元 → 読まない（normalize は警告 external.url。preview は止まらない）
-  const other = aiSettings({ fontInfo: { enabled: true, preset: "custom", family: "My Font", cssUrl: "https://fonts.example.com/my.css" } });
-  const r2 = await run(other);
-  assert.ok(!r2.findings.hasErrors, r2.findings.format());
+test("Web フォントは preview では読まない（tools 2.0.1。2026-10-10 Takashi「Web フォントの読み込みは、印刷屋プラグインで処理。tools には読み込み処理なし」）: <link> も CSP の配信元も入れず、注記に書体の名前。ページの CSS の font-family は残る（PC に入っている書体なら使われる）", async () => {
+  const other = { enabled: true, preset: "custom", family: "My Font", cssUrl: "https://fonts.example.com/my.css" };
+  for (const [fontInfo, extra] of [[GOOGLE_FONT, {}], [other, { policy: { allowExternal: [{ origin: "https://fonts.example.com" }] } }]]) {
+    const r = await run(aiSettings({ fontInfo }), extra);
+    assert.ok(!r.findings.hasErrors, r.findings.format());
+    const b = r.results[0];
+    assert.equal(b.webFont, null);
+    assert.ok(!b.inner.includes("<link"), `${fontInfo.family}: <link> を入れない`);
+    assert.ok(b.inner.includes(`content="${PREVIEW_CSP}"`), "帳票の文書の CSP は外部を許さない");
+    assert.ok(b.inner.includes(`"${fontInfo.family}"`), "ページの CSS に font-family");
+    assert.ok(b.html.includes(`Web フォント「${fontInfo.family}」は preview では読みません`), "ヘッダーの注記");
+  }
+  // 印刷屋が読む URL の承認は normalize の検査のまま（未承認の配信元は external.url の警告）
+  const r2 = await run(aiSettings({ fontInfo: other }));
   assert.ok(r2.findings.items.some((f) => f.rule === "external.url"));
-  const b2 = r2.results[0];
-  assert.equal(b2.webFont, null);
-  assert.ok(!b2.inner.includes("<link"), "未承認は <link> を入れない");
-  assert.ok(b2.inner.includes(`content="${PREVIEW_CSP}"`), "CSP は基本のまま");
-  assert.ok(b2.html.includes("未承認"), "ヘッダーの注記");
-  // policy で承認 → 読む（その他の配信元は CSS とフォント本体に同じ origin）
-  const r3 = await run(other, { policy: { allowExternal: [{ origin: "https://fonts.example.com" }] } });
-  const b3 = r3.results[0];
-  assert.equal(b3.webFont, "https://fonts.example.com/my.css");
-  assert.ok(b3.inner.includes('<link rel="stylesheet" href="https://fonts.example.com/my.css">'));
-  assert.ok(b3.inner.includes("style-src 'unsafe-inline' https://fonts.example.com; font-src data: https://fonts.example.com;"));
-  // Web フォント無し → <link> も配信元も無し
   const none = await run(aiSettings());
   assert.equal(none.results[0].webFont, null);
   assert.ok(!none.results[0].inner.includes("<link") && none.results[0].html.includes("Web フォントは使いません"));
+});
+
+test("正しいテンプレートでも、HTML の行の <style> / style 属性に外へ読み込む書き方があれば preview では外し、preview.style の警告（件数だけ）を出す（tools 2.0.1。印刷屋の PDF では効く）", async () => {
+  const s = aiSettings();
+  s.pluginInfos[0].tagsInfo.fieldsInfo[2] = { state: true, desc: "本文", html: '<div class="rex0220-pcraft-page"><style>.t1{color:red}.logo{background:url(logo.png)}</style><p class="t1" style="color:red;background:url(logo.png)">T</p><p style="color:green">G</p></div>' };
+  const r = await run(s);
+  assert.ok(!r.findings.hasErrors, r.findings.format());
+  const warn = r.findings.items.filter((f) => f.rule === "preview.style");
+  assert.equal(warn.length, 1);
+  assert.match(warn[0].message, /2 個を preview では外した/);
+  const body = bodyOf(r.results[0].inner);
+  assert.ok(body.includes('<style></style><p class="t1">T</p><p style="color:green">G</p>'), "外へ読み込むものだけ外す");
+  assert.equal(r.results[0].removedStyles, 2);
+  assert.equal((await run(aiSettings())).findings.items.some((f) => f.rule === "preview.style"), false, "外さなければ警告しない");
 });
 
 test("extractRecord: record コマンドの出力、API の応答、レコードそのもの", () => {
