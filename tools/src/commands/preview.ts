@@ -2,7 +2,7 @@
  * preview <settings.json> --fields <fields.json> --record <record.json> [--button <名前>] [--out-dir <dir>] [--json]
  * 正規化（normalize と同じ手順。エラーがあれば止まる）→ 有効なボタンごとに帳票 HTML（sandbox の iframe + CSP）→ out/<ボタン名>.html。
  * 一覧帳票（list）は 1 レコードでは作れないので対象外（段階 2）。式の失敗は帳票に赤字で埋め、終了コード 1。
- * Web フォントは配信元が承認済み（policy。Google Fonts は既定）のときだけ帳票の文書に入れる（render.ts）。
+ * Web フォントは読まない（tools 2.0.1。読むのは印刷屋プラグイン。render.ts）。
  * ファイル名はボタン名から使えない文字と Windows の予約名を除き、同じ名前になるときは -2、-3 を付ける（1-10 レビュー MAJOR 4）。
  */
 import { DEFAULT_CONTEXT_BASE_URL, type Engine } from "../engine.ts";

@@ -192,7 +192,7 @@ git commit -m "テンプレートの更新を取り込む"
 | `PluginVersion は tools が対応する 6` | 設定 JSON の `PluginVersion` と tools の版が合っていない。`npx @rex0220/print-craft-authoring-tools version` |
 | `normalize` のエラーが消えない | 文言の末尾の規則名（`html.rule`、`calc.ineligible` など）を AI に伝える。規則名の意味と直し方は [CLAUDE.md](CLAUDE.md) の「normalize の結果」、検査の範囲は [docs/設定ファイル仕様.md](docs/設定ファイル仕様.md) 8 章 |
 | インポートで「設定ファイルの内容が不正です」 | 封筒形式か、`pluginID` が合っているか。`normalize` を通したファイルか |
-| プレビューと実際の PDF が違う | プレビューは近似（画像はダミー。Web フォントは承認済みの配信元だけ読み、未承認なら OS の書体）。PDF は印刷屋で確かめる |
+| プレビューと実際の PDF が違う | プレビューは近似（画像はダミー。Web フォントは preview では読まず、その書体が PC に無ければ OS の書体）。PDF は印刷屋で確かめる |
 
 ## セキュリティ
 

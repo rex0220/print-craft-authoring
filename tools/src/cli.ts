@@ -61,7 +61,7 @@ const USAGE = `使い方: npx @rex0220/print-craft-authoring-tools <command> [op
   diff <before.json> <after.json> [--derived]
       既存設定の変更をインポートする前に人が見る差分（ボタン単位。派生値は --derived で含める）。
   preview <settings.json> --fields <fields.json> --record <record.json> [--button <名前>] [--out-dir out/<dir>] [--json]
-      有効なボタンごとに帳票の HTML を out/<ボタン名>.html に書く（sandbox の iframe + CSP。画像はダミー。Web フォントは配信元が承認済みのときだけ読む）。
+      有効なボタンごとに帳票の HTML を out/<ボタン名>.html に書く（sandbox の iframe + CSP。外部と通信しない。画像はダミー。Web フォントは読まない）。
       一覧帳票は対象外。式の失敗は赤字で埋めて終了コード 1。
 
 kintone の接続のファイル（PCRAFT_KINTONE_CONFIG があるとき。kSQL の ksql.config.json と同じ形。複数のドメイン・アプリ）:
