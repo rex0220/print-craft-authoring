@@ -411,6 +411,7 @@ AI（Claude）が扱うのは**アプリの構造と帳票の設定**で、**レ
 
 - **チャットで頼み、会話の中で確かめ、設定画面で取り込む。** AI はアプリの項目とレコードの形を確かめて設定を書き、拡張機能が検査とプレビューをします
 - kintone には読み取りだけ。拡張機能は、レコードの値を AI への応答に含めません
+- 続き（デザインの作り込み。雰囲気で頼む、スクリーンショットで直す、案を並べて選ぶ）: [rex0220 印刷屋プラグイン - AI(Claude Desktop)に帳票のデザインを作り込ませる](https://qiita.com/rex0220/items/43ceafa584690b4b0a5b)
 - 拡張機能: https://github.com/rex0220/print-craft-authoring-mcp（[最新のリリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest)）
 - Claude Code（VSCode）で作る方法: [rex0220 印刷屋プラグイン - AI(Claude Code)に帳票を作らせる](https://qiita.com/rex0220/items/0ce0afc9405bdc39013b)
 - プラグインの機能全般は [製品紹介記事](https://qiita.com/rex0220/items/9be2d9b20a3a1f016c76)、よくある質問は [FAQ](https://qiita.com/rex0220/items/a866440c50c1028acb4f) へ
