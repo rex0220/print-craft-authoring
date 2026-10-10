@@ -136,6 +136,10 @@ kintone/
 
 kintone には **GET しか送りません**。計算式エンジン（`KintoneFormulaPCraft.min.js`）と印刷屋の設定画面・帳票のコード（`print-craft-authoring-api.js`）は、tools には含まれず、`.env` の `PCRAFT_PLUGIN_ZIP` の zip から実行のたびに読みます（コピーも書き出しもしません。印刷屋プラグインの利用規約に従います）。
 
+## Claude Code のプラグイン print-craft（任意）
+
+Claude Code のプラグイン `print-craft`（[print-craft MCP](https://github.com/rex0220/print-craft-authoring-mcp)）を入れると、AI は tools の CLI の代わりに、プラグインのツールで同じ作業をします。入れ方と設定は [docs/バージョンアップ手順.md](docs/バージョンアップ手順.md) の 5 章です。Claude Desktop のチャットで作る拡張機能もあります（記事: [AI(Claude Desktop)にチャットで帳票を作らせる](https://qiita.com/rex0220/items/8cbebab5a5f8a9c21b1f)）。
+
 ## テンプレートの更新を取り込む
 
 印刷屋プラグインの新機能に合わせて、このテンプレートの docs/ と tools の版は更新されます。**フォルダーを作り直す必要はありません。** 印刷屋プラグインを上げただけなら、ふつうは `.env` の zip を入れ替えるだけです。印刷屋の zip の入れ替え、tools だけを上げる方法、Claude Code に頼む方法、作り直すときに写すもの、つまずいたときは [docs/バージョンアップ手順.md](docs/バージョンアップ手順.md) にあります。
@@ -168,7 +172,8 @@ git commit -m "テンプレートの更新を取り込む"
 | [docs/AI設定オーサリング手順.md](docs/AI設定オーサリング手順.md) | 利用者がすること（要件の書き方、プレビューと差分の確かめ方、反映）と、AI への指示の例 |
 | [docs/バージョンアップ手順.md](docs/バージョンアップ手順.md) | 印刷屋プラグイン・tools・テンプレートを新しい版にする手順（作り直さなくてよい） |
 | [docs/samples/](docs/samples/) | 動作確認済みの実例（雛形は各フォルダーの `settings-source.json`） |
-| [CLAUDE.md](CLAUDE.md) | AI への常設指示（作業手順、読む文書、normalize のエラーの規則名と直し方。このリポジトリを開いた Claude Code が自動で読みます） |
+| [CLAUDE.md](CLAUDE.md) | AI への常設指示（常に守ることと、どの手順で作業するか。このリポジトリを開いた Claude Code が自動で読みます） |
+| [docs/AI作業手順.md](docs/AI作業手順.md) | AI の作業手順（tools の CLI。読む文書、コマンド、normalize のエラーの規則名と直し方）。プラグイン `print-craft` を入れていないとき、AI が CLAUDE.md の指示で読みます |
 | [policy/README.md](policy/README.md) | 外部 URL の承認（利用者が書く） |
 
 ## トラブルシュート
@@ -190,7 +195,7 @@ git commit -m "テンプレートの更新を取り込む"
 | `計算式の文字列の中に // がある` | 印刷屋は計算式の文字列の中でも `//` 以降をコメントとして捨てる。URL は HTML の属性か `##目印##` に置く |
 | `HTTP 401` / `403` | ログイン名とパスワード。2 要素認証が無効なアカウントか。そのユーザーにアプリの閲覧権限があるか。API トークンなら、トークンのアプリと権限（レコード閲覧）、トークン生成後に**アプリを更新**したか |
 | `PluginVersion は tools が対応する 6` | 設定 JSON の `PluginVersion` と tools の版が合っていない。`npx @rex0220/print-craft-authoring-tools version` |
-| `normalize` のエラーが消えない | 文言の末尾の規則名（`html.rule`、`calc.ineligible` など）を AI に伝える。規則名の意味と直し方は [CLAUDE.md](CLAUDE.md) の「normalize の結果」、検査の範囲は [docs/設定ファイル仕様.md](docs/設定ファイル仕様.md) 8 章 |
+| `normalize` のエラーが消えない | 文言の末尾の規則名（`html.rule`、`calc.ineligible` など）を AI に伝える。規則名の意味と直し方は [docs/AI作業手順.md](docs/AI作業手順.md) の「normalize の結果」、検査の範囲は [docs/設定ファイル仕様.md](docs/設定ファイル仕様.md) 8 章 |
 | インポートで「設定ファイルの内容が不正です」 | 封筒形式か、`pluginID` が合っているか。`normalize` を通したファイルか |
 | プレビューと実際の PDF が違う | プレビューは近似（画像はダミー。Web フォントは preview では読まず、その書体が PC に無ければ OS の書体）。PDF は印刷屋で確かめる |
 

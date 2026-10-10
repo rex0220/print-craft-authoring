@@ -1,7 +1,7 @@
 # AI による印刷屋プラグイン設定オーサリング手順（利用者向け）
 
 Claude Code（VSCode）と kintone 公式 MCP、tools（`pcraft-authoring`）で、印刷屋プラグイン Ver.6 の設定 JSON を作る・変えるときの、利用者がすることの手順です。
-AI の作業手順と規則（読む文書、コマンドの使い方、normalize のエラーの規則名と直し方）は `CLAUDE.md` にあり、このリポジトリを開いた Claude Code が自動で読みます。セットアップは `README.md`。
+AI の作業手順と規則（読む文書、コマンドの使い方、normalize のエラーの規則名と直し方）は `docs/AI作業手順.md` にあり、このリポジトリを開いた Claude Code が `CLAUDE.md` の指示で読みます（Claude Code のプラグイン `print-craft` を入れていれば、プラグインの手順で作業します。`docs/バージョンアップ手順.md` の 5 章）。セットアップは `README.md`。
 
 ## 1. 全体像
 
