@@ -11,7 +11,6 @@ private: true
 
 <!--
 公開の前に確かめること（このコメントは Qiita では表示されません）:
-- 拡張機能の配布の URL とファイル名（GitHub のリリース。リポジトリを public にした後。B3）
 - Windows の Claude Desktop で手順を確かめる（今は macOS だけ）。確かめたら「前提」の文と「つまずいたら」を直す
 - 残りの画像: 冒頭のプレビュー（「頼む」の画像のプレビューのカードを切り取る。備考を入れて頼み直すと見栄えがよい）、全画面（左のサイドバーを切る）。任意: ツールの許可の確認（拡張機能を入れ直すと出る）、API トークンの画面。サブドメイン・サイドバー・トークンが写っていないか
 - Claude Desktop の画面の名前（設定 → 拡張機能 など）が、その時の版と合っているか
@@ -42,6 +41,7 @@ PDF は添付ファイル項目「見積ファイル」に保存。
 > どちらを使うかの目安です。
 > - **Claude Desktop（本記事）**: チャットと画面の操作だけで作りたい方。帳票は会話の中で確かめられます
 > - **Claude Code**: ターミナルに慣れていて、git での履歴管理やスクリプトと組み合わせて、大きな帳票を作り込みたい方
+> - Claude Code（ターミナル）でも、本記事と同じ道具をプラグインとして入れられます（`/plugin install print-craft --marketplace rex0220/print-craft-authoring-mcp`）。プレビューは会話の中でなく、作業フォルダーの `out/` の HTML を Chrome で開きます
 
 ---
 
@@ -85,11 +85,11 @@ flowchart TB
 | :--- | :--- |
 | プラグイン | 印刷屋プラグイン **Ver.6 以降**（製品版または試用版）。アプリに入れたものと同じ版の **zip ファイルを手元に置く** |
 | Claude Desktop | **[Claude Desktop](https://claude.com/download)**（Claude のサブスクリプション）。拡張機能を動かすための Node.js などを、別に入れる必要はありません |
-| 拡張機能 | 印刷屋 設定オーサリング（Print craft）（`.mcpb` ファイル） |
+| 拡張機能 | 印刷屋 設定オーサリング（Print craft）（`.mcpb` ファイル。0.1.5 以降） |
 | kintone | 対象アプリの**レコード閲覧だけの API トークン**（おすすめ）。またはログイン名とパスワード（**2 要素認証なし**のアカウント） |
 | 対象アプリ | 記事の例は見積書アプリ（アプリ番号 3740。見積明細のテーブル、小計・消費税・合計の計算項目、添付ファイル項目「見積ファイル」がある） |
 
-本記事の手順は、macOS の Claude Desktop と、拡張機能 0.1.0〜0.1.3 で確かめました。
+本記事の手順は、macOS の Claude Desktop と、拡張機能 0.1.0〜0.1.5 で確かめました（最初に公開した版は 0.1.5）。
 
 > AI（Claude）が読んだ項目定義とレコードの形は、Claude の処理に使われます。レコードの**値**は、拡張機能のツールが AI に返しません（後述の「安全のしくみ」）。
 
@@ -99,7 +99,7 @@ flowchart TB
 
 ## 1. 拡張機能を入れる
 
-[GitHub のリリース](https://github.com/rex0220/print-craft-authoring-mcp/releases) から拡張機能のファイル（`.mcpb`）をダウンロードして、ダブルクリックします。インストールの画面が出たら、**インストール** を選びます。
+[GitHub のリリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest) から拡張機能のファイル `print-craft-authoring-<版>.mcpb`（0.1.5 なら `print-craft-authoring-0.1.5.mcpb`）をダウンロードして、ダブルクリックします。インストールの画面が出たら、**インストール** を選びます。
 
 ダブルクリックで Claude Desktop が開かないときは、Claude Desktop の **設定 → 拡張機能** の画面に、ファイルをドラッグして入れます。
 
@@ -346,6 +346,8 @@ AI は、おおむねこう動きます（ツールの呼び出しは自動で�
 
 サーバー側からも書き込みを防ぐため、**レコード閲覧だけの API トークン**を使ってください。
 
+送る先・手元に残るもの・ログの扱いは [プライバシーポリシー（PRIVACY.md）](https://github.com/rex0220/print-craft-authoring-mcp/blob/main/PRIVACY.md) に、脆弱性の報告の窓口と受け入れた危険は [SECURITY.md](https://github.com/rex0220/print-craft-authoring-mcp/blob/main/SECURITY.md) に書いています。
+
 ---
 
 # つまずいたら
@@ -369,6 +371,6 @@ AI は、おおむねこう動きます（ツールの呼び出しは自動で�
 
 - **チャットで頼み、会話の中で確かめ、設定画面で取り込む。** AI はアプリの項目とレコードの形を確かめて設定を書き、拡張機能が検査とプレビューをします
 - kintone には読み取りだけ。拡張機能は、レコードの値を AI への応答に含めません
-- 拡張機能: https://github.com/rex0220/print-craft-authoring-mcp
+- 拡張機能: https://github.com/rex0220/print-craft-authoring-mcp（[最新のリリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest)）
 - Claude Code（VSCode）で作る方法: [rex0220 印刷屋プラグイン - AI(Claude Code)に帳票を作らせる](https://qiita.com/rex0220/items/0ce0afc9405bdc39013b)
 - プラグインの機能全般は [製品紹介記事](https://qiita.com/rex0220/items/9be2d9b20a3a1f016c76)、よくある質問は [FAQ](https://qiita.com/rex0220/items/a866440c50c1028acb4f) へ
