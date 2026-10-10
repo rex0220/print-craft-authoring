@@ -187,7 +187,12 @@ test("hasCssFetch（preview の掃除。tools 2.0.1）: @import・@font-face・�
     ".a{background:url(//evil.example/x)}",
     '.a{background-image:image-set("https://fonts.gstatic.com/x.png" 1x)}',
     '.a{background-image:-webkit-image-set("x.png" 1x)}',
-    ".a{cursor:url(javascript:x),auto}"
+    ".a{cursor:url(javascript:x),auto}",
+    // 入れ子の括弧、カスタムプロパティから URL の文字列を渡す（Codex の tools 2.0.1 のレビュー）
+    '.x{background-image:image-set("https://fonts.gstatic.com/LEAK" type(var(--mime)))}',
+    ':root{--u:"https://fonts.gstatic.com/LEAK"}.x{background-image:image-set(var(--u) 1x)}',
+    ':root{--u:"https://fonts.gstatic.com/LEAK"}.x{background-image:src(var(--u))}',
+    ".x{background-image:image(attr(data-u))}"
   ];
   for (const css of fetch) assert.equal(hasCssFetch(css), true, css);
   const quiet = [
@@ -198,7 +203,12 @@ test("hasCssFetch（preview の掃除。tools 2.0.1）: @import・@font-face・�
     ".a{background:url(#{&f(abc)})}",
     '.a{content:"@import url(https://x.example/)"}',
     ".a{color:red} /* @import url(https://x.example/) */",
+    ':root{--u:"https://x.example/"}.a{color:var(--c)}',
     ""
   ];
   for (const css of quiet) assert.equal(hasCssFetch(css), false, css);
+  // normalize の検査も、URL を持てる関数の入れ子の括弧の中の文字列を拾い、var() / attr() は誤り
+  assert.deepEqual(extractUrls('.x{background-image:image-set("https://cdn.example.com/a.png" type(var(--m)))}').map((u) => [u.url, u.via]), [["https://cdn.example.com/a.png", "image-set"]]);
+  assert.match(checkCss(".x{background-image:image-set(var(--u) 1x)}").errors.join(), /var\(\) \/ attr\(\) は使えない/);
+  assert.deepEqual(checkCss(".x{color:var(--c);background:url(data:image/png;base64,AA)}").errors, []);
 });

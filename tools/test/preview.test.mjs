@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { loadEngine } from "./helpers.mjs";
 import { runPreview, extractRecord } from "../src/commands/preview.ts";
 import { InputError } from "../src/commands/normalize.ts";
-import { PREVIEW_CSP, PREVIEW_WITHHELD, escapeHtml, previewContent, verifyPreviewHtml } from "../src/preview/render.ts";
+import { PREVIEW_CSP, PREVIEW_KEEP_TAGS, PREVIEW_WITHHELD, escapeHtml, previewContent, verifyPreviewHtml } from "../src/preview/render.ts";
 import { FIELDS_FILE, aiSettings } from "./fixtures.mjs";
 
 const engine = await loadEngine();
@@ -123,8 +123,8 @@ const withItemName = (value) => {
   rec.record.見積明細.value[0].value.商品名.value = value;
   return rec;
 };
-/** 帳票の文書の body（掃除した帳票の HTML） */
-const bodyOf = (inner) => inner.slice(inner.indexOf("<body>"));
+/** 帳票の文書の body の中身（掃除した帳票の HTML。文書自身の <body> の後ろから） */
+const bodyOf = (inner) => inner.slice(inner.indexOf("<body>") + "<body>".length);
 /** <style> の中身（Chrome の RAWTEXT と同じく、最初の </style（後ろが空白・/・>）まで） */
 const styleTexts = (html) => [...html.matchAll(/<style\b[^>]*>([\s\S]*?)(?=<\/style[\t\n\f\r />]|$)/gi)].map((m) => m[1]);
 
@@ -137,6 +137,9 @@ test("レコードの値から作った CSS で外へ読み込まない（tools 
     '<span style="background:url(https://fonts.gstatic.com/LEAK5)">s</span>',
     '<style>@import "https://fonts.googleapis.com/LEAK7";</style>',
     '<i style="background-image:image-set(&quot;https://fonts.gstatic.com/LEAK8&quot; 1x)">i</i>',
+    '<style>:root{--u:"https://fonts.gstatic.com/LEAK9"}.v{background-image:image-set(var(--u) 1x)}</style>',
+    '<style>.w{background-image:image-set("https://fonts.gstatic.com/LEAK10" type(var(--m)))}</style>',
+    '<b style="--u:&quot;https://fonts.gstatic.com/LEAK11&quot;;background-image:src(var(--u))">b</b>',
     "<style>.keep{color:blue}</style>",
     '<span style="color:green">g</span>',
     "<svg><style>@import url(https://fonts.googleapis.com/LEAK6);</style></svg>"
@@ -147,9 +150,9 @@ test("レコードの値から作った CSS で外へ読み込まない（tools 
     const b = r.results[0];
     assert.deepEqual(b.errors, [], externalRefs);
     const body = bodyOf(b.inner);
-    for (const css of styleTexts(body)) assert.doesNotMatch(css, /@import|@font-face|url\(|image-set\(/i, `${externalRefs}: 外へ読み込む <style> を残さない: ${css}`);
-    assert.doesNotMatch(body, /style="[^"]*(?:url\(|image-set\()/i, `${externalRefs}: 外へ読み込む style 属性を残さない`);
-    assert.doesNotMatch(body, /LEAK[1235678]/, externalRefs);
+    for (const css of styleTexts(body)) assert.doesNotMatch(css, /@import|@font-face|url\(|image-set\(|src\(/i, `${externalRefs}: 外へ読み込む <style> を残さない: ${css}`);
+    assert.doesNotMatch(body, /style="[^"]*(?:url\(|image-set\(|src\()/i, `${externalRefs}: 外へ読み込む style 属性を残さない`);
+    assert.doesNotMatch(body, /LEAK(?:[1235678]|9|1[01])\b/, externalRefs);
     // \ は描く前に &yen; になる（印刷屋と同じ）ので、\75rl( は url( にならず文字として残る
     assert.ok(!body.includes("\\"), "\\ は残らない");
     assert.ok(!/LEAK4/.test(body) || body.includes("&yen;75rl(https://fonts.gstatic.com/LEAK4)"), externalRefs);
@@ -175,7 +178,14 @@ test("happy-dom と Chrome で読み方の違う書き方（<!-->、<![CDATA[、
     `<svg><style>&#64;import "${G}LEAKX11";</style></svg>`,
     `<!--><link rel="preload" as="font" href="https://fonts.gstatic.com/LEAKX12">-->`,
     `<title><!--</title><style>@import url(${G}LEAKX13);</style>--></title>`,
-    `<math><mtext><table><mglyph><style><img src=x>@import url(${G}LEAKX14);</style>`
+    `<math><mtext><table><mglyph><style><img src=x>@import url(${G}LEAKX14);</style>`,
+    // Chrome の木の構築が名前を変える（image → img）、noscript（sandbox の文書は scripting が無効で中を要素として読む）
+    `<image src="https://fonts.gstatic.com/LEAKX15">`,
+    `<noscript><style>@import url(${G}LEAKX16);</style></noscript>`,
+    // 表の foster parenting、書式の要素の作り直し、html / body の属性の合流（happy-dom の断片では捨てられる）
+    `<table><b style="color:red"><style>@import url(${G}LEAKX17);</style>x<td>y</table>`,
+    `<a><table><a id="x">z<style>@import url(${G}LEAKX18);</style></a></table></a>`,
+    `<body style="background:url(https://fonts.gstatic.com/LEAKX19)"><html style="background:url(https://fonts.gstatic.com/LEAKX20)">`
   ];
   for (const value of cases) {
     const r = await run(aiSettings({ externalRefs: "allow", fontInfo: GOOGLE_FONT }), { recordFile: withItemName(value), policy: ALLOW_REFS });
@@ -184,10 +194,22 @@ test("happy-dom と Chrome で読み方の違う書き方（<!-->、<![CDATA[、
     assert.deepEqual(b.errors, [], value);
     const body = bodyOf(b.inner);
     assert.doesNotMatch(body, /<[!?]/, `注釈・CDATA・処理命令を残さない: ${value}`);
-    assert.doesNotMatch(body, /<(?:svg|math|noembed|noframes|xmp|title|plaintext|link|meta|template|noscript|textarea|script|iframe)[\t\n\f\r />]/i, value);
+    assert.doesNotMatch(body, /<(?:svg|math|noembed|noframes|xmp|title|plaintext|link|meta|template|noscript|textarea|script|iframe|image|html|head|body)[\t\n\f\r />]/i, value);
     for (const css of styleTexts(body)) assert.doesNotMatch(css, /@import|@font-face|url\(|LEAKX/i, value);
     for (const [tag] of body.matchAll(/<[a-z][^>]*>/gi)) assert.ok(!tag.includes("LEAKX"), `${value}: ${tag}`);
   }
+});
+
+test("残す要素はテンプレートの検査と同じ一覧（PREVIEW_KEEP_TAGS）だけ。一覧に無い要素は外して中身を残し、中身も同じように掃除する（Codex の tools 2.0.1 のレビュー MAJOR 2）", async () => {
+  assert.ok(!PREVIEW_KEEP_TAGS.has("iframe") && !PREVIEW_KEEP_TAGS.has("image") && PREVIEW_KEEP_TAGS.has("style") && PREVIEW_KEEP_TAGS.has("table"));
+  const value = '<custom-el style="color:red">中身<span style="background:url(https://fonts.gstatic.com/LEAKY1)">s</span></custom-el><marquee>m<style>@import url(https://fonts.googleapis.com/LEAKY2);</style></marquee><image>画</image>';
+  const r = await run(aiSettings({ externalRefs: "allow", fontInfo: GOOGLE_FONT }), { recordFile: withItemName(value), policy: ALLOW_REFS });
+  const b = r.results[0];
+  assert.deepEqual(b.errors, []);
+  const body = bodyOf(b.inner);
+  assert.doesNotMatch(body, /<(?:custom-el|marquee|image)[\t\n\f\r />]/i, "一覧に無い要素は残さない");
+  assert.ok(body.includes("中身<span>s</span>m<style></style>画"), "中身は残し、中身の要素も掃除する");
+  assert.doesNotMatch(body, /LEAKY/);
 });
 
 test("verifyPreviewHtml: 文字にした HTML を HTML の仕様の字句解析で読み直し、掃除した DOM と違えば理由を返す。previewContent は違えば帳票を出さない（tools 2.0.1）", () => {
@@ -198,7 +220,9 @@ test("verifyPreviewHtml: 文字にした HTML を HTML の仕様の字句解析�
   assert.equal(verifyPreviewHtml("<style>a{}</stylex></style ><p></p>", [t("style", [], "a{}</stylex>"), t("p")]), "<style> の中に「<」がある", "</stylex は <style> の終わりでない");
   assert.equal(verifyPreviewHtml("<style>a{}</style ><p></p>", [t("style", [], "a{}"), t("p")]), null, "</style の後の空白で終わる");
   for (const html of ["<!--><style>@import url(https://fonts.googleapis.com/x)</style>-->", "<![CDATA[x]]>", "<?x>", "</ x>", "a < b", "<"]) assert.equal(verifyPreviewHtml(html, []), "タグでない「<」がある（注釈・CDATA・処理命令など）", html);
-  for (const tag of ["noembed", "noframes", "xmp", "title", "textarea", "plaintext", "noscript", "script", "iframe", "svg", "math", "template", "select", "frameset"]) assert.equal(verifyPreviewHtml(`<${tag}></${tag}>`, [t(tag)]), "中身を文字として読む要素か、SVG・MathML などがある", tag);
+  for (const tag of ["noembed", "noframes", "xmp", "title", "textarea", "plaintext", "noscript", "script", "iframe", "svg", "math", "template", "select", "frameset", "image", "custom-el"]) assert.equal(verifyPreviewHtml(`<${tag}></${tag}>`, [t(tag)]), "残す一覧に無い要素がある（中身を文字として読む要素、SVG・MathML など）", tag);
+  assert.equal(verifyPreviewHtml('<p title="a\u0000b"></p>', [t("p", [["title", "a\ufffdb"]])]), null, "NUL は U+FFFD（Chrome の入力の前処理と同じ）");
+  assert.equal(verifyPreviewHtml('<p class="a" class="b"></p>', [t("p", [["class", "a"]])]), "属性が掃除した DOM と違う", "重複した属性（Chrome は後ろを捨てる）は止める");
   assert.equal(verifyPreviewHtml("<p></p><b></b>", [t("p"), t("i")]), "要素の並びが掃除した DOM と違う");
   assert.equal(verifyPreviewHtml("<p></p>", [t("p"), t("b")]), "要素の数が掃除した DOM と違う");
   assert.equal(verifyPreviewHtml('<p a="1" b="2"></p>', [t("p", [["a", "1"]])]), "属性が掃除した DOM と違う");

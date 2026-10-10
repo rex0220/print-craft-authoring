@@ -218,6 +218,32 @@ export function prepareCss(css: string): string {
   return tokenizeCss(css).code.replace(STR_TOKEN, '""');
 }
 
+/**
+ * URL の文字列を持てる関数（image-set / -webkit-image-set / image / src）と、その引数（入れ子の括弧も数えて閉じ括弧まで。
+ * image-set("…" type(var(--m))) のように 2 段の括弧でも抜けない。tools 2.0.1）。code は tokenizeCss の後
+ */
+function urlFunctionArgs(code: string): Array<{ fn: string; args: string }> {
+  const out: Array<{ fn: string; args: string }> = [];
+  const re = /\b(?:-webkit-)?(image-set|image|src)\(/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(code))) {
+    const start = m.index + m[0].length;
+    let depth = 1;
+    let j = start;
+    for (; j < code.length && depth > 0; j++) {
+      if (code[j] === "(") depth++;
+      else if (code[j] === ")") depth--;
+    }
+    out.push({ fn: m[1].toLowerCase(), args: code.slice(start, depth === 0 ? j - 1 : code.length) });
+  }
+  return out;
+}
+
+/** URL を持てる関数の中の var() / attr()（URL の文字列をカスタムプロパティなどから渡すと、中の URL を確かめられない） */
+export function hasIndirectUrl(css: string): boolean {
+  return urlFunctionArgs(tokenizeCss(css).code).some((f) => /\b(?:var|attr)\(/i.test(f.args));
+}
+
 /** url(...) と URL を持てる関数・@import の中身を取り出す（引用符あり / なし。#{&f(...)} を含むときは )} まで） */
 export function extractUrls(css: string): CssUrl[] {
   const out: CssUrl[] = [];
@@ -241,9 +267,8 @@ export function extractUrls(css: string): CssUrl[] {
     out.push({ url: value.trim(), via: "url()" });
   }
   // image-set("a.png" 1x, …) / -webkit-image-set(…) / image("x") / src("x") の文字列
-  const fns = /\b(?:-webkit-)?(image-set|image|src)\(((?:[^()]|\([^()]*\))*)\)/gi;
-  while ((m = fns.exec(code))) {
-    for (const s of m[2].matchAll(STR_TOKEN)) out.push({ url: str(s[0]).trim(), via: m[1].toLowerCase() });
+  for (const f of urlFunctionArgs(code)) {
+    for (const s of f.args.matchAll(STR_TOKEN)) out.push({ url: str(s[0]).trim(), via: f.fn });
   }
   // @import "x" / @import url(x)（url() は上で拾っているので文字列だけ）
   const imp = /@import\s+(?:url\([^)]*\)|(\u0001\d+\u0001))/gi;
@@ -259,6 +284,7 @@ export function checkCss(css: string): CssCheckResult {
   if (/\bexpression\s*\(/i.test(code)) errors.push("expression( は使えない");
   if (/\bbehavior\s*:/i.test(code)) errors.push("behavior: は使えない");
   if (/-moz-binding\s*:/i.test(code)) errors.push("-moz-binding: は使えない");
+  if (hasIndirectUrl(css)) errors.push("image-set() / image() / src() の中の var() / attr() は使えない（中の URL を確かめられない。URL は文字列か url() で直接書く）");
   for (const u of extractUrls(css)) {
     const kind = classifyUrl(u.url);
     if (kind === "https") externals.push({ url: cleanUrl(u.url), via: u.via });
@@ -269,12 +295,13 @@ export function checkCss(css: string): CssCheckResult {
 
 /**
  * CSS が外へ読み込みをするか（preview の掃除用。tools 2.0.1。print-craft MCP の MCP App のレビュー BLOCKER 1）: @import、@font-face、
- * data: の画像・# の参照・置き換えタグでない url() / image-set() / image() / src() の URL（https、相対、使えない形）。
+ * data: の画像・# の参照・置き換えタグでない url() / image-set() / image() / src() の URL（https、相対、使えない形）、
+ * URL を持てる関数の中の var() / attr()（カスタムプロパティから URL の文字列を渡せる）。
  * コメント・文字列・エスケープ（@\69mport、\75rl など）は tokenizeCss で解いてから見る
  */
 export function hasCssFetch(css: string): boolean {
   const { code } = tokenizeCss(css);
-  if (/@import\b/i.test(code) || /@font-face\b/i.test(code)) return true;
+  if (/@import\b/i.test(code) || /@font-face\b/i.test(code) || hasIndirectUrl(css)) return true;
   return extractUrls(css).some((u) => {
     const kind = classifyUrl(u.url);
     return kind !== "data-image" && kind !== "data-svg" && kind !== "fragment" && kind !== "placeholder";

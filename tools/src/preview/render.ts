@@ -9,8 +9,9 @@
  *     承認済みの Web フォントの配信元は CSP で許すので、レコードの値から作った CSS でその配信元へ値を送れないように。print-craft MCP の MCP App のレビュー BLOCKER 1）
  *   - happy-dom の HTML の解析は仕様と違うところがあり（<!-->、<![CDATA[…、<?…、<noembed> の中の <!-- など）、掃除した DOM を文字にした HTML を
  *     Chrome が読むと、掃除していない <style> などができる（tools 2.0.1）。そこで、注釈・SVG・中身を文字として読む要素・使えない名前を外し、
- *     文字にした HTML を HTML の仕様の字句解析（Chrome と同じ規則）で読み直して、開始タグ・属性・<style> の中身が掃除した DOM と同じかを確かめる
- *     （verifyPreviewHtml）。違えば帳票を出さない
+ *     残す要素はテンプレートの検査と同じ一覧（ALLOWED_TAGS。iframe を除く）に限る（ほかの要素は外して中身を残す。Chrome の木の構築が名前を変える
+ *     <image> などは残らない）。文字にした HTML を HTML の仕様の字句解析（Chrome と同じ規則）で読み直して、開始タグ・属性・<style> の中身が
+ *     掃除した DOM と同じかを確かめる（verifyPreviewHtml）。違えば帳票を出さない
  *   - 出力は 2 層の HTML: 外側の文書の中に sandbox 属性だけの iframe を置き、帳票の文書を srcdoc で入れる。帳票の文書にも CSP（img は data: だけ）
  *   - Web フォント（Takashi 2026-10-05「preview で、指定した WEB フォントを利用できるようにすることは可能か？」→ Go）: 配信元が承認済み（Google Fonts は既定、
  *     他は policy の allowExternal）のときだけ、帳票の文書に <link rel="stylesheet"> を入れ、CSP の style-src / font-src にその配信元を足す
@@ -22,6 +23,7 @@ import type { Engine, FormulaInstance } from "../engine.ts";
 import type { Model } from "../normalize/model.ts";
 import type { KintoneRecord } from "../commands/record.ts";
 import { hasCssFetch } from "../normalize/css-check.ts";
+import { ALLOWED_TAGS } from "../normalize/html-check.ts";
 
 export const PREVIEW_CSP = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 export const OUTER_CSP = "script-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'";
@@ -61,6 +63,12 @@ export function previewCsp(font: PreviewFont | null): string {
 export const PREVIEW_REMOVE_SELECTOR = "script,meta,link,base,form,input,button,select,textarea,iframe,frame,frameset,object,embed,applet,noscript,template,video,audio,source,track,canvas,map,area,svg,animate,animatemotion,animatetransform,animatecolor,set,foreignobject,math,xmp,noembed,noframes,plaintext,title";
 /** プレビューの DOM から外す属性（attributionsrc は Chrome の Attribution Reporting の通信） */
 const REMOVE_ATTRS = new Set(["srcdoc", "formaction", "action", "ping", "target", "download", "background", "poster", "manifest", "attributionsrc"]);
+/**
+ * 描いた DOM に残す要素（テンプレートの検査の ALLOWED_TAGS から、外す iframe を除いたもの）。ほかの要素は外して中身（掃除したもの）を残す。
+ * Chrome の木の構築が特別に扱う要素を知っているものに限る（名前を変える image、挿入モードを変える select・frameset・template、外の名前空間など。
+ * Codex の tools 2.0.1 のレビュー MAJOR 2）
+ */
+export const PREVIEW_KEEP_TAGS: ReadonlySet<string> = new Set([...ALLOWED_TAGS].filter((t) => t !== "iframe"));
 /** 残してよい要素と属性の名前（Chrome の字句解析が名前を切る空白・/・>・= や引用符を含まない） */
 const SAFE_TAG = /^[a-z][a-z0-9-]*$/;
 const SAFE_ATTR = /^[a-z_:][a-z0-9_.:-]*$/;
@@ -141,6 +149,7 @@ interface DomNode {
   nodeType: number;
   childNodes: ArrayLike<DomNode>;
   remove(): void;
+  replaceWith(...nodes: DomNode[]): void;
 }
 
 interface DomElement extends DomNode {
@@ -176,6 +185,12 @@ export function sanitizePreviewDom(host: DomElement): { removedElements: number;
     const tag = el.tagName.toLowerCase();
     if (el.namespaceURI !== HTML_NS || !SAFE_TAG.test(tag)) {
       el.remove();
+      removedElements++;
+      continue;
+    }
+    // 一覧に無い要素は外して中身を残す（中身の要素はこの後の順で同じように掃除する）
+    if (!PREVIEW_KEEP_TAGS.has(tag)) {
+      el.replaceWith(...Array.from(el.childNodes));
       removedElements++;
       continue;
     }
@@ -220,11 +235,6 @@ export function previewStartTags(host: DomElement): PreviewStartTag[] {
   });
 }
 
-/**
- * Chrome の読み方がほかと変わる要素（中身を文字・RCDATA として読む、外の名前空間、別の文書の断片、select や frameset の挿入モード）。
- * 掃除で外してあるはずなので、残っていれば確かめを止める
- */
-const VERIFY_FORBIDDEN = new Set(["script", "xmp", "iframe", "noembed", "noframes", "noscript", "plaintext", "textarea", "title", "svg", "math", "template", "select", "frameset"]);
 /** happy-dom が属性の値を文字にするときの文字参照（ほかの & があれば確かめを止める） */
 const ATTR_REFS: Record<string, string> = { "&amp;": "&", "&quot;": '"', "&lt;": "<", "&gt;": ">", "&nbsp;": "\u00a0", "&#39;": "'" };
 const isSpace = (c: string | undefined): boolean => c === " " || c === "\t" || c === "\n" || c === "\f" || c === "\r";
@@ -283,8 +293,11 @@ function readTagRest(html: string, j: number): { end: number; attrs: Array<[stri
 
 /**
  * 掃除した DOM を文字にした HTML（host.innerHTML）を、HTML の仕様の字句解析（Chrome と同じ規則）で読み直して確かめる（tools 2.0.1）。
- * タグでない < （注釈・CDATA・処理命令）や読み方の変わる要素が無く、開始タグ・属性・<style> の中身が掃除した DOM（expected）と同じで、
- * style 属性と <style> が外へ読み込まないこと。違えば理由（決まった文。レコードの値は入れない）を返す
+ * タグでない < （注釈・CDATA・処理命令）や残す一覧（PREVIEW_KEEP_TAGS）に無い要素が無く、開始タグ・属性・<style> の中身が掃除した DOM（expected）と
+ * 同じで、style 属性と <style> が外へ読み込まないこと。違えば理由（決まった文。レコードの値は入れない）を返す。
+ * 確かめるのは字句（開始タグの並び）で、木の形（親子）は見ない。残す一覧の要素について Chrome の木の構築がするのは、要素を補う（tbody・p など。属性は無い）、
+ * 書式の要素を属性ごと写す（属性は確かめたもの）、置き場所を変える（table の foster parenting など）、トークンを捨てることだけで、名前を変えたり
+ * 確かめていない要素・属性・CSS を作ったりしない（名前を変える image、字句解析の状態を変える要素や外の名前空間は一覧に無い。<style> は RAWTEXT のまま）
  */
 export function verifyPreviewHtml(html: string, expected: readonly PreviewStartTag[]): string | null {
   const n = html.length;
@@ -307,7 +320,7 @@ export function verifyPreviewHtml(html: string, expected: readonly PreviewStartT
     const tag = normalizeInput(html.slice(lt + 1, j)).toLowerCase();
     const rest = readTagRest(html, j);
     if (!rest) return "閉じていないタグがある";
-    if (VERIFY_FORBIDDEN.has(tag)) return "中身を文字として読む要素か、SVG・MathML などがある";
+    if (!PREVIEW_KEEP_TAGS.has(tag)) return "残す一覧に無い要素がある（中身を文字として読む要素、SVG・MathML など）";
     const want = expected[k++];
     if (!want || want.tag !== tag) return "要素の並びが掃除した DOM と違う";
     if (rest.attrs.length !== want.attrs.length) return "属性が掃除した DOM と違う";
