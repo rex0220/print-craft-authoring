@@ -222,6 +222,7 @@ A の色で、C のレイアウトにして
 2. **帳票のデザインを作り込ませる（この記事）**
 3. [見積書から注文書・請求書を作らせる](https://qiita.com/rex0220/items/eae546dc726e7c61512f)
 4. [組織図を設計させてから、アプリを作らせる](https://qiita.com/rex0220/items/6e739ace80cffd2ad70a)
+5. [QRコード付きの資産ラベルを作らせる](https://qiita.com/rex0220/items/a649d70314361b964cd2)
 
 関連リンク:
 
