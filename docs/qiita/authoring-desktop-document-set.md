@@ -267,10 +267,15 @@ AI はこの警告を消さずに伝え、残した理由をこう書いてい�
 - できた帳票は「〜をベースに」「同じく」の一言で、注文書・請求書に派生させられる。今回は、AI が置いた前提と、警告を残した理由も返答に書かれていた
 - 3 つのボタンを 1 つの設定ファイルにまとめれば、同じレコードから見積書・注文書・請求書を出せる
 
+シリーズ「rex0220 印刷屋プラグイン - AI(Claude Desktop)に〜」:
+
+1. [チャットで帳票を作らせる](https://qiita.com/rex0220/items/8cbebab5a5f8a9c21b1f)
+2. [帳票のデザインを作り込ませる](https://qiita.com/rex0220/items/43ceafa584690b4b0a5b)
+3. **見積書から注文書・請求書を作らせる（この記事）**
+4. [組織図を設計させてから、アプリを作らせる](https://qiita.com/rex0220/items/6e739ace80cffd2ad70a)
+
 関連リンク:
 
-- [前編: AI(Claude Desktop)に帳票のデザインを作り込ませる](https://qiita.com/rex0220/items/43ceafa584690b4b0a5b)
-- [最初の記事: AI(Claude Desktop)にチャットで帳票を作らせる](https://qiita.com/rex0220/items/8cbebab5a5f8a9c21b1f)
 - [拡張機能（GitHub）](https://github.com/rex0220/print-craft-authoring-mcp)
 - [拡張機能の最新のリリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest)
 - [製品紹介記事](https://qiita.com/rex0220/items/9be2d9b20a3a1f016c76)

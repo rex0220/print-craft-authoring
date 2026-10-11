@@ -216,10 +216,15 @@ A の色で、C のレイアウトにして
 - AI はプレビューを見ていないので、見た目の崩れはスクリーンショットで伝えます。テストデータで作れば、貼る画像にも架空の値しか写りません
 - 複数の案は、ボタン名を分けて 1 つの設定ファイルにまとめると、「追加」で取り込んで詳細画面で見比べられます
 
+シリーズ「rex0220 印刷屋プラグイン - AI(Claude Desktop)に〜」:
+
+1. [チャットで帳票を作らせる](https://qiita.com/rex0220/items/8cbebab5a5f8a9c21b1f)
+2. **帳票のデザインを作り込ませる（この記事）**
+3. [見積書から注文書・請求書を作らせる](https://qiita.com/rex0220/items/eae546dc726e7c61512f)
+4. [組織図を設計させてから、アプリを作らせる](https://qiita.com/rex0220/items/6e739ace80cffd2ad70a)
+
 関連リンク:
 
-- [後編: AI(Claude Desktop)に見積書から注文書・請求書を作らせる](https://qiita.com/rex0220/items/eae546dc726e7c61512f)
-- [前回の記事: AI(Claude Desktop)にチャットで帳票を作らせる](https://qiita.com/rex0220/items/8cbebab5a5f8a9c21b1f)
 - [拡張機能（GitHub）](https://github.com/rex0220/print-craft-authoring-mcp)
 - [拡張機能の最新のリリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest)
 - [製品紹介記事](https://qiita.com/rex0220/items/9be2d9b20a3a1f016c76)
