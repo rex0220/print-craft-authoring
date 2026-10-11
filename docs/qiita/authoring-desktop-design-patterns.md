@@ -218,6 +218,7 @@ A の色で、C のレイアウトにして
 
 関連リンク:
 
+- [後編: AI(Claude Desktop)に見積書から注文書・請求書を作らせる](https://qiita.com/rex0220/items/eae546dc726e7c61512f)
 - [前回の記事: AI(Claude Desktop)にチャットで帳票を作らせる](https://qiita.com/rex0220/items/8cbebab5a5f8a9c21b1f)
 - [拡張機能（GitHub）](https://github.com/rex0220/print-craft-authoring-mcp)
 - [拡張機能の最新のリリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest)
