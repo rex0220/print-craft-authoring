@@ -292,6 +292,7 @@ RECS_MAP(DIC(                      // 一覧のレコードを、表示順に辞
 3. [見積書から注文書・請求書を作らせる](https://qiita.com/rex0220/items/eae546dc726e7c61512f)
 4. [組織図を設計させてから、アプリを作らせる](https://qiita.com/rex0220/items/6e739ace80cffd2ad70a)
 5. **QRコード付きの資産ラベルを作らせる（この記事）**
+6. [写真付きの点検報告書を作らせる](https://qiita.com/rex0220/items/b10502d8d23373820aab)
 
 関連リンク:
 
