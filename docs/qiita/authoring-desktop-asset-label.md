@@ -293,6 +293,7 @@ RECS_MAP(DIC(                      // 一覧のレコードを、表示順に辞
 4. [組織図を設計させてから、アプリを作らせる](https://qiita.com/rex0220/items/6e739ace80cffd2ad70a)
 5. **QRコード付きの資産ラベルを作らせる（この記事）**
 6. [写真付きの点検報告書を作らせる](https://qiita.com/rex0220/items/b10502d8d23373820aab)
+7. [ガントチャートアプリの工程表を作らせる（関連レコード一覧に対応した Ver.8）](https://qiita.com/rex0220/items/f48cf8d9a89cb1971e41)
 
 関連リンク:
 

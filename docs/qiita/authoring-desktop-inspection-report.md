@@ -358,6 +358,7 @@ LET(fl, ARRAY_FIL(ARRAY_FOR(ARRAY_COUNT(rows) * M, vX, vX), vX2,
 4. [組織図を設計させてから、アプリを作らせる](https://qiita.com/rex0220/items/6e739ace80cffd2ad70a)
 5. [QRコード付きの資産ラベルを作らせる](https://qiita.com/rex0220/items/a649d70314361b964cd2)
 6. **写真付きの点検報告書を作らせる（この記事）**
+7. [ガントチャートアプリの工程表を作らせる（関連レコード一覧に対応した Ver.8）](https://qiita.com/rex0220/items/f48cf8d9a89cb1971e41)
 
 関連リンク:
 
