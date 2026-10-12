@@ -90,7 +90,7 @@ flowchart TB
 | kintone | 対象アプリの**レコード閲覧だけの API トークン**（おすすめ）。またはログイン名とパスワード（**2 要素認証なし**のアカウント） |
 | 対象アプリ | 記事の例は見積書アプリ（アプリ番号 3740。見積明細のテーブル、小計・消費税・合計の計算項目、添付ファイル項目「見積ファイル」がある）。本番のアプリでなく、**テストアプリとテストデータで作る**のがおすすめです（「事前準備」） |
 
-本記事の手順は、macOS の Claude Desktop と、拡張機能 0.1.0〜0.1.5 で確かめました（最初に公開した版は 0.1.5）。
+本記事の手順は、macOS の Claude Desktop と、拡張機能 0.1.0〜0.2.0 で確かめました（最初に公開した版は 0.1.5。0.2.0（2026-10-12）は印刷屋プラグイン Ver.8 の関連レコード一覧に対応）。
 
 > AI（Claude）が読んだ項目定義とレコードの形は、Claude の処理に使われます。レコードの**値**は、拡張機能のツールが AI に返しません（後述の「AI に渡るもの・渡らないもの」）。
 
@@ -100,7 +100,7 @@ flowchart TB
 
 ## 1. 拡張機能を入れる
 
-[GitHub のリリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest) から拡張機能のファイル `print-craft-authoring-<版>.mcpb`（0.1.5 なら `print-craft-authoring-0.1.5.mcpb`）をダウンロードして、ダブルクリックします。インストールの画面が出たら、**インストール** を選びます。
+[GitHub のリリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest) から拡張機能のファイル `print-craft-authoring-<版>.mcpb`（0.2.0 なら `print-craft-authoring-0.2.0.mcpb`）をダウンロードして、ダブルクリックします。インストールの画面が出たら、**インストール** を選びます。
 
 ダブルクリックで Claude Desktop が開かないときは、Claude Desktop の **設定 → 拡張機能** の画面に、ファイルをドラッグして入れます。
 
