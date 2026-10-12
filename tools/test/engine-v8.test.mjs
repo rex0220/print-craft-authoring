@@ -233,3 +233,26 @@ test("preview: 仮のテーブルの TABLE_HTML を描ける（式のエラー 0
   const warn = r2.findings.items.find((f) => f.rule === "preview.record");
   assert.ok(warn && warn.message.includes("task_list"), r2.findings.format());
 });
+
+test("docs/samples/工程表（関連レコード一覧のサンプル）: settings-source → normalize はエラー 0 で settings.json と一致、合成のレコードで preview が 2 ページ・式のエラー 0", { skip }, async () => {
+  const { readFileSync } = await import("node:fs");
+  const { REPO_ROOT } = await import("../src/paths.ts");
+  const { normalizeSettings, jsonDiff } = await import("../src/commands/normalize.ts");
+  const { runPreview } = await import("../src/commands/preview.ts");
+  const engine = await engineP;
+  const dir = path.join(REPO_ROOT, "docs", "samples", "工程表");
+  const fields = JSON.parse(readFileSync(path.join(dir, "fields.json"), "utf8"));
+  const r = await normalizeSettings({ settingsText: readFileSync(path.join(dir, "settings-source.json"), "utf8"), settingsFile: "docs/samples/工程表/settings-source.json", fields, engine });
+  assert.ok(!r.findings.hasErrors, r.findings.format());
+  const committed = JSON.parse(readFileSync(path.join(dir, "settings.json"), "utf8"));
+  const diffs = [];
+  const strip = ({ date, ...rest }) => rest;
+  jsonDiff(strip(committed), strip(r.output), "$", diffs);
+  assert.deepEqual(diffs, [], "settings.json が settings-source.json の正規化結果と違う（normalize をやり直してコミット）");
+  const recordFile = JSON.parse(readFileSync(path.join(dir, "record.json"), "utf8"));
+  const p = await runPreview({ settingsText: JSON.stringify(committed), fields, recordFile, engine });
+  assert.ok(!p.findings.hasErrors, p.findings.format());
+  assert.equal(p.results.length, 1);
+  assert.deepEqual(p.results[0].errors, []);
+  assert.equal(p.results[0].pages, 2, "30 タスク = 1 ページ目 24 行 + 2 ページ目 6 行");
+});

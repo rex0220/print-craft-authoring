@@ -289,6 +289,14 @@ async function checkFormulaHtml(formula: string, where: string, f: Findings, ctx
   }
 }
 
+// ---- Qiita の記事で見つかったつまずき（機械で判定できて原因がはっきりしているものだけ情報で知らせる。docs/帳票レシピ集.md「つまずきと切り分け」。2026-10-12） ----
+/** CSS の mm の寸法（150dpi では 96/150 = 約 0.64 倍になる。資産ラベルの記事） */
+const MM_UNIT = /\b\d+(?:\.\d+)?mm\b/;
+/** HTML の style 属性の中身 */
+function styleAttrsOf(html: string): string {
+  return [...html.matchAll(/style\s*=\s*"([^"]*)"|style\s*=\s*'([^']*)'/gi)].map((m) => m[1] ?? m[2] ?? "").join("\n");
+}
+
 export async function checkBody(body: Record<string, unknown>, model: Model, f: Findings, opt: CheckOptions): Promise<void> {
   const { PAPER_NAMES, PAGE_SIZES, DPI_OPTIONS, PRINT_MODES } = model.api;
   const rows = (body.pluginInfos ?? []) as MenuRow[];
@@ -319,6 +327,11 @@ export async function checkBody(body: Record<string, unknown>, model: Model, f: 
   if (font?.enabled && font.cssUrl) {
     if (!/^https:\/\//.test(font.cssUrl)) f.error("font.url", "Web フォント", `cssUrl は https の URL: ${font.cssUrl.slice(0, 80)}`);
     else approvedFinding(f, opt, "Web フォント", font.cssUrl, "fontInfo.cssUrl");
+  }
+  // モバイル（スマホ）の詳細画面の印刷ボタンは Web フォントが有効なときだけ出る（印刷屋 Ver.6。Takashi 2026-10-05）。AI が作った設定は fontInfo を
+  // 忘れやすい（2026-10-12 の工程表で気づいた）ので情報で知らせる。印刷屋と同じ判定（webFontOf: 有効で、候補か https の URL と font-family）
+  if (!model.api.webFontOf(body.fontInfo)) {
+    f.info("font.mobile", "Web フォント", 'Web フォントが無効なので、モバイル（スマホ）の詳細画面には印刷ボタンが出ない（PC だけ）。スマホでも使うなら fontInfo を有効にする（例: { "enabled": true, "preset": "noto-sans-jp" }）');
   }
   // ---- ボタンごと ----
   const seenMenus = new Map<string, number>();
@@ -394,6 +407,13 @@ export async function checkBody(body: Record<string, unknown>, model: Model, f: 
         const r = checkCss(t.css);
         for (const e of r.errors) f.error("css.rule", where, e);
         for (const u of r.externals) externalFinding(f, ctx, where, u.url, `CSS ${u.via}`);
+      }
+      // ---- 記事のつまずき（情報だけ） ----
+      if (String(tags.dpi) === "150" && MM_UNIT.test(`${t.css ?? ""}\n${styleAttrsOf(t.html ?? "")}`)) {
+        f.info("page.dpiMm", where, "150dpi で CSS の mm の寸法を使っている。印刷屋は用紙と dpi からページの px を決めるが CSS の mm は 96dpi 換算なので、150dpi では mm の寸法が約 0.64 倍になる。実寸を合わせるなら 96dpi にするか、px = mm × 150 ÷ 25.4 で書く（資産ラベルの記事）");
+      }
+      if (t.formula && t.formula.includes('\\"')) {
+        f.info("formula.backslashQuote", where, '計算式の文字列の中の \\" は印刷屋が \\ を取り除かない（"<span class=\\"x\\">" は class=\\"x\\" のまま出て CSS が効かない）。HTML の属性は \' で囲む（"<span class=\'x\'>"）');
       }
     }
     const outRow = fieldsInfo[0];

@@ -1,0 +1,1826 @@
+{
+  "tool": "pcraft-authoring record",
+  "fetchedAt": "2026-10-12T00:00:00.000Z",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 4121,
+  "id": 1001,
+  "relatedTables": {
+    "related_project": {
+      "app": 4121,
+      "rows": 0,
+      "children": "all"
+    },
+    "task_list": {
+      "app": 4121,
+      "rows": 30,
+      "children": "all"
+    }
+  },
+  "record": {
+    "$id": {
+      "type": "__ID__",
+      "value": "1001"
+    },
+    "$revision": {
+      "type": "__REVISION__",
+      "value": "3"
+    },
+    "record_type": {
+      "type": "DROP_DOWN",
+      "value": "project"
+    },
+    "project_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "サンプルプロジェクト（社内ポータル刷新）"
+    },
+    "project_code": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "SP-001"
+    },
+    "project_status": {
+      "type": "DROP_DOWN",
+      "value": "active"
+    },
+    "project_priority": {
+      "type": "DROP_DOWN",
+      "value": "高"
+    },
+    "manager_user": {
+      "type": "USER_SELECT",
+      "value": [
+        {
+          "code": "user-a",
+          "name": "山田 太郎"
+        }
+      ]
+    },
+    "manager_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "山田 太郎"
+    },
+    "project_members": {
+      "type": "USER_SELECT",
+      "value": [
+        {
+          "code": "user-a",
+          "name": "山田 太郎"
+        },
+        {
+          "code": "user-b",
+          "name": "佐藤 花子"
+        },
+        {
+          "code": "user-c",
+          "name": "鈴木 一郎"
+        }
+      ]
+    },
+    "description": {
+      "type": "MULTI_LINE_TEXT",
+      "value": "社内ポータルを刷新する。\n要件定義から本番リリースまでを 5 つのフェーズで進める。"
+    },
+    "uuid": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "p-0001"
+    },
+    "exclude_weekends_from_load": {
+      "type": "CHECK_BOX",
+      "value": [
+        "ON"
+      ]
+    },
+    "display_order": {
+      "type": "NUMBER",
+      "value": ""
+    },
+    "related_project": {
+      "type": "SUBTABLE",
+      "value": []
+    },
+    "task_list": {
+      "type": "SUBTABLE",
+      "value": [
+        {
+          "id": "2001",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2001"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0100"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "企画フェーズ"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-04-01"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-05-05"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "done"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "100"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "1"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2002",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2002"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0101"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0100"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "現状調査"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "山田 太郎"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-04-01"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-04-07"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "done"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "100"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "2"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2003",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2003"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0102"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0100"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "要件整理"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "佐藤 花子"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-04-08"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-04-14"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "done"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "100"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "3"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2004",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2004"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0103"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0100"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "要件定義書の作成"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "鈴木 一郎"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-04-15"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-04-21"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "done"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "100"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "4"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2005",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2005"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0104"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0100"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "レビュー"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "山田 太郎"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-04-22"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-04-28"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "done"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "100"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "5"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2006",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2006"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0105"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0100"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "承認"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "佐藤 花子"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-04-29"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-05-05"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "done"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "100"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": [
+                "ON"
+              ]
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "6"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2007",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2007"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0200"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "設計フェーズ"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-05-06"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-06-09"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "in_progress"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "40"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "7"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2008",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2008"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0201"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0200"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "画面設計"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "佐藤 花子"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-05-06"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-05-12"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "done"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "100"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "8"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2009",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2009"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0202"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0200"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "API 設計"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "鈴木 一郎"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-05-13"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-05-19"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "done"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "100"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "9"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2010",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2010"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0203"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0200"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "データ設計"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "山田 太郎"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-05-20"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-05-26"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "in_progress"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "50"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "10"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2011",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2011"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0204"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0200"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "設計レビュー"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "佐藤 花子"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-05-27"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-06-02"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "11"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2012",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2012"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0205"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0200"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "設計承認"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "鈴木 一郎"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-06-03"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-06-09"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": [
+                "ON"
+              ]
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "12"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2013",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2013"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0300"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "開発フェーズ"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-06-10"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-07-14"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "13"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2014",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2014"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0301"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0300"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "認証機能"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "鈴木 一郎"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-06-10"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-06-16"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "14"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2015",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2015"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0302"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0300"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "掲示板機能"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-06-17"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-06-23"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "15"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2016",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2016"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0303"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0300"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "検索機能"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "佐藤 花子"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-06-24"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-06-30"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "16"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2017",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2017"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0304"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0300"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "管理画面"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-07-01"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-07-07"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "17"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2018",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2018"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0305"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0300"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "結合"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "山田 太郎"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-07-08"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-07-14"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": [
+                "ON"
+              ]
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "18"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2019",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2019"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0400"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "テストフェーズ"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-07-15"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-08-18"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "19"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2020",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2020"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0401"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0400"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "単体テスト"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "山田 太郎"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-07-15"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-07-21"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "20"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2021",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2021"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0402"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0400"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "結合テスト"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-07-22"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-07-28"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "21"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2022",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2022"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0403"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0400"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "性能テスト"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "鈴木 一郎"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-07-29"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-08-04"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "22"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2023",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2023"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0404"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0400"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "受入テスト"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-08-05"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-08-11"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "23"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2024",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2024"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0405"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0400"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "不具合修正"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "佐藤 花子"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-08-12"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-08-18"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": [
+                "ON"
+              ]
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "24"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2025",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2025"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0500"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "リリースフェーズ"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-08-19"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-09-22"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "25"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2026",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2026"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0501"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0500"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "移行リハーサル"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "佐藤 花子"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-08-19"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-08-25"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "26"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2027",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2027"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0502"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0500"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "データ移行"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-08-26"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-09-01"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "27"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2028",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2028"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0503"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0500"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "利用者説明会"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "山田 太郎"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-09-02"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-09-08"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "28"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2029",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2029"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0504"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0500"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "本番リリース"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-09-09"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-09-15"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": []
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "29"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        },
+        {
+          "id": "2030",
+          "value": {
+            "task_list$レコード番号": {
+              "type": "RECORD_NUMBER",
+              "value": "2030"
+            },
+            "task_list$uuid": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0505"
+            },
+            "task_list$parent_task_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "t-0500"
+            },
+            "task_list$task_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "運用引き継ぎ"
+            },
+            "task_list$assignee_name": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "鈴木 一郎"
+            },
+            "task_list$start_date": {
+              "type": "DATE",
+              "value": "2026-09-16"
+            },
+            "task_list$end_date": {
+              "type": "DATE",
+              "value": "2026-09-22"
+            },
+            "task_list$task_situation": {
+              "type": "DROP_DOWN",
+              "value": "not_started"
+            },
+            "task_list$progress": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "task_list$milestone": {
+              "type": "CHECK_BOX",
+              "value": [
+                "ON"
+              ]
+            },
+            "task_list$display_order": {
+              "type": "NUMBER",
+              "value": "30"
+            },
+            "task_list$record_type": {
+              "type": "DROP_DOWN",
+              "value": "task"
+            },
+            "task_list$project_id": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "p-0001"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

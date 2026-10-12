@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-12 00:00:00",
+  "pluginName": "印刷屋プラグイン",
+  "pluginID": "rex0220 Print craft plugin",
+  "PluginVersion": "8",
+  "appId": 4121,
+  "appName": "ガントチャート",
+  "pluginEnable": true,
+  "menuInfo": {
+    "recselect": false,
+    "enabled": false,
+    "menuLabel": {
+      "default": "印刷屋",
+      "ja": "印刷屋",
+      "en": "Print craft",
+      "zh": "印刷工坊"
+    }
+  },
+  "guestsInfo": [],
+  "pluginComment": "AI オーサリングのサンプル（工程表。関連レコード一覧）。docs/帳票レシピ集.md の R8",
+  "pluginDescription": "ガントチャートアプリ（プロジェクトとタスクが同じアプリ。関連レコード一覧 task_list がプロジェクトのタスクを指す）の詳細画面で、A4 横の工程表 PDF を作ります。1 ページ目にプロジェクト情報、タスクは親子の階層で並べます。",
+  "commonCssEnable": false,
+  "fontInfo": {
+    "enabled": true,
+    "preset": "noto-sans-jp"
+  },
+  "externalRefs": "block",
+  "pluginInfos": [
+    {
+      "state": true,
+      "id": 1,
+      "menu": "工程表",
+      "menu_en": "",
+      "menu_ja": "",
+      "menu_zh": "",
+      "mcheck": true,
+      "list": false,
+      "authority": false,
+      "guest": "",
+      "users": "",
+      "organizations": "",
+      "groups": "",
+      "desc": "プロジェクトの関連レコード一覧（タスク一覧）を工程表の PDF にします（Ver.8 の関連レコード一覧の確認用）",
+      "desc_en": "",
+      "desc_ja": "",
+      "desc_zh": "",
+      "remark": "Ver.8 実機確認: 関連レコード一覧 task_list を TABLE_HTML で。ボタン表示条件は record_type（task_list は使えない）",
+      "viewsCsv": "",
+      "views": {},
+      "tagsInfo": {
+        "fieldsInfo": [
+          {
+            "id": 1,
+            "state": true,
+            "desc": "プロジェクトのレコードだけ",
+            "remark": "",
+            "fieldcode": "$out",
+            "css": "",
+            "html": "",
+            "formulaSet": "record_type = \"project\"",
+            "formula": "record_type = \"project\"",
+            "usedFields": {
+              "record_type": 1
+            }
+          },
+          {
+            "id": 2,
+            "state": true,
+            "desc": "ファイル名",
+            "remark": "",
+            "fieldcode": "$fname",
+            "css": "",
+            "html": "",
+            "formulaSet": "\"工程表-\" & project_name & \".pdf\"",
+            "formula": "\"工程表-\" & project_name & \".pdf\"",
+            "usedFields": {
+              "project_name": 1
+            }
+          },
+          {
+            "id": 3,
+            "state": true,
+            "desc": "工程表（タスク一覧）",
+            "remark": "1 ページ目にプロジェクト情報（本体の項目）+ タスク 24 行、2 ページ目以降は 28 行ずつ（TABLE_HTML の filter と pagination）。親は太字、子は階層で字下げ。平均進捗は出さない（Takashi 2026-10-12）",
+            "fieldcode": "",
+            "css": ".pcraft-gantt-table { width: 100%; border-collapse: collapse; font-size: 11px; }\n.pcraft-gantt-table th, .pcraft-gantt-table td { border: 1px solid #999; padding: 3px 6px; vertical-align: middle; }\n.pcraft-gantt-head { background: #2c3e50; color: #fff; }\n.pcraft-gantt-row:nth-child(even) { background: #f6f8fa; }\n.pcraft-gantt-bar { position: relative; display: inline-block; width: 120px; height: 10px; background: #e5e7eb; vertical-align: middle; margin-right: 6px; }\n.pcraft-gantt-fill { height: 10px; background: #3498db; }\n.pcraft-gantt-table .value-right { text-align: right; }\n.table-header { font-size: 16px; font-weight: bold; margin: 0 0 8px; }\n.table-header-title small { font-size: 11px; font-weight: normal; color: #444; margin-left: 12px; }\n.table-header-page { font-size: 12px; font-weight: normal; color: #666; margin-left: 12px; }\n.pcraft-gantt-info { border-collapse: collapse; font-size: 11px; margin: 0 0 8px; width: 100%; }\n.pcraft-gantt-info th { width: 110px; text-align: left; background: #eef2f6; border: 1px solid #c9ced3; padding: 3px 6px; font-weight: normal; color: #333; }\n.pcraft-gantt-info td { border: 1px solid #c9ced3; padding: 3px 6px; }",
+            "html": "",
+            "formulaSet": "LET(\n  // 概要（タスク数・完了数・期間）。COUNTROW / SUM / SUBTABLE は関連レコードの仮のテーブルで動く\n  total, COUNTROW(task_list),\n  done, SUM(IF(task_list$task_situation = \"done\", 1, 0)),\n  starts, SUBTABLE(task_list$start_date),\n  ends, SUBTABLE(task_list$end_date),\n  period, IF(total > 0, DATE_FORMAT(MIN(starts), \"YYYY-MM-DD\") & \" 〜 \" & DATE_FORMAT(MAX(ends), \"YYYY-MM-DD\"), \"\"),\n  // 親子: uuid → 親タスクID の表。親の親まで辿って階層を決める（並びは display_order なので親の下に子が並ぶ）\n  parents, TABLE_DIC(task_list, task_list$uuid, task_list$parent_task_id),\n  title, \"工程表 \" & ESC_HTML(project_name) & \"<small>タスク \" & total & \" 件、完了 \" & done & \" 件</small>\",\n  // 1 ページ目のプロジェクト情報（本体の項目）\n  info, \"<table class='pcraft-gantt-info'><tbody>\"\n    & \"<tr><th>プロジェクトコード</th><td>\" & ESC_HTML(project_code) & \"</td><th>状態</th><td>\" & project_status & \"</td><th>優先度</th><td>\" & project_priority & \"</td></tr>\"\n    & \"<tr><th>責任者</th><td>\" & ESC_HTML(manager_name) & \"</td><th>期間（タスク）</th><td colspan='3'>\" & period & \"</td></tr>\"\n    & \"<tr><th>メンバー</th><td colspan='5'>\" & ESC_HTML(project_members) & \"</td></tr>\"\n    & \"<tr><th>概要</th><td colspan='5'>\" & REPLACE(ESC_HTML(description), NEWLINE(), \"<br>\") & \"</td></tr>\"\n    & \"</tbody></table>\",\n  // 1 ページ目: プロジェクト情報 + タスク 24 行（ROWNO は 0 から）。2 ページ目以降: 残りを 28 行ずつ（TABLE_HTML の pagination）\n  page1, \"<div class='rex0220-pcraft-page'><div class='table-header'><span class='table-header-title'>\" & title & \"</span> <span class='table-header-page'>(#{&p/&n})</span></div>\" & info\n    & TABLE_HTML(task_list,\n      OPT(\"filter\", ROWNO(task_list) < 24, \"pref\", \"pcraft-gantt-\"),\n      ARRAY(\"#\", ROWNO(task_list) + 1),\n      ARRAY(\"タスク名\", LET(\n        p1, task_list$parent_task_id,\n        p2, IF(p1 = \"\", \"\", DIC_ITEM(parents, p1)),\n        p3, IF(p2 = \"\", \"\", DIC_ITEM(parents, p2)),\n        name, ESC_HTML(task_list$task_name),\n        IF(p1 = \"\", \"<b>\" & name & \"</b>\", IF(p2 = \"\", \"　└ \" & name, IF(p3 = \"\", \"　　└ \" & name, \"　　　└ \" & name))))),\n      ARRAY(\"担当者\", ESC_HTML(task_list$assignee_name)),\n      task_list$start_date,\n      task_list$end_date,\n      ARRAY(\"状況\", task_list$task_situation),\n      ARRAY(\"進捗\", \"<div class='pcraft-gantt-bar'><div class='pcraft-gantt-fill' style='width:\" & IF(task_list$progress = \"\", 0, task_list$progress) & \"%'></div></div>\" & IF(task_list$progress = \"\", 0, task_list$progress) & \"%\"),\n      ARRAY(\"MS\", IF(task_list$milestone = \"ON\", \"◆\", \"\")),\n      ARRAY(\"レコード\", task_list$レコード番号))\n    & \"</div>\",\n  rest, IF(total <= 24, \"\",\n    TABLE_HTML(task_list,\n      OPT(\"title\", title, \"filter\", ROWNO(task_list) >= 24, \"pagination\", \"Y\", \"perPage\", \"28\", \"maxPages\", \"40\", \"pref\", \"pcraft-gantt-\"),\n      ARRAY(\"#\", ROWNO(task_list) + 1),\n      ARRAY(\"タスク名\", LET(\n        p1, task_list$parent_task_id,\n        p2, IF(p1 = \"\", \"\", DIC_ITEM(parents, p1)),\n        p3, IF(p2 = \"\", \"\", DIC_ITEM(parents, p2)),\n        name, ESC_HTML(task_list$task_name),\n        IF(p1 = \"\", \"<b>\" & name & \"</b>\", IF(p2 = \"\", \"　└ \" & name, IF(p3 = \"\", \"　　└ \" & name, \"　　　└ \" & name))))),\n      ARRAY(\"担当者\", ESC_HTML(task_list$assignee_name)),\n      task_list$start_date,\n      task_list$end_date,\n      ARRAY(\"状況\", task_list$task_situation),\n      ARRAY(\"進捗\", \"<div class='pcraft-gantt-bar'><div class='pcraft-gantt-fill' style='width:\" & IF(task_list$progress = \"\", 0, task_list$progress) & \"%'></div></div>\" & IF(task_list$progress = \"\", 0, task_list$progress) & \"%\"),\n      ARRAY(\"MS\", IF(task_list$milestone = \"ON\", \"◆\", \"\")),\n      ARRAY(\"レコード\", task_list$レコード番号))),\n  page1 & rest\n)",
+            "formula": "LET(\n    total, COUNTROW(task_list),\n  done, SUM(IF(task_list$task_situation = \"done\", 1, 0)),\n  starts, SUBTABLE(task_list$start_date),\n  ends, SUBTABLE(task_list$end_date),\n  period, IF(total > 0, DATE_FORMAT(MIN(starts), \"YYYY-MM-DD\") & \" 〜 \" & DATE_FORMAT(MAX(ends), \"YYYY-MM-DD\"), \"\"),\n    parents, TABLE_DIC(task_list, task_list$uuid, task_list$parent_task_id),\n  title, \"工程表 \" & ESC_HTML(project_name) & \"<small>タスク \" & total & \" 件、完了 \" & done & \" 件</small>\",\n    info, \"<table class='pcraft-gantt-info'><tbody>\"\n    & \"<tr><th>プロジェクトコード</th><td>\" & ESC_HTML(project_code) & \"</td><th>状態</th><td>\" & project_status & \"</td><th>優先度</th><td>\" & project_priority & \"</td></tr>\"\n    & \"<tr><th>責任者</th><td>\" & ESC_HTML(manager_name) & \"</td><th>期間（タスク）</th><td colspan='3'>\" & period & \"</td></tr>\"\n    & \"<tr><th>メンバー</th><td colspan='5'>\" & ESC_HTML(project_members) & \"</td></tr>\"\n    & \"<tr><th>概要</th><td colspan='5'>\" & REPLACE(ESC_HTML(description), NEWLINE(), \"<br>\") & \"</td></tr>\"\n    & \"</tbody></table>\",\n    page1, \"<div class='rex0220-pcraft-page'><div class='table-header'><span class='table-header-title'>\" & title & \"</span> <span class='table-header-page'>(#{&p/&n})</span></div>\" & info\n    & TABLE_HTML(task_list,\n      OPT(\"filter\", ROWNO(task_list) < 24, \"pref\", \"pcraft-gantt-\"),\n      ARRAY(\"#\", ROWNO(task_list) + 1),\n      ARRAY(\"タスク名\", LET(\n        p1, task_list$parent_task_id,\n        p2, IF(p1 = \"\", \"\", DIC_ITEM(parents, p1)),\n        p3, IF(p2 = \"\", \"\", DIC_ITEM(parents, p2)),\n        name, ESC_HTML(task_list$task_name),\n        IF(p1 = \"\", \"<b>\" & name & \"</b>\", IF(p2 = \"\", \"　└ \" & name, IF(p3 = \"\", \"　　└ \" & name, \"　　　└ \" & name))))),\n      ARRAY(\"担当者\", ESC_HTML(task_list$assignee_name)),\n      task_list$start_date,\n      task_list$end_date,\n      ARRAY(\"状況\", task_list$task_situation),\n      ARRAY(\"進捗\", \"<div class='pcraft-gantt-bar'><div class='pcraft-gantt-fill' style='width:\" & IF(task_list$progress = \"\", 0, task_list$progress) & \"%'></div></div>\" & IF(task_list$progress = \"\", 0, task_list$progress) & \"%\"),\n      ARRAY(\"MS\", IF(task_list$milestone = \"ON\", \"◆\", \"\")),\n      ARRAY(\"レコード\", task_list$レコード番号))\n    & \"</div>\",\n  rest, IF(total <= 24, \"\",\n    TABLE_HTML(task_list,\n      OPT(\"title\", title, \"filter\", ROWNO(task_list) >= 24, \"pagination\", \"Y\", \"perPage\", \"28\", \"maxPages\", \"40\", \"pref\", \"pcraft-gantt-\"),\n      ARRAY(\"#\", ROWNO(task_list) + 1),\n      ARRAY(\"タスク名\", LET(\n        p1, task_list$parent_task_id,\n        p2, IF(p1 = \"\", \"\", DIC_ITEM(parents, p1)),\n        p3, IF(p2 = \"\", \"\", DIC_ITEM(parents, p2)),\n        name, ESC_HTML(task_list$task_name),\n        IF(p1 = \"\", \"<b>\" & name & \"</b>\", IF(p2 = \"\", \"　└ \" & name, IF(p3 = \"\", \"　　└ \" & name, \"　　　└ \" & name))))),\n      ARRAY(\"担当者\", ESC_HTML(task_list$assignee_name)),\n      task_list$start_date,\n      task_list$end_date,\n      ARRAY(\"状況\", task_list$task_situation),\n      ARRAY(\"進捗\", \"<div class='pcraft-gantt-bar'><div class='pcraft-gantt-fill' style='width:\" & IF(task_list$progress = \"\", 0, task_list$progress) & \"%'></div></div>\" & IF(task_list$progress = \"\", 0, task_list$progress) & \"%\"),\n      ARRAY(\"MS\", IF(task_list$milestone = \"ON\", \"◆\", \"\")),\n      ARRAY(\"レコード\", task_list$レコード番号))),\n  page1 & rest\n)",
+            "usedFields": {
+              "task_list": 20,
+              "task_list$task_situation": 5,
+              "task_list$start_date": 5,
+              "task_list$end_date": 5,
+              "task_list$parent_task_id": 5,
+              "task_list$uuid": 1,
+              "project_name": 1,
+              "project_code": 1,
+              "project_status": 1,
+              "project_priority": 1,
+              "manager_name": 1,
+              "project_members": 1,
+              "description": 1,
+              "task_list$task_name": 3,
+              "task_list$assignee_name": 3,
+              "task_list$progress": 12,
+              "task_list$milestone": 3,
+              "task_list$レコード番号": 3
+            }
+          }
+        ],
+        "filecode": "",
+        "pageSize": "A4",
+        "orientation": "l",
+        "dpi": "96",
+        "printMode": "preview"
+      },
+      "calcInfo": {
+        "fieldsInfo": [],
+        "usedFields": {},
+        "flinkage": false
+      }
+    }
+  ],
+  "usedFields": {},
+  "pluginUOG": false
+}

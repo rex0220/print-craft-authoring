@@ -24,8 +24,11 @@ test("samples がある", () => {
 
 for (const name of samples) {
   const dir = path.join(samplesDir, name);
-  test(`sample ${name}: settings-source → normalize はエラー 0 で settings.json と一致、再正規化で差 0`, async () => {
-    const fields = JSON.parse(readFileSync(path.join(dir, "fields.json"), "utf8"));
+  // 関連レコード一覧のサンプル（fields に related）は印刷屋 Ver.8（authoring API 3）の zip が要る。読んだ zip が古ければ飛ばす（engine-v8.test.mjs が Ver.8 の zip で検査する）
+  const sampleFields = JSON.parse(readFileSync(path.join(dir, "fields.json"), "utf8"));
+  const skip = sampleFields.related && typeof engine.api.expandRelatedFields !== "function" ? `関連レコード一覧のサンプルは API 3 の zip で検査する（読んだ zip は API ${engine.api.apiVersion}）` : false;
+  test(`sample ${name}: settings-source → normalize はエラー 0 で settings.json と一致、再正規化で差 0`, { skip }, async () => {
+    const fields = sampleFields;
     const source = readFileSync(path.join(dir, "settings-source.json"), "utf8");
     const r = await normalizeSettings({ settingsText: source, settingsFile: `docs/samples/${name}/settings-source.json`, fields, engine });
     assert.ok(!r.findings.hasErrors, r.findings.format());
@@ -38,7 +41,7 @@ for (const name of samples) {
     assert.deepEqual(again.checkDiffs, []);
   });
   if (existsSync(path.join(dir, "record.json"))) {
-    test(`sample ${name}: preview が通る`, async () => {
+    test(`sample ${name}: preview が通る`, { skip }, async () => {
       const fields = JSON.parse(readFileSync(path.join(dir, "fields.json"), "utf8"));
       const recordFile = JSON.parse(readFileSync(path.join(dir, "record.json"), "utf8"));
       const r = await runPreview({ settingsText: readFileSync(path.join(dir, "settings.json"), "utf8"), fields, recordFile, engine });

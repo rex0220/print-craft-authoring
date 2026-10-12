@@ -348,3 +348,30 @@ test("検査: CSS の @import と使えない URL、共通 CSS、Web フォン�
   assert.ok(css.some((f) => f.message.includes("使えない形")));
   assert.ok(r.findings.items.some((f) => f.rule === "external.allowed" && f.where === "Web フォント"), "Google Fonts は既定で許す");
 });
+
+test("Web フォントが無効な設定はモバイルの詳細画面にボタンが出ないので情報で知らせる（font.mobile。2026-10-12）。有効なら出さない", async () => {
+  assert.ok(rules(await run(aiSettings()), "info").includes("font.mobile"), "fontInfo が無い");
+  assert.ok(rules(await run(aiSettings({ fontInfo: { enabled: false, preset: "noto-sans-jp" } })), "info").includes("font.mobile"), "無効");
+  assert.ok(!rules(await run(aiSettings({ fontInfo: { enabled: true, preset: "noto-sans-jp" } })), "info").includes("font.mobile"), "候補の書体で有効");
+  assert.ok(!rules(await run(aiSettings({ fontInfo: { enabled: true, preset: "other", family: "F", cssUrl: "https://fonts.googleapis.com/css2?family=F" } })), "info").includes("font.mobile"), "その他の書体で有効");
+});
+
+test("記事のつまずきを情報で知らせる（2026-10-12）: 150dpi + mm、計算式の文字列の \\\"。情報でエラーにしない", async () => {
+  const base = aiSettings();
+  const row = base.pluginInfos[0];
+  const mm = JSON.parse(JSON.stringify(base));
+  mm.pluginInfos[0].tagsInfo.dpi = "150";
+  mm.pluginInfos[0].tagsInfo.fieldsInfo[2].css = ".lb { width: 86.4mm; height: 42.3mm; }";
+  const r1 = await run(mm);
+  assert.deepEqual(rules(r1, "error"), [], r1.findings.format());
+  assert.ok(rules(r1, "info").includes("page.dpiMm"), "150dpi + mm");
+  const mm96 = JSON.parse(JSON.stringify(mm));
+  mm96.pluginInfos[0].tagsInfo.dpi = "96";
+  assert.ok(!rules(await run(mm96), "info").includes("page.dpiMm"), "96dpi なら出さない");
+  const bq = JSON.parse(JSON.stringify(base));
+  bq.pluginInfos[0].tagsInfo.fieldsInfo[2].formulaSet = 'REPLACE($html, "##table##", "<span class=\\"done\\">済</span>")';
+  assert.ok(rules(await run(bq), "info").includes("formula.backslashQuote"));
+  const sq = JSON.parse(JSON.stringify(base));
+  sq.pluginInfos[0].tagsInfo.fieldsInfo[2].formulaSet = "REPLACE($html, \"##table##\", \"<span class='done'>済</span>\")";
+  assert.ok(!rules(await run(sq), "info").includes("formula.backslashQuote"), "' なら出さない");
+});
