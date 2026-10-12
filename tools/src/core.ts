@@ -88,8 +88,8 @@ export { ButtonNotFoundError, listButtons, shortenDataUrls, type ButtonsOptions 
 export { DERIVED_KEYS, diffSettings } from "./commands/diff.ts";
 
 // 項目定義・レコード・preview・pull・take
-export { fetchFields, listFields, summarizeFields, type FieldsFile, type FieldsOptions } from "./commands/fields.ts";
-export { describeRecord, fetchRecord, missingInRecord, narrowRecord, shapeLines, summarizeRecord, usedFieldCodes, type KintoneRecord, type RecordFile, type RecordOptions } from "./commands/record.ts";
+export { fetchFields, listFields, referenceTablesOf, summarizeFields, type FieldsFile, type FieldsOptions, type RelatedFields } from "./commands/fields.ts";
+export { describeRecord, fetchRecord, fetchRelatedTables, missingInRecord, narrowRecord, relatedErrorText, relatedPlanOf, shapeLines, summarizeRecord, usedFieldCodes, type KintoneRecord, type RecordFile, type RecordOptions, type RelatedFetchOptions, type RelatedPlan, type RelatedTableInfo } from "./commands/record.ts";
 export { LIST_LIMIT, QUERY_MAX, QueryError, SHAPE_TEXT_MAX, listQueryOf, listRecordShapes, type RecordShape, type RecordShapes } from "./commands/records.ts";
 export { extractRecord, previewFileNames, runPreview, type PreviewInput, type PreviewResult } from "./commands/preview.ts";
 export { defaultPullName, pullSettings, type PullOptions, type PullResult } from "./commands/pull.ts";

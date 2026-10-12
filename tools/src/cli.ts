@@ -16,7 +16,7 @@ import { takeInbox } from "./commands/take.ts";
 import { NotAllowedError, RestError, createRestClient } from "./kintone-rest.ts";
 import { KintoneUrlError } from "./kintone-url.ts";
 import { fetchFields, listFields, summarizeFields } from "./commands/fields.ts";
-import { describeRecord, fetchRecord, summarizeRecord, usedFieldCodes, type RecordFile } from "./commands/record.ts";
+import { describeRecord, fetchRecord, summarizeRecord, usedFieldCodes, type RecordFile, type RelatedFetchOptions } from "./commands/record.ts";
 import { printCraftProdDir } from "./dev-paths.ts";
 import { FileExistsError, writeNewFile } from "./commit-file.ts";
 import { InputError, MAX_INPUT_BYTES, loadPolicy, normalizeSettings, readFieldsFile, readJsonLimited, readTextLimited, relativeSettingsPath } from "./commands/normalize.ts";
@@ -48,8 +48,9 @@ const USAGE = `使い方: npx @rex0220/print-craft-authoring-tools <command> [op
       kintone の API ラボ「アプリに追加されているプラグインの設定情報を取得する」を有効にした環境だけ。権限は運用中の設定がレコード閲覧（API トークンでも可）、
       --preview（動作テスト環境 = 保存して未反映の設定）がアプリ管理。プラグイン ID は印刷屋の zip から。既にあるファイルは --force で上書き
       （--force は settings/ に置くときだけ。接続のファイルがあるときはダウンロードと同じ日時の名前で新しく置き、上書きしない）。
-  record --app N --id R [--fields-from <settings.json>] [--guest <spaceId>] [--out records/<file>]
-      レコードを records/<N>-<R>.json に保存。--fields-from で設定が使う項目だけ残す。
+  record --app N --id R [--fields-from <settings.json>] [--fields <fields.json>] [--guest <spaceId>] [--out records/<file>]
+      レコードを records/<N>-<R>.json に保存。--fields-from で設定が使う項目だけ残す。fields.json（省略はアプリのフォルダーか fields/<N>.json）に
+      関連レコード一覧の参照先（related。印刷屋 Ver.8）があれば、参照先のレコードも仮のテーブルとして入れる（preview で確かめるため）。
   record --app N --id R --summary
       取得済みの records/<N>-<R>.json を 1 項目 1 行で。値は出さず形だけ（文字数・行数・数値の桁・テーブルの行数・添付の件数と種類）。通信しない。
   buttons <settings.json> [--button <名前>] [--json]
@@ -366,7 +367,8 @@ async function fields(args: string[]): Promise<number> {
     return 0;
   }
   const { client: c, authLabel, guestSpaceId } = client(ctx, args, app);
-  const file = await fetchFields(c, { app, lang: option(args, "lang"), preview: flag(args, "preview"), guestSpaceId });
+  // 関連レコード一覧の参照先のアプリ（Ver.8）は、そのアプリの認証（profile の形なら tokenMap）で取る。取れなければ fields の relatedNotes に理由が残る
+  const file = await fetchFields(c, { app, lang: option(args, "lang"), preview: flag(args, "preview"), guestSpaceId, relatedClientFor: (relatedApp) => client(ctx, args, relatedApp).client });
   if (ctx.def) {
     // フォルダーが無ければ作る（中身より先に印を置く。15.5）
     const dir = appDirFor(W.root, ctx.def.profile, app, file.appName);
@@ -399,17 +401,33 @@ async function record(args: string[]): Promise<number> {
   const out = resolveWrite(option(args, "out") ?? defaultRel(), WRITE_ROOTS.records);
   const from = option(args, "fields-from");
   let keep: Set<string> | undefined;
+  let settings: Record<string, unknown> | undefined;
   if (from) {
     const fromFile = resolveRead(from);
     usable(fromFile);
-    const settings = readJsonLimited(fromFile);
+    settings = readJsonLimited(fromFile);
     const codes = usedFieldCodes(settings);
     if (!codes) console.log(`${from} に使う項目の情報が無いので絞らない（normalize した設定なら usedFields から絞れる）`);
     else keep = codes;
   }
+  // 関連レコード一覧（Ver.8）: --fields の fields.json（省略はアプリのフォルダーの fields.json か fields/<app>.json。あるときだけ）に related があれば、
+  // 印刷屋の zip の規則で参照先のレコードも取り、仮のテーブルとして入れる（preview で確かめるため）。取る子は --fields-from の設定が使う分（無ければ全項目）
+  const fieldsArg = option(args, "fields");
+  const fieldsRel = fieldsArg ?? (ctx.def ? path.join(existingAppDir(ctx as Ctx & { def: ProfileDef }, app), "fields.json") : path.join("fields", `${app}.json`));
+  const fieldsPath = fieldsArg ? existingFile(fieldsArg, `fields --app ${app}${profileFlag(ctx)}`) : resolveRead(fieldsRel);
+  let related: RelatedFetchOptions | undefined;
+  if (fieldsArg || existsSync(fieldsPath)) {
+    const fieldsData = await readFieldsFile(fieldsPath);
+    if (fieldsData.appId !== app) throw new InputError(`${shown(fieldsPath)} はアプリ ${fieldsData.appId} の項目定義（--app ${app} と違う）`);
+    if (fieldsData.related && Object.keys(fieldsData.related).length > 0) {
+      const engine = await engineFor();
+      if (typeof engine.api.relatedChildrenUsedBy !== "function") console.log("印刷屋の zip が Ver.7 以前（authoring API 1 / 2）なので関連レコードは取らない");
+      else related = { api: engine.api, fields: fieldsData, settings, clientFor: (relatedApp) => client(ctx, args, relatedApp).client };
+    }
+  }
   const { client: c, authLabel, guestSpaceId } = client(ctx, args, app);
   allow(out, "record");
-  const file = await fetchRecord(c, { app, id, guestSpaceId, keep });
+  const file = await fetchRecord(c, { app, id, guestSpaceId, keep, related });
   writeJson(out, file, WRITE_ROOTS.records, "record");
   console.log(`${summarizeRecord(file)}\n${authLabel}で ${c.baseUrl} から取得 → ${shown(out)}（個人情報を含む。コミットしない）`);
   return 0;

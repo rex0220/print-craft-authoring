@@ -39,6 +39,19 @@ export const REQUIRED_API: Record<string, "function" | "object" | "string" | "nu
   readConfig: "function", buildExportData: "function"
 };
 
+/** API の版 3（印刷屋 Ver.8。関連レコード一覧）で足したもの。tools はこれらを zip から呼び、規則を写さない（print-craft の docs/related-records-spec.md 11 章） */
+export const REQUIRED_API_V3: Record<string, "function" | "object" | "string" | "number"> = {
+  RELATED_SEPARATOR: "string", RELATED_CHILD_TYPES: "object", RELATED_LIMIT: "number", RELATED_PAGE: "number",
+  relatedDefOf: "function", relatedParentsOf: "function", expandRelatedFields: "function", makeReportPp: "function", identifiersOf: "function",
+  relatedCodesUsedBy: "function", relatedChildrenUsedBy: "function", relatedUsageErrors: "function", relatedCondition: "function", relatedQuery: "function",
+  fetchRelatedRecords: "function", toRelatedRows: "function", RelatedRecordError: "function", RelatedUsageError: "function", evaluate: "function"
+};
+
+/** その版の zip の API に要るキーと型（1・2 は REQUIRED_API だけ。3 以上は関連レコード一覧の分も） */
+export function requiredApiFor(apiVersion: number): Record<string, "function" | "object" | "string" | "number"> {
+  return apiVersion >= 3 ? { ...REQUIRED_API, ...REQUIRED_API_V3 } : REQUIRED_API;
+}
+
 export interface ToolsMeta {
   toolsVersion: string;
   /** 扱う印刷屋の zip のプラグイン ID */

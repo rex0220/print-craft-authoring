@@ -349,6 +349,23 @@ export async function checkBody(body: Record<string, unknown>, model: Model, f: 
     } else if (row.list === false && row.state) {
       f.info("tags.filecode", label, "保存先が無い（PC はダウンロード、iPhone は共有シート、Android の kintone アプリは案内）");
     }
+    // ---- 関連レコード一覧（印刷屋 Ver.8 / API 3。規則は zip の relatedUsageErrors。設定画面の保存と同じ 3 つ） ----
+    if (row.state && model.relatedParents.length && typeof model.api.relatedUsageErrors === "function") {
+      for (const issue of model.api.relatedUsageErrors(row, model.relatedParents)) {
+        const text =
+          issue.kind === "firstRow"
+            ? `ボタン表示条件 / 更新条件（1 行目）では関連レコード一覧（${issue.parent}）を使えない（画面を開いたときには関連レコードが無い。印刷屋はこのボタンを出さない）`
+            : issue.kind === "listReport"
+              ? `一覧帳票では関連レコード一覧（${issue.parent}）を使えない（Ver.8 は詳細画面の個別帳票だけ）`
+              : `関連レコード一覧（${issue.parent}）には FSET / FSET_TADD で書けない（読み取り専用）`;
+        f.error(`related.${issue.kind}`, label, text);
+      }
+      for (const parent of model.api.relatedCodesUsedBy(row, model.relatedParents)) {
+        if (model.relatedMissing.includes(parent)) {
+          f.error("related.fields", label, `関連レコード一覧 ${parent} の参照先の項目定義が fields に無い（旧版の fields、参照先を見る権限が無い、tokenMap にそのアプリのトークンが無い）。fields を取り直す: npx @rex0220/print-craft-authoring-tools fields --app ${model.appId}`);
+        }
+      }
+    }
     const fieldsInfo = tags.fieldsInfo as TagRow[];
     if (fieldsInfo.length < 2) f.error("tags.rows", label, `HTML 設定は 1 行目 $out（ボタン表示条件）、2 行目 $fname（ファイル名）、3 行目以降が帳票。行が ${fieldsInfo.length} しか無い`);
     if (fieldsInfo[0] && fieldsInfo[0].fieldcode !== "$out") f.error("tags.rows", label, `1 行目の fieldcode は $out: ${fieldsInfo[0].fieldcode}`);

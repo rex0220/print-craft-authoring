@@ -121,7 +121,7 @@ kintone/
 | コマンド | 内容 |
 | :--- | :--- |
 | `npx @rex0220/print-craft-authoring-tools fields --app N` | 項目定義・レイアウト・アプリ名を `fields/N.json` に |
-| `npx @rex0220/print-craft-authoring-tools record --app N --id R --fields-from settings/<ファイル>.json` | プレビュー用のレコードを `records/N-R.json` に（設定が使う項目だけ） |
+| `npx @rex0220/print-craft-authoring-tools record --app N --id R --fields-from settings/<ファイル>.json` | プレビュー用のレコードを `records/N-R.json` に（設定が使う項目だけ）。`fields/N.json` に関連レコード一覧の参照先（`related`。印刷屋 Ver.8）があれば、参照先のレコードも仮のテーブル `親$子` として入れる（`--fields <fields.json>` で場所を指定できる） |
 | `npx @rex0220/print-craft-authoring-tools normalize settings/<ファイル>.json --fields fields/N.json` | 派生値の生成と検査。エラーがあれば書き戻さない。`--check` で派生値の差、`--dry-run` で書かない |
 | `npx @rex0220/print-craft-authoring-tools preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json` | ボタンごとの帳票 HTML を `out/` に |
 | `npx @rex0220/print-craft-authoring-tools diff <前.json> <後.json>` | 既存設定の変更の差分 |
@@ -133,6 +133,8 @@ kintone/
 | `npx @rex0220/print-craft-authoring-tools fields --app N --summary` | 取得済みの `fields/N.json` を 1 項目 1 行で（通信しない） |
 | `npx @rex0220/print-craft-authoring-tools record --app N --id R --summary` | 取得済みの `records/N-R.json` の形（文字数・行数・桁・件数。値は出さない。通信しない） |
 | `npx @rex0220/print-craft-authoring-tools version` | tools の版と、zip から読んだ印刷屋の版・authoring API の版・計算式エンジンの SHA-256 |
+
+関連レコード一覧（印刷屋 Ver.8 / tools 2.1.0）: `fields` は関連レコード一覧（`REFERENCE_TABLE`）の参照先の項目定義も取って `related` に入れます（API トークンの接続では参照先のアプリのトークンも接続のファイルの `tokenMap` に書く。取れなければ `relatedNotes` に理由）。帳票の計算式では参照先の項目を `<関連レコード一覧のフィールドコード>$<参照先のフィールドコード>` と書き、テーブルの関数（TABLE_HTML / TABLE_DIC / SUM / COUNTROW …）で使えます（読み取りだけ。ボタン表示条件・更新条件・一覧用のボタンでは使えない。1 つの関連レコード一覧につき 1,000 件まで）。`normalize` が検査し、`record` が参照先のレコードを取るので `preview` で確かめられます。詳しくは印刷屋の `docs/related-records-spec.md`。
 
 kintone には **GET しか送りません**。計算式エンジン（`KintoneFormulaPCraft.min.js`）と印刷屋の設定画面・帳票のコード（`print-craft-authoring-api.js`）は、tools には含まれず、`.env` の `PCRAFT_PLUGIN_ZIP` の zip から実行のたびに読みます（コピーも書き出しもしません。印刷屋プラグインの利用規約に従います）。
 

@@ -65,7 +65,7 @@ export async function runPreview(input: PreviewInput): Promise<PreviewResult> {
   if (!normalized.body || findings.hasErrors) return { findings, results, skipped, summary: normalized.summary };
   const record = extractRecord(input.recordFile);
   const missing = missingInRecord(normalized.body, input.fields, record);
-  if (missing.length) findings.warning("preview.record", "レコード", `設定が使う項目がプレビューのレコードに無い: ${missing.slice(0, 10).join(", ")}${missing.length > 10 ? ` 他 ${missing.length - 10}` : ""}（帳票では空になる。record --fields-from <この設定> で取り直す）`);
+  if (missing.length) findings.warning("preview.record", "レコード", `設定が使う項目がプレビューのレコードに無い: ${missing.slice(0, 10).join(", ")}${missing.length > 10 ? ` 他 ${missing.length - 10}` : ""}（帳票では空になる。record --fields-from <この設定> で取り直す。関連レコード一覧（親$子）は fields に related があるとき record が取る）`);
   const model = buildModel(input.fields, input.engine.api, input.baseUrl);
   // APP_URL などの元になる URL は .env の接続先。無ければ実在しないテナント（fields の値は使わない）
   input.engine.setContext({ baseUrl: model.baseUrl || DEFAULT_CONTEXT_BASE_URL, appId: input.fields.appId });

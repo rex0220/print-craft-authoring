@@ -23,7 +23,7 @@ import vm from "node:vm";
 import type { PrintCraftAuthoringApi } from "print-craft/src/authoring/api.ts";
 import { MOMENT_FILE } from "./paths.ts";
 import { API_ENTRY, BIGNUMBER_ENTRY, ENGINE_ENTRY, MANIFEST_ENTRY, MOMENT_TZ_ENTRY, PluginZipError, readPluginZip, sha256Hex, type PluginSources, type PluginZipErrorInfo } from "./plugin-zip.ts";
-import { isSupportedPluginVersion, MIN_PLUGIN_VERSION, PRINT_CRAFT_PLUGIN_ID, REQUIRED_API, SUPPORTED_API_VERSIONS, toolsMeta } from "./meta.ts";
+import { isSupportedPluginVersion, MIN_PLUGIN_VERSION, PRINT_CRAFT_PLUGIN_ID, requiredApiFor, SUPPORTED_API_VERSIONS, toolsMeta } from "./meta.ts";
 
 /** 計算式のインスタンス（print-craft の config/libs.ts の KintoneFormula と同じ形） */
 export interface FormulaInstance {
@@ -274,7 +274,7 @@ async function startEngine(src: PluginSources & { kind: "zip" | "dev"; api: stri
   const withApi = { ...known, apiVersion: api.apiVersion as unknown };
   if (!SUPPORTED_API_VERSIONS.includes(api.apiVersion)) throw new PluginZipError(`印刷屋の authoring API の版 ${String(api.apiVersion)} には対応していない（tools は ${SUPPORTED_API_VERSIONS.join(", ")}）。tools を新しい版にする`, "api-unsupported", withApi);
   if (String(api.pluginVersion) !== src.pluginVersion) throw new PluginZipError(`authoring API の印刷屋の版 ${String(api.pluginVersion)} が zip の manifest の版 ${src.pluginVersion} と違う（組み替えられた zip）`, "api-mismatch", withApi);
-  const bad = Object.entries(REQUIRED_API).filter(([k, t]) => typeof (api as unknown as Record<string, unknown>)[k] !== t).map(([k]) => k);
+  const bad = Object.entries(requiredApiFor(api.apiVersion)).filter(([k, t]) => typeof (api as unknown as Record<string, unknown>)[k] !== t).map(([k]) => k);
   if (bad.length) throw new PluginZipError(`印刷屋の authoring API に tools が使うものが無い、または型が違う: ${bad.join(", ")}（tools と印刷屋の版を合わせる）`, "api-incomplete", withApi);
 
   loaded = {
