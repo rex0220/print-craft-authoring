@@ -10,7 +10,7 @@ test("devMeta: tools の版、扱う印刷屋（プラグイン ID、版の下�
   assert.match(m.toolsVersion, /^\d+\.\d+\.\d+$/);
   assert.equal(m.pluginId, "lcapkanpjdabgphknkabojmcfhonhkhp");
   assert.equal(m.minPluginVersion, 6);
-  assert.deepEqual(m.supportedApiVersions, [1, 2]);
+  assert.deepEqual(m.supportedApiVersions, [1, 2, 3]);
   assert.match(m.commit, /^([0-9a-f]{7,}(\+dirty)?|unknown)$/);
   assert.equal(m.mode, "dev");
 });

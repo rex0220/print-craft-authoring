@@ -20,7 +20,7 @@ export const PRINT_CRAFT_PLUGIN_ID = "lcapkanpjdabgphknkabojmcfhonhkhp";
 /** tools が扱う印刷屋の版の下限（manifest.json の version。authoring API を同梱したのが Ver.6） */
 export const MIN_PLUGIN_VERSION = 6;
 /** tools が対応する印刷屋の authoring API の版（print-craft の src/authoring/api.ts の AUTHORING_API_VERSION。2 = Ver.7 で webFontPageCss を追加） */
-export const SUPPORTED_API_VERSIONS: readonly number[] = [1, 2];
+export const SUPPORTED_API_VERSIONS: readonly number[] = [1, 2, 3];
 
 /** 印刷屋の版として扱えるか（整数で MIN_PLUGIN_VERSION 以上） */
 export function isSupportedPluginVersion(version: string): boolean {

@@ -107,12 +107,12 @@ test("API の pluginVersion が manifest の版と違う zip は止まる（子�
   assert.match(r.message, /manifest の版 6 と違う/);
 });
 
-test("API の版: 1 と 2 は受け付け（契約の検査まで進む）、0 と 3 は止まる（1 つずつ子プロセス）", () => {
-  for (const v of [1, 2]) assert.equal(loadInChild(apiStub(`api-${v}.zip`, v))[0].code, "api-incomplete", `API ${v} は版の照合を通る`);
-  for (const v of [0, 3]) {
+test("API の版: 1 〜 3 は受け付け（契約の検査まで進む）、0 と 4 は止まる（1 つずつ子プロセス）", () => {
+  for (const v of [1, 2, 3]) assert.equal(loadInChild(apiStub(`api-${v}.zip`, v))[0].code, "api-incomplete", `API ${v} は版の照合を通る`);
+  for (const v of [0, 4]) {
     const [r] = loadInChild(apiStub(`api-${v}.zip`, v));
     assert.deepEqual([r.code, r.info.apiVersion, r.info.pluginVersion], ["api-unsupported", v, "6"]);
-    assert.match(r.message, new RegExp(`authoring API の版 ${v} には対応していない（tools は 1, 2）`));
+    assert.match(r.message, new RegExp(`authoring API の版 ${v} には対応していない（tools は 1, 2, 3）`));
   }
 });
 
