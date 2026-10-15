@@ -12,7 +12,7 @@ url: https://qiita.com/rex0220/items/acc7467aef9bb6a37325（2026-10-15 公開）
 
 できあがったのは、下のカードです。左に、生まれた日の 8 惑星の位置を描いています。右には、名前・生年月日・メッセージと、惑星ごとの年齢（生まれてからの日数 ÷ 公転周期）を並べました。右下は、太陽の位置から求めた誕生星座の図です。
 
-![1990 年 5 月 15 日生まれのカード（A5 横、150 dpi。印刷屋と同じ html2canvas で描いたもの）](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/100572/e69b954b-7ab4-4ce6-ab24-2fc342df6613.jpeg)
+![2000 年 1 月 1 日生まれのカード（A5 横、150 dpi。印刷屋と同じ html2canvas で描いたもの）](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/100572/21c42e08-9eff-4f0e-976f-01f5e9ca4176.jpeg)
 
 なお、右下の星座の図は、正直なところデザインがイマイチだと思っています。図は Claude Design で AI に描かせたもので、描かせ方は 5.2 に書いています。
 
