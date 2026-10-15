@@ -419,6 +419,7 @@ AI は画像の箱の幅と並び方を見て、**これは新しい設定では
 10. [「あなたが生まれた日の太陽系」カードを作らせる](https://qiita.com/rex0220/items/acc7467aef9bb6a37325)
 11. [業務データから「番付表」を作らせる](https://qiita.com/rex0220/items/de341ab43b4c40bf61c1)
 12. [番付表用の相撲字風の書体を作らせる](https://qiita.com/rex0220/items/ffb7caf61c570045d968)
+13. [ABC 記法の曲から「五線譜」を作らせる](https://qiita.com/rex0220/items/6b3fa929652fcee66c6e)
 
 関連リンク:
 
