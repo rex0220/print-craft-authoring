@@ -350,6 +350,14 @@ getVal FIELD CODE NOT FOUND: k
 
 印刷屋の画面（Ver.8）で 14 本の PDF を作りました（きらきら星・ふるさと・喜びの歌・小さな練習曲は 3 ボタンとも、春が来たと音階の練習は通常だけ）。どれも A4 縦 1 ページ（音階の練習は 2 ページ）、画像は 2480×3508（150 dpi の 2 倍）の JPEG、1 本 140〜250 KB（2 ページは 600 KB）です。
 
+ここまでの章に載せていない曲の PDF です（下の余白を切り、半分の大きさにしています）。
+
+![きらきら星（4/4 ハ長調。英語の歌詞は音節をハイフンでつなぐ。実機の PDF）](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/100572/dcaddf06-282e-4059-9d08-45f6d7a32b02.jpeg)
+
+![ふるさと（ドレミ付き。3/4 ヘ長調、歌詞は 3 番まで。実機の PDF）](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/100572/c86b2912-9fee-44a1-8423-d207b5b9bb04.jpeg)
+
+![音階の練習（96 小節の長い曲を、先頭の 51 小節で打ち切って注記を出す。2 ページのうち 1 ページ目。実機の PDF）](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/100572/91ce00ae-a17e-469f-9d88-cdde3b21f0ed.jpeg)
+
 手元で、同じ設定とレコードから同じ html2canvas 1.4.1（scale 2）で描いた画像と、画素で比べました。
 
 - 枠の無いページは、差の平均が 0.3〜0.55（JPEG の圧縮のぶん）。英字の歌詞の多い喜びの歌は 0.7〜1.0 で、ドレミの小さな字が 1px ずれたところだけ
