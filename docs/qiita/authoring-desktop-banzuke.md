@@ -219,7 +219,7 @@ v3, REPLACERE(v2, "<span>([ー－―〜～…‥])</span>", "gu", "<span class='
 
 ## 4.1 指定のしかた
 
-書体は、PC に入れた相撲字風の書体「Sumo Trial」です（Noto Serif JP Bold を加工した OFL の試作書体。JIS 第 1・第 2 水準 6,884 字）。印刷屋の Web フォントの設定はオフのままにし、帳票の CSS で指定しました。
+書体は、PC に入れた相撲字風の書体「Sumo Trial」です（Noto Serif JP Bold を加工した OFL の試作書体。JIS 第 1・第 2 水準 6,884 字）。書体の作り方は、[次の記事](https://qiita.com/rex0220/items/ffb7caf61c570045d968) にまとめました。印刷屋の Web フォントの設定はオフのままにし、帳票の CSS で指定しました。
 
 ```css
 .bz-page { box-sizing: border-box; padding: 18px 20px 0; background: #fff; color: #1a1410;
@@ -441,6 +441,7 @@ tA, ARRAY_MAP(rA, r, IF(AND(two = 1, r >= 4), 2, 1)),
 9. [作文を原稿用紙（400 字詰め）の PDF にさせる](https://qiita.com/rex0220/items/bb2649ca3d70264b8242)
 10. [「あなたが生まれた日の太陽系」カードを作らせる](https://qiita.com/rex0220/items/acc7467aef9bb6a37325)
 11. **業務データから「番付表」を作らせる（この記事）**
+12. [番付表用の相撲字風の書体を作らせる](https://qiita.com/rex0220/items/ffb7caf61c570045d968)
 
 関連リンク:
 

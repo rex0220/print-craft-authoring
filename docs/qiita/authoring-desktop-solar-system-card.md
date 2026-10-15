@@ -470,6 +470,7 @@ ${REPLACEALL(ESC_HTML(メッセージ), NEWLINE(), "<br>")}
 9. [作文を原稿用紙（400 字詰め）の PDF にさせる](https://qiita.com/rex0220/items/bb2649ca3d70264b8242)
 10. **「あなたが生まれた日の太陽系」カードを作らせる（この記事）**
 11. [業務データから「番付表」を作らせる](https://qiita.com/rex0220/items/de341ab43b4c40bf61c1)
+12. [番付表用の相撲字風の書体を作らせる](https://qiita.com/rex0220/items/ffb7caf61c570045d968)
 
 関連リンク:
 
