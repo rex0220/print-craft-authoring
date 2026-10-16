@@ -90,6 +90,10 @@ url: https://qiita.com/rex0220/items/6b3fa929652fcee66c6e（2026-10-16 公開）
 | `権利メモ` | 文字列（複数行） | 曲の権利と、旋律を確かめた資料 |
 | `楽譜PDF` | 添付ファイル | PDF の保存先 |
 
+喜びの歌のレコードの画面です。上の 3 つが印刷屋のボタンで、作った PDF は「楽譜PDF」に保存されます（3 つのボタンで作った後）。
+
+![喜びの歌のレコード（kintone の画面）](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/100572/abe1ccbf-1da2-48d9-b51f-d18b24a18e58.png)
+
 見本の曲は 6 件です。
 
 | # | 曲 | 拍子・調 | 確かめること |
