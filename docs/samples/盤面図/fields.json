@@ -1,0 +1,298 @@
+{
+  "tool": "pcraft-authoring fields",
+  "fetchedAt": "2026-10-16T02:33:00.896Z",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 4327,
+  "appName": "盤面図（棋譜）",
+  "preview": false,
+  "lang": "ja",
+  "revision": "5",
+  "properties": {
+    "表示手数": {
+      "type": "NUMBER",
+      "code": "表示手数",
+      "label": "表示する手数（空なら最終手）",
+      "noLabel": false,
+      "required": false,
+      "minValue": "0",
+      "maxValue": "",
+      "digit": false,
+      "unique": false,
+      "defaultValue": "",
+      "displayScale": "",
+      "unit": "",
+      "unitPosition": "BEFORE"
+    },
+    "レコード番号": {
+      "type": "RECORD_NUMBER",
+      "code": "レコード番号",
+      "label": "レコード番号",
+      "noLabel": false
+    },
+    "作業者": {
+      "type": "STATUS_ASSIGNEE",
+      "code": "作業者",
+      "label": "作業者",
+      "enabled": false
+    },
+    "更新者": {
+      "type": "MODIFIER",
+      "code": "更新者",
+      "label": "更新者",
+      "noLabel": false
+    },
+    "作成者": {
+      "type": "CREATOR",
+      "code": "作成者",
+      "label": "作成者",
+      "noLabel": false
+    },
+    "対局日": {
+      "type": "DATE",
+      "code": "対局日",
+      "label": "対局日",
+      "noLabel": false,
+      "required": false,
+      "unique": false,
+      "defaultValue": "",
+      "defaultNowValue": false
+    },
+    "メモ": {
+      "type": "MULTI_LINE_TEXT",
+      "code": "メモ",
+      "label": "メモ（局面の説明）",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": ""
+    },
+    "ステータス": {
+      "type": "STATUS",
+      "code": "ステータス",
+      "label": "ステータス",
+      "enabled": false
+    },
+    "先手": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "先手",
+      "label": "先手（▲）",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "30",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "終了手数": {
+      "type": "NUMBER",
+      "code": "終了手数",
+      "label": "終了手数（範囲。空なら最終手）",
+      "noLabel": false,
+      "required": false,
+      "minValue": "0",
+      "maxValue": "",
+      "digit": false,
+      "unique": false,
+      "defaultValue": "",
+      "displayScale": "",
+      "unit": "",
+      "unitPosition": "BEFORE"
+    },
+    "更新日時": {
+      "type": "UPDATED_TIME",
+      "code": "更新日時",
+      "label": "更新日時",
+      "noLabel": false
+    },
+    "盤面図PDF": {
+      "type": "FILE",
+      "code": "盤面図PDF",
+      "label": "盤面図PDF",
+      "noLabel": false,
+      "required": false,
+      "thumbnailSize": "50"
+    },
+    "対局名": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "対局名",
+      "label": "対局名",
+      "noLabel": false,
+      "required": true,
+      "minLength": "",
+      "maxLength": "60",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "カテゴリー": {
+      "type": "CATEGORY",
+      "code": "カテゴリー",
+      "label": "カテゴリー",
+      "enabled": false
+    },
+    "手合": {
+      "type": "DROP_DOWN",
+      "code": "手合",
+      "label": "手合",
+      "noLabel": false,
+      "required": true,
+      "options": {
+        "平手": {
+          "label": "平手",
+          "index": "0"
+        }
+      },
+      "defaultValue": "平手"
+    },
+    "開始手数": {
+      "type": "NUMBER",
+      "code": "開始手数",
+      "label": "開始手数（範囲。空なら開始局面）",
+      "noLabel": false,
+      "required": false,
+      "minValue": "0",
+      "maxValue": "",
+      "digit": false,
+      "unique": false,
+      "defaultValue": "",
+      "displayScale": "",
+      "unit": "",
+      "unitPosition": "BEFORE"
+    },
+    "後手": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "後手",
+      "label": "後手（△）",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "30",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "棋譜": {
+      "type": "MULTI_LINE_TEXT",
+      "code": "棋譜",
+      "label": "棋譜（KIF 形式。移動元付きの指し手）",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": ""
+    },
+    "作成日時": {
+      "type": "CREATED_TIME",
+      "code": "作成日時",
+      "label": "作成日時",
+      "noLabel": false
+    }
+  },
+  "layout": [
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "対局名",
+          "size": {
+            "width": "460"
+          }
+        },
+        {
+          "type": "DATE",
+          "code": "対局日",
+          "size": {
+            "width": "117"
+          }
+        },
+        {
+          "type": "DROP_DOWN",
+          "code": "手合",
+          "size": {
+            "width": "196"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "先手",
+          "size": {
+            "width": "230"
+          }
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "後手",
+          "size": {
+            "width": "230"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "MULTI_LINE_TEXT",
+          "code": "棋譜",
+          "size": {
+            "width": "460",
+            "innerHeight": "360"
+          }
+        },
+        {
+          "type": "MULTI_LINE_TEXT",
+          "code": "メモ",
+          "size": {
+            "width": "360",
+            "innerHeight": "120"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "NUMBER",
+          "code": "表示手数",
+          "size": {
+            "width": "193"
+          }
+        },
+        {
+          "type": "NUMBER",
+          "code": "開始手数",
+          "size": {
+            "width": "193"
+          }
+        },
+        {
+          "type": "NUMBER",
+          "code": "終了手数",
+          "size": {
+            "width": "193"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "FILE",
+          "code": "盤面図PDF",
+          "size": {
+            "width": "460"
+          }
+        }
+      ]
+    }
+  ]
+}

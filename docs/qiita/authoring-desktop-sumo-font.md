@@ -753,6 +753,7 @@ if __name__ == "__main__":
 11. [業務データから「番付表」を作らせる](https://qiita.com/rex0220/items/de341ab43b4c40bf61c1)
 12. **番付表用の相撲字風の書体を作らせる（この記事）**
 13. [ABC 記法の曲から「五線譜」を作らせる](https://qiita.com/rex0220/items/6b3fa929652fcee66c6e)
+14. [将棋の棋譜から「盤面図」を作らせる](https://qiita.com/rex0220/items/3663c9bb983abb2d15b3)
 
 関連リンク:
 

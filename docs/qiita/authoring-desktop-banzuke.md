@@ -443,6 +443,7 @@ tA, ARRAY_MAP(rA, r, IF(AND(two = 1, r >= 4), 2, 1)),
 11. **業務データから「番付表」を作らせる（この記事）**
 12. [番付表用の相撲字風の書体を作らせる](https://qiita.com/rex0220/items/ffb7caf61c570045d968)
 13. [ABC 記法の曲から「五線譜」を作らせる](https://qiita.com/rex0220/items/6b3fa929652fcee66c6e)
+14. [将棋の棋譜から「盤面図」を作らせる](https://qiita.com/rex0220/items/3663c9bb983abb2d15b3)
 
 関連リンク:
 
