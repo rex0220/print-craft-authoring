@@ -50,7 +50,9 @@ const MANUAL_CATEGORY = {
   BOPT: "ボタン関連", CLIPBORD_WRITE: "文字列関数", R_MIRR: "財務関連の関数 R_..."
 };
 
-const engine = await loadEngine();
+// 中核は環境変数を読まないので、zip を明示して渡す（2026-10-20: 印刷屋 Ver.9 の zip で作り直す。PCRAFT_PLUGIN_ZIP=<zip> npm run gen-functions）
+if (!process.env.PCRAFT_PLUGIN_ZIP) throw new Error("PCRAFT_PLUGIN_ZIP に印刷屋の zip（最新の版）を指定する");
+const engine = await loadEngine({ pluginZip: process.env.PCRAFT_PLUGIN_ZIP });
 const names = engine.functionNames();
 const file = path.join(root, "functions.json");
 const existing = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { functions: {} };

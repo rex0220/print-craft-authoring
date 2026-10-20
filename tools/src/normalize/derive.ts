@@ -41,6 +41,14 @@ export function evaluateFormula(engine: Engine, model: Model, formulaSet: string
   return { formula, usedFields: kf.usedFields() };
 }
 
+/**
+ * 評価のエラーの文に添える一言（2026-10-20）: 数学関数 M_* と財務関数 R_* は decimal.js（印刷屋 Ver.9 から同梱）を使う。
+ * Ver.8 までの zip ではエンジンが「M_SIN() is not available.」を投げるので、原因が分かるように添える
+ */
+export function evalErrorText(error: string): string {
+  return /\b[MR]_[A-Z0-9_]+\(\) is not available\./.test(error) ? `${error}（数学関数 M_* と財務関数 R_* は印刷屋 Ver.9 から使える。使っている印刷屋の zip が Ver.8 まで）` : error;
+}
+
 export function rowLabel(row: MenuRow, index: number): string {
   return row.menu || `ボタン ${index + 1}`;
 }
@@ -70,7 +78,7 @@ export function deriveBody(input: Record<string, unknown>, model: Model, engine:
         const base: TagRow = { ...t, id: j + 1, formulaSet: String(t.formulaSet ?? "").replace(/\r\n?/g, "\n") };
         if (!t.state) return { ...base, formula: "", usedFields: {} };
         const r = evaluateFormula(engine, model, base.formulaSet);
-        if (r.error) f.error("formula.syntax", `${label} / ${tagRowLabel(t, j)}`, `計算式を評価できない: ${r.error}`);
+        if (r.error) f.error("formula.syntax", `${label} / ${tagRowLabel(t, j)}`, `計算式を評価できない: ${evalErrorText(r.error)}`);
         return { ...base, formula: r.formula, usedFields: r.usedFields };
       });
       row.tagsInfo = tags;
@@ -115,7 +123,7 @@ export function deriveBody(input: Record<string, unknown>, model: Model, engine:
       const base: CalcField = { ...c, id: j + 1 };
       if (!c.state) return { ...base, formula: "", usedFields: {} };
       const r = evaluateFormula(engine, model, base.formulaSet);
-      if (r.error) f.error("formula.syntax", `${label} / 更新項目 ${j + 1} 行目 (${c.fieldcode})`, `計算式を評価できない: ${r.error}`);
+      if (r.error) f.error("formula.syntax", `${label} / 更新項目 ${j + 1} 行目 (${c.fieldcode})`, `計算式を評価できない: ${evalErrorText(r.error)}`);
       used = { ...used, ...r.usedFields };
       return { ...base, formula: r.formula, usedFields: r.usedFields };
     });

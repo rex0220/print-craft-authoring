@@ -256,3 +256,17 @@ test("docs/samples/工程表（関連レコード一覧のサンプル）: setti
   assert.deepEqual(p.results[0].errors, []);
   assert.equal(p.results[0].pages, 2, "30 タスク = 1 ページ目 24 行 + 2 ページ目 6 行");
 });
+
+test("Ver.8 の zip には decimal.js が無い: decimalSha256 なし、M_SIN は検査で「not available」のエラーになり、Ver.9 から使えることを添える（Ver.9 は engine-v9.test.mjs）", { skip }, async () => {
+  const engine = await engineP;
+  assert.equal(engine.source.decimalSha256, undefined);
+  const { runPreview } = await import("../src/commands/preview.ts");
+  const record = { $id: v("__ID__", "7"), $revision: v("__REVISION__", "2"), プロジェクト名: v("SINGLE_LINE_TEXT", "計画 A"), uuid: v("SINGLE_LINE_TEXT", "abc"), 添付: v("FILE", []), task_list: v("SUBTABLE", []) };
+  const recordFile = { tool: "pcraft-authoring record", fetchedAt: "", baseUrl: "https://x.cybozu.com", appId: 4120, id: 7, record };
+  const settings = settingsOf(engine, { html: '<div class="rex0220-pcraft-page">##m##</div>', formula: 'REPLACE($html, "##m##", ESC_HTML(M_SIN(1)))' });
+  const r = await runPreview({ settingsText: JSON.stringify(settings), settingsFile: "settings/工程表.json", fields: FIELDS8, recordFile, engine });
+  // preview の前の検査（normalize）が式を評価して止める。原因（Ver.9 から）を添える
+  const err = r.findings.items.find((f) => f.level === "error" && f.rule === "formula.syntax");
+  assert.ok(err && err.message.includes("M_SIN() is not available.") && err.message.includes("印刷屋 Ver.9 から使える"), r.findings.format());
+  assert.deepEqual(r.results, [], "検査のエラーで描かない");
+});

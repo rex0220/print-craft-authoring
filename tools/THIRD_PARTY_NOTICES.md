@@ -42,4 +42,4 @@ Copyright (c) 2019 David Ortner (capricorn86). https://github.com/capricorn86/ha
 ## 利用者の印刷屋プラグインの zip から実行時に読むもの（tools には含まれない）
 
 - `KintoneFormulaPCraft.min.js`（計算式エンジン）、`print-craft-authoring-api.js`（印刷屋の設定画面・帳票のコードと plugin-config-kit） … rex0220。印刷屋プラグインの利用規約に従う
-- `bignumber.min.js`（bignumber.js、MIT。Copyright (c) 2019 Michael Mclaughlin）、`moment-timezone-with-data.min.js`（moment-timezone、MIT。Copyright (c) JS Foundation and other contributors） … 印刷屋プラグインに同梱されているものをそのまま実行する
+- `bignumber.min.js`（bignumber.js、MIT。Copyright (c) 2019 Michael Mclaughlin）、`rex0220_decimal.min.js`（decimal.js、MIT。Copyright (c) 2025 Michael Mclaughlin。印刷屋 Ver.9 から。2.2.0 から読む）、`moment-timezone-with-data.min.js`（moment-timezone、MIT。Copyright (c) JS Foundation and other contributors） … 印刷屋プラグインに同梱されているものをそのまま実行する

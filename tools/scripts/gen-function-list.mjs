@@ -28,6 +28,17 @@ const libSet = new Set(libNames);
 
 // ---- lib の説明表 p.desc を取り出す（文字列と配列だけのオブジェクトリテラル。vm の別コンテキストで評価） --------------------------
 const lib = readFileSync(path.join(PRINT_CRAFT_ROOT, "lib", "KintoneFormulaPCraft.js"), "utf8").split(/\r?\n/);
+// 印刷屋 Ver.9 から使える関数（2026-10-20。資料に「（Ver.9 から）」を付ける。J5）: decimal.js（Ver.9 から同梱）を使う関数（関数の本体に if (!Decimal)）と、
+// 計算式プラグイン Ver.98 で足された 7 つ（Ver.8 までの印刷屋のエンジンには無い）
+const SINCE_V9 = new Set(["UUID", "CRC32", "MEDIAN", "VAR", "VARP", "STDEV", "STDEVP"]);
+{
+  let current = null;
+  for (const line of lib) {
+    const m = line.match(/^\s{12}([A-Z][A-Z0-9_]*): function\s*\(/);
+    if (m) current = m[1];
+    else if (current && /if \(!Decimal\)/.test(line)) SINCE_V9.add(current);
+  }
+}
 function extractObject(startPattern) {
   const start = lib.findIndex((l) => startPattern.test(l));
   if (start < 0) throw new Error(`not found: ${startPattern}`);
@@ -67,11 +78,12 @@ const esc = (s) => s.replace(/&(amp|lt|gt|quot);/g, (_m, e) => ENTITIES[e]).trim
 const out = [];
 out.push("# 印刷屋プラグインで使える計算式の関数一覧");
 out.push("");
-out.push(`印刷屋プラグイン Ver.6 の計算式ライブラリ（KintoneFormulaPCraft）が持つ **${libNames.length} 関数**の一覧。説明はライブラリ自身の説明表（設定画面の関数入力支援の文言）から、分類は計算式プラグインの Qiita 記事「関数」章の見出しに合わせて、\`tools/scripts/gen-function-list.mjs\` が ${today} に生成した（手で直さない。ライブラリの SHA-256 ${functions.engineSha256.slice(0, 12)}）。`);
+out.push(`印刷屋プラグイン Ver.9 の計算式ライブラリ（KintoneFormulaPCraft。計算式プラグイン Ver.102 と同じ版）が持つ **${libNames.length} 関数**の一覧。説明はライブラリ自身の説明表（設定画面の関数入力支援の文言）から、分類は計算式プラグインの Qiita 記事「関数」章の見出しに合わせて、\`tools/scripts/gen-function-list.mjs\` が ${today} に生成した（手で直さない。ライブラリの SHA-256 ${functions.engineSha256.slice(0, 12)}）。`);
 out.push("");
 out.push("- 書式は `NAME(引数の形)` と説明と例。引数の形の `[...]` は省略可");
 out.push("- **★ 印刷屋固有**（HTML 関連）の関数は、エスケープの扱いと使い方を `帳票関数リファレンス.md` で確かめる");
 out.push("- **✕ 帳票では使わない**（ボタン・dialog・クリップボード・イベントの関数。authoring の tools は評価しない）");
+out.push(`- **（Ver.9 から）** の関数（${SINCE_V9.size} 個）は印刷屋 Ver.9 から使える。Ver.8 までの印刷屋では、数学関数 M_* と財務関数 R_* は「… is not available」のエラー（decimal.js が無い）、UUID・CRC32・MEDIAN・VAR・VARP・STDEV・STDEVP は無い関数`);
 out.push("- 例が多い説明は `関数の使い方（計算式プラグインの記事）.md`、1 関数ずつの詳しい説明は `関数リファレンス（詳細）.md`（印刷屋固有と TP* / R_* / M_* は無い）を検索して読む");
 out.push("- **計算式プラグインにあって印刷屋に無い関数**（使えない）: {{REMOVED}}");
 out.push("");
@@ -93,7 +105,7 @@ for (const cat of orderedCategories) {
     const [descText, ...exParts] = body.split(/\n?\s*\bex:\s*\n?/i);
     const descLines = descText.split("\n").map((l) => l.trim()).filter(Boolean);
     const exLines = exParts.join("\n").split("\n").map((l) => l.trim()).filter(Boolean);
-    out.push(`- ${mark}**${name}**(${sig}): ${descLines.join(" ")}`);
+    out.push(`- ${mark}**${name}**(${sig}): ${SINCE_V9.has(name) ? "（Ver.9 から）" : ""}${descLines.join(" ")}`);
     for (const e of exLines) out.push(`    - 例 \`${e.replace(/`/g, "'")}\``);
   }
   out.push("");

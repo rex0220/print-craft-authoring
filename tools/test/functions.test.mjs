@@ -5,7 +5,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
-import { loadEngine } from "./helpers.mjs";
+// 関数の表と資料は最新の印刷屋（Ver.9）に合わせる（2026-10-20。docs は「（Ver.9 から）」の印を付ける）。zip があれば Ver.9 の zip を読む
+import { PRINT_CRAFT_ROOT } from "../src/dev-paths.ts";
+const ZIP9 = path.join(PRINT_CRAFT_ROOT, "dist", "print-craft-plugin9.zip");
+if (existsSync(ZIP9)) process.env.PCRAFT_PLUGIN_ZIP = ZIP9;
+const { loadEngine } = await import("./helpers.mjs");
 import { AUTHORING_ROOT, REPO_ROOT } from "../src/paths.ts";
 
 const docs = path.join(REPO_ROOT, "docs");
@@ -30,7 +34,8 @@ test("関数一覧.md: lib の全関数の項目があり、lib に無い関数�
   const items = [...md.matchAll(/^- (?:[★✕] )?\*\*([A-Z][A-Z0-9_]*)\*\*\(/gm)].map((m) => m[1]).sort();
   assert.deepEqual(items.filter((n) => !names.includes(n)), [], "lib に無い関数の項目");
   assert.deepEqual(names.filter((n) => !items.includes(n)), [], "項目が無い関数");
-  for (const n of ["MEDIAN", "VAR", "VARP", "STDEV", "STDEVP", "UUID", "CRC32"]) assert.ok(md.includes(`\`${n}\``), `印刷屋に無い関数 ${n} の注記`);
+  // Ver.9 から使える関数（Ver.8 までは無い 7 つと、decimal.js を使う M_* / R_*）には「（Ver.9 から）」の印
+  for (const n of ["MEDIAN", "VAR", "VARP", "STDEV", "STDEVP", "UUID", "CRC32", "M_SIN", "R_PMT"]) assert.match(md, new RegExp(`^- \\*\\*${n}\\*\\*\\([^\\n]*\\): （Ver\\.9 から）`, "m"), `${n} の「（Ver.9 から）」の印`);
 });
 
 test("帳票関数リファレンス.md: 印刷屋固有の全関数の行がある", () => {

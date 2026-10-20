@@ -4,7 +4,7 @@
  * 段階 0 の work/authoring-spike/engine.mjs が元（docs/authoring-plan.md 11 章、12.2、12.9 の 9）。
  *   - happy-dom の window / document をグローバルに置く（ESC_HTML などが document を使う。API の bundle は window にグローバルを置く）
  *   - kintone / cybozu / rex0220_users_info3 は副作用の無いスタブ。kintone.api は呼ばない（reject）。kintone.api.url は setContext の URL から組む
- *   - 読む順は印刷屋の manifest と同じ: moment（vendor/）→ moment-timezone → bignumber → KintoneFormulaPCraft → authoring API
+ *   - 読む順は印刷屋の manifest と同じ: moment（vendor/）→ moment-timezone → bignumber → decimal（Ver.9 から。zip にあれば）→ KintoneFormulaPCraft → authoring API
  *   - 読み込んでよいかの照合（1.1.0。Takashi 2026-10-08「pluginid のチェックのみで OK」、docs/authoring-plan.md 12.18）: 外側の zip の PUBKEY から出る
  *     プラグイン ID が印刷屋のもの（meta.ts の PRINT_CRAFT_PLUGIN_ID）でなければ**実行せずに止める**。SIGNATURE は検証しない（本物の zip の PUBKEY を写した zip も通る）。
  *     manifest の version が Ver.6 以上の整数か、authoring API があるか。実行した後に API の apiVersion（SUPPORTED_API_VERSIONS）と pluginVersion、tools が使うキーの型。
@@ -22,7 +22,7 @@ import path from "node:path";
 import vm from "node:vm";
 import type { PrintCraftAuthoringApi } from "print-craft/src/authoring/api.ts";
 import { MOMENT_FILE } from "./paths.ts";
-import { API_ENTRY, BIGNUMBER_ENTRY, ENGINE_ENTRY, MANIFEST_ENTRY, MOMENT_TZ_ENTRY, PluginZipError, readPluginZip, sha256Hex, type PluginSources, type PluginZipErrorInfo } from "./plugin-zip.ts";
+import { API_ENTRY, BIGNUMBER_ENTRY, DECIMAL_ENTRY, ENGINE_ENTRY, MANIFEST_ENTRY, MOMENT_TZ_ENTRY, PluginZipError, readPluginZip, sha256Hex, type PluginSources, type PluginZipErrorInfo } from "./plugin-zip.ts";
 import { isSupportedPluginVersion, MIN_PLUGIN_VERSION, PRINT_CRAFT_PLUGIN_ID, requiredApiFor, SUPPORTED_API_VERSIONS, toolsMeta } from "./meta.ts";
 
 /** 計算式のインスタンス（print-craft の config/libs.ts の KintoneFormula と同じ形） */
@@ -55,6 +55,8 @@ export interface EngineSource {
   pluginVersion: string;
   engineSha256: string;
   apiSha256?: string;
+  /** decimal.js（印刷屋 Ver.9 から。無い zip は undefined） */
+  decimalSha256?: string;
   /** プラグイン ID（zip の PUBKEY から。印刷屋のものでなければ読み込まない。pull が使う。開発中の print-craft から読んだときは無い） */
   pluginId?: string;
 }
@@ -141,6 +143,8 @@ export function resolvePluginSources(opt: LoadEngineOptions = {}, mode: "build" 
   const apiFile = path.join(dev, API_ENTRY);
   const engine = read(ENGINE_ENTRY);
   const bignumber = read(BIGNUMBER_ENTRY);
+  const decimalFile = path.join(dev, DECIMAL_ENTRY);
+  const decimal = existsSync(decimalFile) ? readFileSync(decimalFile, "utf8") : undefined;
   const momentTimezone = read(MOMENT_TZ_ENTRY);
   const api = existsSync(apiFile) ? readFileSync(apiFile, "utf8") : undefined;
   const manifest = JSON.parse(read(MANIFEST_ENTRY)) as PluginSources["manifest"];
@@ -151,9 +155,10 @@ export function resolvePluginSources(opt: LoadEngineOptions = {}, mode: "build" 
     pluginVersion: String(manifest.version ?? ""),
     engine,
     bignumber,
+    ...(decimal ? { decimal } : {}),
     momentTimezone,
     api,
-    sha256: { engine: sha256Hex(engine), ...(api ? { api: sha256Hex(api) } : {}), bignumber: sha256Hex(bignumber), momentTimezone: sha256Hex(momentTimezone) }
+    sha256: { engine: sha256Hex(engine), ...(api ? { api: sha256Hex(api) } : {}), bignumber: sha256Hex(bignumber), ...(decimal ? { decimal: sha256Hex(decimal) } : {}), momentTimezone: sha256Hex(momentTimezone) }
   };
 }
 
@@ -264,6 +269,8 @@ async function startEngine(src: PluginSources & { kind: "zip" | "dev"; api: stri
   runScript(readFileSync(MOMENT_FILE, "utf8"), MOMENT_FILE);
   runScript(src.momentTimezone, `${src.from}!${MOMENT_TZ_ENTRY}`, MOMENT_TZ_ENTRY);
   runScript(src.bignumber, `${src.from}!${BIGNUMBER_ENTRY}`, BIGNUMBER_ENTRY);
+  // Ver.9 から。エンジンは読み込んだときの rex0220_Decimal を持つので、エンジンより前に読む。無い zip（Ver.8 まで）は読まない（warning にもしない）
+  if (src.decimal) runScript(src.decimal, `${src.from}!${DECIMAL_ENTRY}`, DECIMAL_ENTRY);
   runScript(src.engine, `${src.from}!${ENGINE_ENTRY}`, ENGINE_ENTRY);
   runScript(src.api, `${src.from}!${API_ENTRY}`, API_ENTRY);
   const rex0220p = window.rex0220p as { KintoneFormulaPCraft?: FormulaCtor } | undefined;
@@ -281,7 +288,7 @@ async function startEngine(src: PluginSources & { kind: "zip" | "dev"; api: stri
     window,
     Ctor,
     api,
-    source: { kind: src.kind, from: src.from, pluginVersion: src.pluginVersion, engineSha256: src.sha256.engine, apiSha256: src.sha256.api, ...(src.pluginId ? { pluginId: src.pluginId } : {}) },
+    source: { kind: src.kind, from: src.from, pluginVersion: src.pluginVersion, engineSha256: src.sha256.engine, apiSha256: src.sha256.api, ...(src.sha256.decimal ? { decimalSha256: src.sha256.decimal } : {}), ...(src.pluginId ? { pluginId: src.pluginId } : {}) },
     warnings,
     setContext(next) {
       if (next.baseUrl) ctx.baseUrl = next.baseUrl.replace(/\/+$/, "");

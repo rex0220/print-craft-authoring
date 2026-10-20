@@ -232,6 +232,7 @@ async function version(args: string[]): Promise<number> {
       console.log(`印刷屋プラグイン: 版 ${engine.source.pluginVersion}、authoring API ${engine.api.apiVersion}（${engine.source.kind === "zip" ? "zip" : "開発中の print-craft"}: ${engine.source.from}）`);
       console.log(`プラグイン ID: ${engine.source.pluginId ?? "（開発中の print-craft。確かめない）"}`);
       console.log(`計算式エンジン: sha256 ${engine.source.engineSha256}`);
+      console.log(`decimal.js: ${engine.source.decimalSha256 ? `sha256 ${engine.source.decimalSha256}` : "無い（印刷屋 Ver.8 まで。M_* / R_* は使えない）"}`);
       console.log(`設定スキーマの版: ${schemaRevisionOf(engine.api.CONFIG_SCHEMA)}`);
       if (expectError) console.error(expectError);
       else if (expect !== undefined) console.log(`--expect ${expect}: 一致`);

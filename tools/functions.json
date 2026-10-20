@@ -1,6 +1,6 @@
 {
   "note": "関数の分類の正本（docs/authoring-plan.md 12.4、12.7）。scripts/gen-functions.mjs が lib と文書から category / doc を作り直し、kind / node の見直しは手で行う（手で直した kind / node は残る）",
-  "engineSha256": "8a5f78f78f51e04b5daaa435b0e8a8c0ea4d08d388d84d279f0cd1b50a857140",
+  "engineSha256": "7078f0d21c33864bd55e20de6bdfb480d985605ad3355a1f761a95c191ae9e67",
   "functions": {
     "ABS": {
       "category": "基本関数（数値・集計・配列・条件）",
@@ -208,6 +208,12 @@
     },
     "COUNTROW": {
       "category": "基本関数（数値・集計・配列・条件）",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "CRC32": {
+      "category": "文字列関数",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
@@ -664,6 +670,12 @@
     },
     "MAX_STR": {
       "category": "文字列関数",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "MEDIAN": {
+      "category": "基本関数（数値・集計・配列・条件）",
       "kind": "general",
       "node": "node",
       "doc": "qiita"
@@ -1166,6 +1178,18 @@
       "node": "node",
       "doc": "qiita"
     },
+    "STDEV": {
+      "category": "基本関数（数値・集計・配列・条件）",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "STDEVP": {
+      "category": "基本関数（数値・集計・配列・条件）",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
     "STRIP_TAGS": {
       "category": "HTML 関連",
       "kind": "print-craft",
@@ -1434,6 +1458,24 @@
       "category": "HTML 関連",
       "kind": "print-craft",
       "node": "dom",
+      "doc": "qiita"
+    },
+    "UUID": {
+      "category": "文字列関数",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "VAR": {
+      "category": "基本関数（数値・集計・配列・条件）",
+      "kind": "general",
+      "node": "node",
+      "doc": "qiita"
+    },
+    "VARP": {
+      "category": "基本関数（数値・集計・配列・条件）",
+      "kind": "general",
+      "node": "node",
       "doc": "qiita"
     },
     "VTAG": {

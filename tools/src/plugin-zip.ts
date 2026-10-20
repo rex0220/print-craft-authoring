@@ -176,16 +176,20 @@ export interface PluginSources {
   pluginVersion: string;
   engine: string;
   bignumber: string;
+  /** decimal.js（rex0220_decimal.min.js。印刷屋 Ver.9 から同梱。数学関数 M_* と財務関数 R_* が使う。Ver.8 までの zip は undefined） */
+  decimal?: string;
   momentTimezone: string;
   /** 印刷屋の authoring API（Ver.6 以降の zip にある。無ければ undefined） */
   api?: string;
   /** プラグイン ID（zip の PUBKEY から。開発中のフォルダーと PUBKEY の無い zip は undefined） */
   pluginId?: string;
-  sha256: { engine: string; api?: string; bignumber: string; momentTimezone: string; contents?: string };
+  sha256: { engine: string; api?: string; bignumber: string; decimal?: string; momentTimezone: string; contents?: string };
 }
 
 export const ENGINE_ENTRY = "desktop_js/KintoneFormulaPCraft.min.js";
 export const BIGNUMBER_ENTRY = "desktop_js/bignumber.min.js";
+/** 印刷屋 Ver.9 から（任意。無ければ M_* / R_* はエンジンが「not available」にする。2026-10-20） */
+export const DECIMAL_ENTRY = "desktop_js/rex0220_decimal.min.js";
 export const MOMENT_TZ_ENTRY = "desktop_js/moment-timezone-with-data.min.js";
 export const API_ENTRY = "config_js/print-craft-authoring-api.js";
 export const MANIFEST_ENTRY = "manifest.json";
@@ -234,6 +238,7 @@ export function readPluginZip(file: string): PluginSources {
   if (!manifest || typeof manifest !== "object") throw new PluginZipError(`印刷屋の zip の manifest.json が不正: ${file}`);
   const engine = need(ENGINE_ENTRY);
   const bignumber = need(BIGNUMBER_ENTRY);
+  const decimal = inner.get(DECIMAL_ENTRY);
   const momentTimezone = need(MOMENT_TZ_ENTRY);
   const api = inner.get(API_ENTRY);
   const pubkey = outer.get("PUBKEY");
@@ -244,12 +249,14 @@ export function readPluginZip(file: string): PluginSources {
     pluginVersion: String(manifest.version ?? ""),
     engine: engine.toString("utf8"),
     bignumber: bignumber.toString("utf8"),
+    ...(decimal ? { decimal: decimal.toString("utf8") } : {}),
     momentTimezone: momentTimezone.toString("utf8"),
     api: api?.toString("utf8"),
     sha256: {
       engine: sha256Hex(engine),
       ...(api ? { api: sha256Hex(api) } : {}),
       bignumber: sha256Hex(bignumber),
+      ...(decimal ? { decimal: sha256Hex(decimal) } : {}),
       momentTimezone: sha256Hex(momentTimezone),
       contents: sha256Hex(contents)
     }

@@ -26,8 +26,13 @@ for (const name of samples) {
   const dir = path.join(samplesDir, name);
   // 関連レコード一覧のサンプル（fields に related）は印刷屋 Ver.8（authoring API 3）の zip が要る。読んだ zip が古ければ飛ばす（engine-v8.test.mjs が Ver.8 の zip で検査する）
   const sampleFields = JSON.parse(readFileSync(path.join(dir, "fields.json"), "utf8"));
-  const skip = sampleFields.related && typeof engine.api.expandRelatedFields !== "function" ? `関連レコード一覧のサンプルは API 3 の zip で検査する（読んだ zip は API ${engine.api.apiVersion}）` : false;
-  test(`sample ${name}: settings-source → normalize はエラー 0 で settings.json と一致、再正規化で差 0`, { skip }, async () => {
+  // 設定の封筒の版が読んだ zip より新しいサンプル（Ver.8 の印刷屋から取り出した五線譜・盤面図など）は、その版以上の zip で検査する（engine-v9.test.mjs が Ver.9 の zip で preview する。2026-10-20）
+  const sampleVersion = Number(JSON.parse(readFileSync(path.join(dir, "settings.json"), "utf8")).PluginVersion);
+  const skip = sampleFields.related && typeof engine.api.expandRelatedFields !== "function" ? `関連レコード一覧のサンプルは API 3 の zip で検査する（読んだ zip は API ${engine.api.apiVersion}）`
+    : sampleVersion > Number(engine.source.pluginVersion) ? `版 ${sampleVersion} の設定は版 ${sampleVersion} 以上の zip で検査する（読んだ zip は版 ${engine.source.pluginVersion}）` : false;
+  // settings-source.json（AI が書いた形）が無いサンプルは、印刷屋から取り出した設定そのもの。元からの正規化の比べは無い
+  const noSource = existsSync(path.join(dir, "settings-source.json")) ? false : "settings-source.json が無い（印刷屋から取り出した設定そのもののサンプル）";
+  test(`sample ${name}: settings-source → normalize はエラー 0 で settings.json と一致、再正規化で差 0`, { skip: skip || noSource }, async () => {
     const fields = sampleFields;
     const source = readFileSync(path.join(dir, "settings-source.json"), "utf8");
     const r = await normalizeSettings({ settingsText: source, settingsFile: `docs/samples/${name}/settings-source.json`, fields, engine });
