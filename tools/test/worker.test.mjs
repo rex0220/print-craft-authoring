@@ -190,5 +190,6 @@ test("どの道でも後に残さない: 成功・評価のエラー・時間切
     exit3.cleanup();
   }
   await new Promise((r) => setImmediate(r));
-  assert.equal(handles(), before, "子プロセス・Worker・パイプが残っていない");
+  // 前のテストの子プロセスが閉じる途中なら before に数えられ、後で減ることがある（全部のテストを流したときに 2 !== 3。2026-10-20）。残ったら増える
+  assert.ok(handles() <= before, `子プロセス・Worker・パイプが残っていない（前 ${before}、後 ${handles()}）`);
 });

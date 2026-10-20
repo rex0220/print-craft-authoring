@@ -1,0 +1,406 @@
+{
+  "tool": "pcraft-authoring fields",
+  "fetchedAt": "2026-10-15T10:53:24.559Z",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 4326,
+  "appName": "五線譜（ABC 記法）",
+  "preview": false,
+  "lang": "ja",
+  "revision": "5",
+  "properties": {
+    "レコード番号": {
+      "type": "RECORD_NUMBER",
+      "code": "レコード番号",
+      "label": "レコード番号",
+      "noLabel": false
+    },
+    "作業者": {
+      "type": "STATUS_ASSIGNEE",
+      "code": "作業者",
+      "label": "作業者",
+      "enabled": false
+    },
+    "更新者": {
+      "type": "MODIFIER",
+      "code": "更新者",
+      "label": "更新者",
+      "noLabel": false
+    },
+    "作成者": {
+      "type": "CREATOR",
+      "code": "作成者",
+      "label": "作成者",
+      "noLabel": false
+    },
+    "作詞": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "作詞",
+      "label": "作詞",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "40",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "ステータス": {
+      "type": "STATUS",
+      "code": "ステータス",
+      "label": "ステータス",
+      "enabled": false
+    },
+    "楽譜PDF": {
+      "type": "FILE",
+      "code": "楽譜PDF",
+      "label": "楽譜PDF",
+      "noLabel": false,
+      "required": false,
+      "thumbnailSize": "50"
+    },
+    "テンポ": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "テンポ",
+      "label": "テンポ（表示用）",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "30",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "更新日時": {
+      "type": "UPDATED_TIME",
+      "code": "更新日時",
+      "label": "更新日時",
+      "noLabel": false
+    },
+    "拍子": {
+      "type": "DROP_DOWN",
+      "code": "拍子",
+      "label": "拍子",
+      "noLabel": false,
+      "required": true,
+      "options": {
+        "2/4": {
+          "label": "2/4",
+          "index": "0"
+        },
+        "3/4": {
+          "label": "3/4",
+          "index": "1"
+        },
+        "4/4": {
+          "label": "4/4",
+          "index": "2"
+        }
+      },
+      "defaultValue": "4/4"
+    },
+    "カテゴリー": {
+      "type": "CATEGORY",
+      "code": "カテゴリー",
+      "label": "カテゴリー",
+      "enabled": false
+    },
+    "曲名": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "曲名",
+      "label": "曲名",
+      "noLabel": false,
+      "required": true,
+      "minLength": "",
+      "maxLength": "40",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "ABC記法": {
+      "type": "MULTI_LINE_TEXT",
+      "code": "ABC記法",
+      "label": "ABC 記法（音符の並び）",
+      "noLabel": false,
+      "required": true,
+      "defaultValue": ""
+    },
+    "作曲": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "作曲",
+      "label": "作曲",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "40",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "権利メモ": {
+      "type": "MULTI_LINE_TEXT",
+      "code": "権利メモ",
+      "label": "旋律の出典・権利のメモ（帳票に出さない）",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": ""
+    },
+    "作成日時": {
+      "type": "CREATED_TIME",
+      "code": "作成日時",
+      "label": "作成日時",
+      "noLabel": false
+    },
+    "調": {
+      "type": "DROP_DOWN",
+      "code": "調",
+      "label": "調",
+      "noLabel": false,
+      "required": true,
+      "options": {
+        "D ニ長調": {
+          "label": "D ニ長調",
+          "index": "2"
+        },
+        "C#m 嬰ハ短調": {
+          "label": "C#m 嬰ハ短調",
+          "index": "13"
+        },
+        "Cm ハ短調": {
+          "label": "Cm ハ短調",
+          "index": "16"
+        },
+        "F#m 嬰ヘ短調": {
+          "label": "F#m 嬰ヘ短調",
+          "index": "12"
+        },
+        "A イ長調": {
+          "label": "A イ長調",
+          "index": "3"
+        },
+        "Em ホ短調": {
+          "label": "Em ホ短調",
+          "index": "10"
+        },
+        "E ホ長調": {
+          "label": "E ホ長調",
+          "index": "4"
+        },
+        "Bb 変ロ長調": {
+          "label": "Bb 変ロ長調",
+          "index": "6"
+        },
+        "C ハ長調": {
+          "label": "C ハ長調",
+          "index": "0"
+        },
+        "Eb 変ホ長調": {
+          "label": "Eb 変ホ長調",
+          "index": "7"
+        },
+        "F ヘ長調": {
+          "label": "F ヘ長調",
+          "index": "5"
+        },
+        "G ト長調": {
+          "label": "G ト長調",
+          "index": "1"
+        },
+        "Ab 変イ長調": {
+          "label": "Ab 変イ長調",
+          "index": "8"
+        },
+        "Dm ニ短調": {
+          "label": "Dm ニ短調",
+          "index": "14"
+        },
+        "Fm ヘ短調": {
+          "label": "Fm ヘ短調",
+          "index": "17"
+        },
+        "Gm ト短調": {
+          "label": "Gm ト短調",
+          "index": "15"
+        },
+        "Am イ短調": {
+          "label": "Am イ短調",
+          "index": "9"
+        },
+        "Bm ロ短調": {
+          "label": "Bm ロ短調",
+          "index": "11"
+        }
+      },
+      "defaultValue": "C ハ長調"
+    },
+    "歌詞": {
+      "type": "MULTI_LINE_TEXT",
+      "code": "歌詞",
+      "label": "歌詞（1 音ずつ当てる。空行で 2 番・3 番）",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": ""
+    },
+    "移調先": {
+      "type": "DROP_DOWN",
+      "code": "移調先",
+      "label": "移調先（移調のボタン）",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "A（イ長調・嬰ヘ短調）": {
+          "label": "A（イ長調・嬰ヘ短調）",
+          "index": "3"
+        },
+        "Ab（変イ長調・ヘ短調）": {
+          "label": "Ab（変イ長調・ヘ短調）",
+          "index": "8"
+        },
+        "C（ハ長調・イ短調）": {
+          "label": "C（ハ長調・イ短調）",
+          "index": "0"
+        },
+        "D（ニ長調・ロ短調）": {
+          "label": "D（ニ長調・ロ短調）",
+          "index": "2"
+        },
+        "E（ホ長調・嬰ハ短調）": {
+          "label": "E（ホ長調・嬰ハ短調）",
+          "index": "4"
+        },
+        "Bb（変ロ長調・ト短調）": {
+          "label": "Bb（変ロ長調・ト短調）",
+          "index": "6"
+        },
+        "G（ト長調・ホ短調）": {
+          "label": "G（ト長調・ホ短調）",
+          "index": "1"
+        },
+        "F（ヘ長調・ニ短調）": {
+          "label": "F（ヘ長調・ニ短調）",
+          "index": "5"
+        },
+        "Eb（変ホ長調・ハ短調）": {
+          "label": "Eb（変ホ長調・ハ短調）",
+          "index": "7"
+        }
+      },
+      "defaultValue": ""
+    }
+  },
+  "layout": [
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "曲名",
+          "size": {
+            "width": "360"
+          }
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "作詞",
+          "size": {
+            "width": "200"
+          }
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "作曲",
+          "size": {
+            "width": "200"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "DROP_DOWN",
+          "code": "拍子",
+          "size": {
+            "width": "196"
+          }
+        },
+        {
+          "type": "DROP_DOWN",
+          "code": "調",
+          "size": {
+            "width": "196"
+          }
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "テンポ",
+          "size": {
+            "width": "200"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "MULTI_LINE_TEXT",
+          "code": "ABC記法",
+          "size": {
+            "width": "780",
+            "innerHeight": "180"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "MULTI_LINE_TEXT",
+          "code": "歌詞",
+          "size": {
+            "width": "780",
+            "innerHeight": "120"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "DROP_DOWN",
+          "code": "移調先",
+          "size": {
+            "width": "196"
+          }
+        },
+        {
+          "type": "FILE",
+          "code": "楽譜PDF",
+          "size": {
+            "width": "300"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "MULTI_LINE_TEXT",
+          "code": "権利メモ",
+          "size": {
+            "width": "780",
+            "innerHeight": "80"
+          }
+        }
+      ]
+    }
+  ]
+}
