@@ -235,6 +235,25 @@ export async function saveNewSettings(ctx: SaveContext, opt: { path: string; con
  * 既存の設定のボタン 1 つを差し替える（無ければ末尾に足す）。expectedDigest は pcraft_buttons（buttons --json）が返した値。
  * replacement はボタン 1 つ（pluginInfos の 1 行）の JSON。その menu が button と違えば invalid
  */
+/**
+ * 差し替えたボタンの出す画面が前と違うことの警告（0.3.0。print-craft の docs/authoring-try-plan.md T6）: list（一覧帳票か詳細画面か）と viewsCsv（ボタンを出す一覧）。
+ * 0.2.1 と 0.3.0-dev.5 の Desktop の確かめで、AI が頼まれていない list / viewsCsv を変えた（差分で気づいて戻した）。保存は止めない（変えるのを頼まれたこともある）
+ */
+function screenChanges(menu: string, before: Record<string, unknown> | undefined, after: Record<string, unknown>): Finding[] {
+  if (!before) return [];
+  const out: Finding[] = [];
+  const listOf = (r: Record<string, unknown>): boolean => r.list === true;
+  const viewsOf = (r: Record<string, unknown>): string => (typeof r.viewsCsv === "string" ? r.viewsCsv : "");
+  const shown = (v: string): string => JSON.stringify(v.length > 100 ? `${v.slice(0, 100)}…` : v);
+  if (listOf(before) !== listOf(after)) {
+    out.push({ level: "warning", rule: "button.listChanged", where: menu, message: `一覧帳票か（list）が ${listOf(before)} から ${listOf(after)} に変わった（${listOf(after) ? "一覧画面のボタン（一覧帳票）" : "詳細画面のボタン"}になる）。頼まれていなければ、pcraft_buttons で見た元の値で差し替え直す` });
+  }
+  if (viewsOf(before) !== viewsOf(after)) {
+    out.push({ level: "warning", rule: "button.viewsChanged", where: menu, message: `ボタンを出す一覧（viewsCsv）が ${shown(viewsOf(before))} から ${shown(viewsOf(after))} に変わった（"" は詳細画面とすべての一覧、"-" は詳細画面だけ）。頼まれていなければ、元の値で差し替え直す` });
+  }
+  return out;
+}
+
 export async function updateButton(ctx: SaveContext, opt: { path: string; button: string; expectedDigest: string; replacement: string; fields?: string }): Promise<SaveResult> {
   if (tooLarge(opt.replacement)) return { status: "invalid", code: "InputError", path: opt.path, findings: [], message: `replacement は ${MAX_SAVE_INPUT_BYTES} バイトまで` };
   let target: string;
@@ -267,6 +286,7 @@ export async function updateButton(ctx: SaveContext, opt: { path: string; button
   }
   const rows = Array.isArray(settings.pluginInfos) ? [...(settings.pluginInfos as Array<Record<string, unknown>>)] : [];
   const i = rows.findIndex((r) => r && r.menu === opt.button);
+  const before = i >= 0 ? rows[i] : undefined;
   if (i >= 0) rows[i] = replacement;
   else rows.push(replacement);
   let result;
@@ -277,7 +297,7 @@ export async function updateButton(ctx: SaveContext, opt: { path: string; button
   }
   if (!result.output) return { status: "invalid", code: "NormalizeError", path: rel(ctx.root, target), findings: result.findings.items, message: "normalize のエラーがあるので保存しない" };
   const text = JSON.stringify(result.output, null, 2) + "\n";
-  return finish(ctx, target, result.findings.items, () =>
+  return finish(ctx, target, [...result.findings.items, ...screenChanges(opt.button, before, replacement)], () =>
     commit(ctx, target, text, "replace", () => {
       if (digestOf(readFileSync(target)) !== opt.expectedDigest) throw new ConflictError("確定の直前にファイルが変わった（digest が違う）。pcraft_buttons で読み直す");
     })
