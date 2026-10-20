@@ -1,0 +1,99 @@
+{
+  "tool": "pcraft-authoring try-app",
+  "fetchedAt": "",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 3740,
+  "id": 3,
+  "record": {
+    "$id": {
+      "type": "__ID__",
+      "value": "1011"
+    },
+    "$revision": {
+      "type": "__REVISION__",
+      "value": "1"
+    },
+    "備考": {
+      "type": "MULTI_LINE_TEXT",
+      "value": ""
+    },
+    "ダミー": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "レコード番号": {
+      "type": "RECORD_NUMBER",
+      "value": "11"
+    },
+    "作業者": {
+      "type": "STATUS_ASSIGNEE",
+      "value": []
+    },
+    "更新者": {
+      "type": "MODIFIER",
+      "value": {
+        "code": "demo_user01",
+        "name": "架空 社長"
+      }
+    },
+    "作成者": {
+      "type": "CREATOR",
+      "value": {
+        "code": "demo_user01",
+        "name": "架空 社長"
+      }
+    },
+    "ステータス": {
+      "type": "STATUS",
+      "value": "未処理"
+    },
+    "担当者": {
+      "type": "USER_SELECT",
+      "value": []
+    },
+    "合計": {
+      "type": "CALC",
+      "value": ""
+    },
+    "見積ファイル": {
+      "type": "FILE",
+      "value": []
+    },
+    "更新日時": {
+      "type": "UPDATED_TIME",
+      "value": "2026-01-15T00:00:00Z"
+    },
+    "見積日": {
+      "type": "DATE",
+      "value": ""
+    },
+    "見積番号": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "カテゴリー": {
+      "type": "CATEGORY",
+      "value": []
+    },
+    "小計": {
+      "type": "CALC",
+      "value": ""
+    },
+    "消費税": {
+      "type": "CALC",
+      "value": ""
+    },
+    "見積明細": {
+      "type": "SUBTABLE",
+      "value": []
+    },
+    "宛名": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "作成日時": {
+      "type": "CREATED_TIME",
+      "value": "2026-01-15T00:00:00Z"
+    }
+  }
+}

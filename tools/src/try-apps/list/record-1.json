@@ -1,0 +1,66 @@
+{
+  "tool": "pcraft-authoring try-app",
+  "fetchedAt": "",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 381,
+  "id": 1,
+  "record": {
+    "$id": {
+      "type": "__ID__",
+      "value": "1001"
+    },
+    "$revision": {
+      "type": "__REVISION__",
+      "value": "1"
+    },
+    "レコード番号": {
+      "type": "RECORD_NUMBER",
+      "value": "1"
+    },
+    "顧客名": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "顧客名 1"
+    },
+    "部署名": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "部署名 1"
+    },
+    "案件名": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "案件名 1"
+    },
+    "確度": {
+      "type": "DROP_DOWN",
+      "value": "A"
+    },
+    "プラン費用": {
+      "type": "NUMBER",
+      "value": "100"
+    },
+    "オプション費用": {
+      "type": "NUMBER",
+      "value": "100"
+    },
+    "合計費用": {
+      "type": "CALC",
+      "value": "100"
+    },
+    "担当者": {
+      "type": "USER_SELECT",
+      "value": [
+        {
+          "code": "demo_user01",
+          "name": "架空 社長"
+        }
+      ]
+    },
+    "更新日時": {
+      "type": "UPDATED_TIME",
+      "value": "2026-01-15T00:00:00Z"
+    },
+    "作成日時": {
+      "type": "CREATED_TIME",
+      "value": "2026-01-15T00:00:00Z"
+    }
+  }
+}

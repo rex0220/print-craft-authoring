@@ -28,6 +28,11 @@ export interface EvalJob {
   mode?: "build" | "dev";
   /** 接続先（検証済み。APP_URL などの元。無ければ既定） */
   baseUrl?: string;
+  /**
+   * ユーザー情報: "default" = 既定のテストデータ（架空の 10 人。formula の写し。ログインユーザーは authoring）。省略はログインユーザー 1 人だけ（今までどおり）。
+   * お試しアプリ（try）が使う（print-craft の docs/authoring-try-plan.md 4.1）
+   */
+  users?: "default";
   /** kind "formulas": 評価する式（1 回 MAX_JOB_FORMULAS まで） */
   formulas?: string[];
   /** kind "normalize": 設定と項目定義（normalizeSettings の入力。エンジンは子プロセスが読む） */
@@ -47,6 +52,8 @@ export interface EvalJob {
     recordFile: unknown;
     policy?: Policy;
     button?: string;
+    /** 一覧帳票のボタンを描くときの一覧のレコード（runPreview の listRecords） */
+    listRecords?: unknown[];
   };
 }
 

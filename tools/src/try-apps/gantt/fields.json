@@ -1,0 +1,2328 @@
+{
+  "tool": "pcraft-authoring fields",
+  "fetchedAt": "2026-10-12T00:00:00.000Z",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 4121,
+  "appName": "ガントチャート",
+  "preview": false,
+  "lang": "ja",
+  "revision": "154",
+  "properties": {
+    "レコード番号": {
+      "type": "RECORD_NUMBER",
+      "code": "レコード番号",
+      "label": "レコード番号",
+      "noLabel": false
+    },
+    "parent_task_id": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "parent_task_id",
+      "label": "親タスクID",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "task_delete": {
+      "type": "CHECK_BOX",
+      "code": "task_delete",
+      "label": "タスク削除済",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "ON": {
+          "label": "ON",
+          "index": "0"
+        }
+      },
+      "defaultValue": [],
+      "align": "HORIZONTAL"
+    },
+    "project_status": {
+      "type": "DROP_DOWN",
+      "code": "project_status",
+      "label": "プロジェクト状態",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "planning": {
+          "label": "planning",
+          "index": "0"
+        },
+        "archived": {
+          "label": "archived",
+          "index": "3"
+        },
+        "active": {
+          "label": "active",
+          "index": "1"
+        },
+        "completed": {
+          "label": "completed",
+          "index": "2"
+        }
+      },
+      "defaultValue": ""
+    },
+    "ステータス": {
+      "type": "STATUS",
+      "code": "ステータス",
+      "label": "ステータス",
+      "enabled": false
+    },
+    "グループ": {
+      "type": "GROUP",
+      "code": "グループ",
+      "label": "Common",
+      "noLabel": false,
+      "openGroup": true
+    },
+    "project_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "project_name",
+      "label": "プロジェクト名",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "uuid": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "uuid",
+      "label": "uuid",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "カテゴリー": {
+      "type": "CATEGORY",
+      "code": "カテゴリー",
+      "label": "カテゴリー",
+      "enabled": false
+    },
+    "project_members": {
+      "type": "USER_SELECT",
+      "code": "project_members",
+      "label": "プロジェクトメンバー",
+      "noLabel": false,
+      "required": false,
+      "entities": [],
+      "defaultValue": []
+    },
+    "dependency_slide_mode": {
+      "type": "RADIO_BUTTON",
+      "code": "dependency_slide_mode",
+      "label": "依存連動スライド",
+      "noLabel": false,
+      "required": true,
+      "options": {
+        "OFF": {
+          "label": "OFF",
+          "index": "1"
+        },
+        "ON": {
+          "label": "ON",
+          "index": "0"
+        }
+      },
+      "defaultValue": "ON",
+      "align": "HORIZONTAL"
+    },
+    "project_id": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "project_id",
+      "label": "プロジェクトID",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "exclude_weekends_from_load": {
+      "type": "CHECK_BOX",
+      "code": "exclude_weekends_from_load",
+      "label": "休日を集計対象外",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "ON": {
+          "label": "ON",
+          "index": "0"
+        }
+      },
+      "defaultValue": [
+        "ON"
+      ],
+      "align": "HORIZONTAL"
+    },
+    "作業者": {
+      "type": "STATUS_ASSIGNEE",
+      "code": "作業者",
+      "label": "作業者",
+      "enabled": false
+    },
+    "color_mode": {
+      "type": "RADIO_BUTTON",
+      "code": "color_mode",
+      "label": "カラーモード",
+      "noLabel": false,
+      "required": true,
+      "options": {
+        "プロジェクト色": {
+          "label": "プロジェクト色",
+          "index": "0"
+        },
+        "個別指定": {
+          "label": "個別指定",
+          "index": "1"
+        }
+      },
+      "defaultValue": "プロジェクト色",
+      "align": "HORIZONTAL"
+    },
+    "project_priority": {
+      "type": "DROP_DOWN",
+      "code": "project_priority",
+      "label": "優先度",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "高": {
+          "label": "高",
+          "index": "0"
+        },
+        "中": {
+          "label": "中",
+          "index": "1"
+        },
+        "低": {
+          "label": "低",
+          "index": "2"
+        }
+      },
+      "defaultValue": ""
+    },
+    "project_code": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "project_code",
+      "label": "プロジェクトコード",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "64",
+      "expression": "",
+      "hideExpression": false,
+      "unique": true,
+      "defaultValue": ""
+    },
+    "priority": {
+      "type": "DROP_DOWN",
+      "code": "priority",
+      "label": "優先度",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "高": {
+          "label": "高",
+          "index": "0"
+        },
+        "中": {
+          "label": "中",
+          "index": "1"
+        },
+        "低": {
+          "label": "低",
+          "index": "2"
+        }
+      },
+      "defaultValue": ""
+    },
+    "manager_user": {
+      "type": "USER_SELECT",
+      "code": "manager_user",
+      "label": "責任者",
+      "noLabel": false,
+      "required": false,
+      "entities": [],
+      "defaultValue": []
+    },
+    "project_display_order": {
+      "type": "NUMBER",
+      "code": "project_display_order",
+      "label": "プロジェクト表示順",
+      "noLabel": false,
+      "required": false,
+      "minValue": "",
+      "maxValue": "",
+      "digit": false,
+      "unique": false,
+      "defaultValue": "",
+      "displayScale": "",
+      "unit": "",
+      "unitPosition": "BEFORE"
+    },
+    "task_situation": {
+      "type": "DROP_DOWN",
+      "code": "task_situation",
+      "label": "状況",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "in_progress": {
+          "label": "in_progress",
+          "index": "1"
+        },
+        "on_hold": {
+          "label": "on_hold",
+          "index": "2"
+        },
+        "done": {
+          "label": "done",
+          "index": "3"
+        },
+        "not_started": {
+          "label": "not_started",
+          "index": "0"
+        }
+      },
+      "defaultValue": ""
+    },
+    "group_task": {
+      "type": "GROUP",
+      "code": "group_task",
+      "label": "Task",
+      "noLabel": false,
+      "openGroup": true
+    },
+    "estimated_hours": {
+      "type": "NUMBER",
+      "code": "estimated_hours",
+      "label": "工数（h）",
+      "noLabel": false,
+      "required": false,
+      "minValue": "",
+      "maxValue": "",
+      "digit": true,
+      "unique": false,
+      "defaultValue": "",
+      "displayScale": "",
+      "unit": "",
+      "unitPosition": "BEFORE"
+    },
+    "assignable_members": {
+      "type": "MULTI_LINE_TEXT",
+      "code": "assignable_members",
+      "label": "アサイン可能メンバー",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": ""
+    },
+    "baseline_end_date": {
+      "type": "DATE",
+      "code": "baseline_end_date",
+      "label": "ベースライン終了日",
+      "noLabel": false,
+      "required": false,
+      "unique": false,
+      "defaultValue": "",
+      "defaultNowValue": false
+    },
+    "assignee": {
+      "type": "USER_SELECT",
+      "code": "assignee",
+      "label": "担当者",
+      "noLabel": false,
+      "required": false,
+      "entities": [],
+      "defaultValue": []
+    },
+    "作成日時": {
+      "type": "CREATED_TIME",
+      "code": "作成日時",
+      "label": "作成日時",
+      "noLabel": false
+    },
+    "base_color": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "base_color",
+      "label": "カラー",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "task_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "task_name",
+      "label": "タスク名",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "end_date": {
+      "type": "DATE",
+      "code": "end_date",
+      "label": "終了日",
+      "noLabel": false,
+      "required": false,
+      "unique": false,
+      "defaultValue": "",
+      "defaultNowValue": false
+    },
+    "group_project": {
+      "type": "GROUP",
+      "code": "group_project",
+      "label": "Project",
+      "noLabel": false,
+      "openGroup": true
+    },
+    "更新者": {
+      "type": "MODIFIER",
+      "code": "更新者",
+      "label": "更新者",
+      "noLabel": false
+    },
+    "related_project": {
+      "type": "REFERENCE_TABLE",
+      "code": "related_project",
+      "label": "Related Project",
+      "noLabel": false,
+      "referenceTable": {
+        "relatedApp": {
+          "app": "4121",
+          "code": ""
+        },
+        "condition": {
+          "field": "project_id",
+          "relatedField": "uuid"
+        },
+        "filterCond": "",
+        "displayFields": [
+          "project_name",
+          "project_status",
+          "manager_user",
+          "exclude_weekends_from_load"
+        ],
+        "sort": "レコード番号 desc",
+        "size": "20"
+      }
+    },
+    "display_order": {
+      "type": "NUMBER",
+      "code": "display_order",
+      "label": "表示順",
+      "noLabel": false,
+      "required": false,
+      "minValue": "",
+      "maxValue": "",
+      "digit": false,
+      "unique": false,
+      "defaultValue": "",
+      "displayScale": "",
+      "unit": "",
+      "unitPosition": "BEFORE"
+    },
+    "description": {
+      "type": "MULTI_LINE_TEXT",
+      "code": "description",
+      "label": "概要",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": ""
+    },
+    "recommended_color": {
+      "type": "NUMBER",
+      "code": "recommended_color",
+      "label": "推奨色",
+      "noLabel": false,
+      "required": false,
+      "minValue": "",
+      "maxValue": "",
+      "digit": false,
+      "unique": false,
+      "defaultValue": "1",
+      "displayScale": "",
+      "unit": "",
+      "unitPosition": "BEFORE"
+    },
+    "assignee_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "assignee_name",
+      "label": "担当者（氏名）",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "effort_mode": {
+      "type": "RADIO_BUTTON",
+      "code": "effort_mode",
+      "label": "工数モード",
+      "noLabel": false,
+      "required": true,
+      "options": {
+        "1日あたり工数": {
+          "label": "1日あたり工数",
+          "index": "1"
+        },
+        "タスク工数": {
+          "label": "タスク工数",
+          "index": "0"
+        }
+      },
+      "defaultValue": "タスク工数",
+      "align": "HORIZONTAL"
+    },
+    "task_list": {
+      "type": "REFERENCE_TABLE",
+      "code": "task_list",
+      "label": "タスク一覧",
+      "noLabel": false,
+      "referenceTable": {
+        "relatedApp": {
+          "app": "4121",
+          "code": ""
+        },
+        "condition": {
+          "field": "uuid",
+          "relatedField": "project_id"
+        },
+        "filterCond": "task_delete not in (\"ON\")",
+        "displayFields": [
+          "project_id",
+          "display_order",
+          "task_name",
+          "assignee",
+          "assignee_name",
+          "レコード番号",
+          "parent_task_id",
+          "dependency_ids"
+        ],
+        "sort": "display_order asc",
+        "size": "5"
+      }
+    },
+    "dependency_ids": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "dependency_ids",
+      "label": "依存タスクID",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "start_date": {
+      "type": "DATE",
+      "code": "start_date",
+      "label": "開始日",
+      "noLabel": false,
+      "required": false,
+      "unique": false,
+      "defaultValue": "",
+      "defaultNowValue": false
+    },
+    "作成者": {
+      "type": "CREATOR",
+      "code": "作成者",
+      "label": "作成者",
+      "noLabel": false
+    },
+    "更新日時": {
+      "type": "UPDATED_TIME",
+      "code": "更新日時",
+      "label": "更新日時",
+      "noLabel": false
+    },
+    "record_type": {
+      "type": "DROP_DOWN",
+      "code": "record_type",
+      "label": "レコード区分",
+      "noLabel": false,
+      "required": true,
+      "options": {
+        "task": {
+          "label": "task",
+          "index": "1"
+        },
+        "project": {
+          "label": "project",
+          "index": "0"
+        }
+      },
+      "defaultValue": ""
+    },
+    "manager_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "manager_name",
+      "label": "責任者（氏名）",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "milestone": {
+      "type": "CHECK_BOX",
+      "code": "milestone",
+      "label": "マイルストーン",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "ON": {
+          "label": "ON",
+          "index": "0"
+        }
+      },
+      "defaultValue": [],
+      "align": "HORIZONTAL"
+    },
+    "progress": {
+      "type": "NUMBER",
+      "code": "progress",
+      "label": "進捗率",
+      "noLabel": false,
+      "required": false,
+      "minValue": "",
+      "maxValue": "",
+      "digit": true,
+      "unique": false,
+      "defaultValue": "",
+      "displayScale": "",
+      "unit": "%",
+      "unitPosition": "AFTER"
+    },
+    "baseline_captured_at": {
+      "type": "DATETIME",
+      "code": "baseline_captured_at",
+      "label": "ベースライン記録日時",
+      "noLabel": false,
+      "required": false,
+      "unique": false,
+      "defaultValue": "",
+      "defaultNowValue": false
+    },
+    "baseline_start_date": {
+      "type": "DATE",
+      "code": "baseline_start_date",
+      "label": "ベースライン開始日",
+      "noLabel": false,
+      "required": false,
+      "unique": false,
+      "defaultValue": "",
+      "defaultNowValue": false
+    }
+  },
+  "layout": [
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "DROP_DOWN",
+          "code": "record_type",
+          "size": {
+            "width": "196"
+          }
+        },
+        {
+          "type": "DROP_DOWN",
+          "code": "project_priority",
+          "size": {
+            "width": "196"
+          }
+        }
+      ]
+    },
+    {
+      "type": "GROUP",
+      "code": "group_project",
+      "layout": [
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "SINGLE_LINE_TEXT",
+              "code": "project_name",
+              "size": {
+                "width": "386"
+              }
+            },
+            {
+              "type": "SINGLE_LINE_TEXT",
+              "code": "project_code",
+              "size": {
+                "width": "193"
+              }
+            },
+            {
+              "type": "DROP_DOWN",
+              "code": "project_status",
+              "size": {
+                "width": "196"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "USER_SELECT",
+              "code": "manager_user",
+              "size": {
+                "width": "344"
+              }
+            },
+            {
+              "type": "SINGLE_LINE_TEXT",
+              "code": "manager_name",
+              "size": {
+                "width": "235"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "USER_SELECT",
+              "code": "project_members",
+              "size": {
+                "width": "344"
+              }
+            },
+            {
+              "type": "MULTI_LINE_TEXT",
+              "code": "assignable_members",
+              "size": {
+                "width": "568",
+                "innerHeight": "125"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "CHECK_BOX",
+              "code": "exclude_weekends_from_load",
+              "size": {
+                "width": "151"
+              }
+            },
+            {
+              "type": "DATETIME",
+              "code": "baseline_captured_at",
+              "size": {
+                "width": "196"
+              }
+            },
+            {
+              "type": "NUMBER",
+              "code": "project_display_order",
+              "size": {
+                "width": "193"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "REFERENCE_TABLE",
+              "code": "task_list"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "GROUP",
+      "code": "group_task",
+      "layout": [
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "SINGLE_LINE_TEXT",
+              "code": "task_name",
+              "size": {
+                "width": "409"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "SINGLE_LINE_TEXT",
+              "code": "project_id",
+              "size": {
+                "width": "409"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "SINGLE_LINE_TEXT",
+              "code": "parent_task_id",
+              "size": {
+                "width": "409"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "SINGLE_LINE_TEXT",
+              "code": "dependency_ids",
+              "size": {
+                "width": "783"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "DATE",
+              "code": "start_date",
+              "size": {
+                "width": "117"
+              }
+            },
+            {
+              "type": "DATE",
+              "code": "end_date",
+              "size": {
+                "width": "117"
+              }
+            },
+            {
+              "type": "NUMBER",
+              "code": "progress",
+              "size": {
+                "width": "193"
+              }
+            },
+            {
+              "type": "DROP_DOWN",
+              "code": "task_situation",
+              "size": {
+                "width": "196"
+              }
+            },
+            {
+              "type": "CHECK_BOX",
+              "code": "task_delete",
+              "size": {
+                "width": "120"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "USER_SELECT",
+              "code": "assignee",
+              "size": {
+                "width": "344"
+              }
+            },
+            {
+              "type": "SINGLE_LINE_TEXT",
+              "code": "assignee_name",
+              "size": {
+                "width": "235"
+              }
+            },
+            {
+              "type": "NUMBER",
+              "code": "display_order",
+              "size": {
+                "width": "193"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "RADIO_BUTTON",
+              "code": "effort_mode",
+              "size": {
+                "width": "299"
+              }
+            },
+            {
+              "type": "NUMBER",
+              "code": "estimated_hours",
+              "size": {
+                "width": "128"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "RADIO_BUTTON",
+              "code": "dependency_slide_mode",
+              "size": {
+                "width": "185"
+              }
+            },
+            {
+              "type": "CHECK_BOX",
+              "code": "milestone",
+              "size": {
+                "width": "252"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "DATE",
+              "code": "baseline_start_date",
+              "size": {
+                "width": "162"
+              }
+            },
+            {
+              "type": "DATE",
+              "code": "baseline_end_date",
+              "size": {
+                "width": "162"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "REFERENCE_TABLE",
+              "code": "related_project"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "GROUP",
+      "code": "グループ",
+      "layout": [
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "RADIO_BUTTON",
+              "code": "color_mode",
+              "size": {
+                "width": "372"
+              }
+            },
+            {
+              "type": "NUMBER",
+              "code": "recommended_color",
+              "size": {
+                "width": "99"
+              }
+            },
+            {
+              "type": "SINGLE_LINE_TEXT",
+              "code": "base_color",
+              "size": {
+                "width": "144"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "DROP_DOWN",
+              "code": "priority",
+              "size": {
+                "width": "196"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "MULTI_LINE_TEXT",
+              "code": "description",
+              "size": {
+                "width": "548",
+                "innerHeight": "125"
+              }
+            }
+          ]
+        },
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "SINGLE_LINE_TEXT",
+              "code": "uuid",
+              "size": {
+                "width": "548"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "related": {
+    "related_project": {
+      "app": 4121,
+      "appName": "ガントチャート",
+      "revision": "154",
+      "properties": {
+        "レコード番号": {
+          "type": "RECORD_NUMBER",
+          "code": "レコード番号",
+          "label": "レコード番号",
+          "noLabel": false
+        },
+        "parent_task_id": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "parent_task_id",
+          "label": "親タスクID",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "task_delete": {
+          "type": "CHECK_BOX",
+          "code": "task_delete",
+          "label": "タスク削除済",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "ON": {
+              "label": "ON",
+              "index": "0"
+            }
+          },
+          "defaultValue": [],
+          "align": "HORIZONTAL"
+        },
+        "project_status": {
+          "type": "DROP_DOWN",
+          "code": "project_status",
+          "label": "プロジェクト状態",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "planning": {
+              "label": "planning",
+              "index": "0"
+            },
+            "archived": {
+              "label": "archived",
+              "index": "3"
+            },
+            "active": {
+              "label": "active",
+              "index": "1"
+            },
+            "completed": {
+              "label": "completed",
+              "index": "2"
+            }
+          },
+          "defaultValue": ""
+        },
+        "ステータス": {
+          "type": "STATUS",
+          "code": "ステータス",
+          "label": "ステータス",
+          "enabled": false
+        },
+        "グループ": {
+          "type": "GROUP",
+          "code": "グループ",
+          "label": "Common",
+          "noLabel": false,
+          "openGroup": true
+        },
+        "project_name": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "project_name",
+          "label": "プロジェクト名",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "uuid": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "uuid",
+          "label": "uuid",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "カテゴリー": {
+          "type": "CATEGORY",
+          "code": "カテゴリー",
+          "label": "カテゴリー",
+          "enabled": false
+        },
+        "project_members": {
+          "type": "USER_SELECT",
+          "code": "project_members",
+          "label": "プロジェクトメンバー",
+          "noLabel": false,
+          "required": false,
+          "entities": [],
+          "defaultValue": []
+        },
+        "dependency_slide_mode": {
+          "type": "RADIO_BUTTON",
+          "code": "dependency_slide_mode",
+          "label": "依存連動スライド",
+          "noLabel": false,
+          "required": true,
+          "options": {
+            "OFF": {
+              "label": "OFF",
+              "index": "1"
+            },
+            "ON": {
+              "label": "ON",
+              "index": "0"
+            }
+          },
+          "defaultValue": "ON",
+          "align": "HORIZONTAL"
+        },
+        "project_id": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "project_id",
+          "label": "プロジェクトID",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "exclude_weekends_from_load": {
+          "type": "CHECK_BOX",
+          "code": "exclude_weekends_from_load",
+          "label": "休日を集計対象外",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "ON": {
+              "label": "ON",
+              "index": "0"
+            }
+          },
+          "defaultValue": [
+            "ON"
+          ],
+          "align": "HORIZONTAL"
+        },
+        "作業者": {
+          "type": "STATUS_ASSIGNEE",
+          "code": "作業者",
+          "label": "作業者",
+          "enabled": false
+        },
+        "color_mode": {
+          "type": "RADIO_BUTTON",
+          "code": "color_mode",
+          "label": "カラーモード",
+          "noLabel": false,
+          "required": true,
+          "options": {
+            "プロジェクト色": {
+              "label": "プロジェクト色",
+              "index": "0"
+            },
+            "個別指定": {
+              "label": "個別指定",
+              "index": "1"
+            }
+          },
+          "defaultValue": "プロジェクト色",
+          "align": "HORIZONTAL"
+        },
+        "project_priority": {
+          "type": "DROP_DOWN",
+          "code": "project_priority",
+          "label": "優先度",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "高": {
+              "label": "高",
+              "index": "0"
+            },
+            "中": {
+              "label": "中",
+              "index": "1"
+            },
+            "低": {
+              "label": "低",
+              "index": "2"
+            }
+          },
+          "defaultValue": ""
+        },
+        "project_code": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "project_code",
+          "label": "プロジェクトコード",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "64",
+          "expression": "",
+          "hideExpression": false,
+          "unique": true,
+          "defaultValue": ""
+        },
+        "priority": {
+          "type": "DROP_DOWN",
+          "code": "priority",
+          "label": "優先度",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "高": {
+              "label": "高",
+              "index": "0"
+            },
+            "中": {
+              "label": "中",
+              "index": "1"
+            },
+            "低": {
+              "label": "低",
+              "index": "2"
+            }
+          },
+          "defaultValue": ""
+        },
+        "manager_user": {
+          "type": "USER_SELECT",
+          "code": "manager_user",
+          "label": "責任者",
+          "noLabel": false,
+          "required": false,
+          "entities": [],
+          "defaultValue": []
+        },
+        "project_display_order": {
+          "type": "NUMBER",
+          "code": "project_display_order",
+          "label": "プロジェクト表示順",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": false,
+          "unique": false,
+          "defaultValue": "",
+          "displayScale": "",
+          "unit": "",
+          "unitPosition": "BEFORE"
+        },
+        "task_situation": {
+          "type": "DROP_DOWN",
+          "code": "task_situation",
+          "label": "状況",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "in_progress": {
+              "label": "in_progress",
+              "index": "1"
+            },
+            "on_hold": {
+              "label": "on_hold",
+              "index": "2"
+            },
+            "done": {
+              "label": "done",
+              "index": "3"
+            },
+            "not_started": {
+              "label": "not_started",
+              "index": "0"
+            }
+          },
+          "defaultValue": ""
+        },
+        "group_task": {
+          "type": "GROUP",
+          "code": "group_task",
+          "label": "Task",
+          "noLabel": false,
+          "openGroup": true
+        },
+        "estimated_hours": {
+          "type": "NUMBER",
+          "code": "estimated_hours",
+          "label": "工数（h）",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": true,
+          "unique": false,
+          "defaultValue": "",
+          "displayScale": "",
+          "unit": "",
+          "unitPosition": "BEFORE"
+        },
+        "assignable_members": {
+          "type": "MULTI_LINE_TEXT",
+          "code": "assignable_members",
+          "label": "アサイン可能メンバー",
+          "noLabel": false,
+          "required": false,
+          "defaultValue": ""
+        },
+        "baseline_end_date": {
+          "type": "DATE",
+          "code": "baseline_end_date",
+          "label": "ベースライン終了日",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        },
+        "assignee": {
+          "type": "USER_SELECT",
+          "code": "assignee",
+          "label": "担当者",
+          "noLabel": false,
+          "required": false,
+          "entities": [],
+          "defaultValue": []
+        },
+        "作成日時": {
+          "type": "CREATED_TIME",
+          "code": "作成日時",
+          "label": "作成日時",
+          "noLabel": false
+        },
+        "base_color": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "base_color",
+          "label": "カラー",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "task_name": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "task_name",
+          "label": "タスク名",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "end_date": {
+          "type": "DATE",
+          "code": "end_date",
+          "label": "終了日",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        },
+        "group_project": {
+          "type": "GROUP",
+          "code": "group_project",
+          "label": "Project",
+          "noLabel": false,
+          "openGroup": true
+        },
+        "更新者": {
+          "type": "MODIFIER",
+          "code": "更新者",
+          "label": "更新者",
+          "noLabel": false
+        },
+        "related_project": {
+          "type": "REFERENCE_TABLE",
+          "code": "related_project",
+          "label": "Related Project",
+          "noLabel": false,
+          "referenceTable": {
+            "relatedApp": {
+              "app": "4121",
+              "code": ""
+            },
+            "condition": {
+              "field": "project_id",
+              "relatedField": "uuid"
+            },
+            "filterCond": "",
+            "displayFields": [
+              "project_name",
+              "project_status",
+              "manager_user",
+              "exclude_weekends_from_load"
+            ],
+            "sort": "レコード番号 desc",
+            "size": "20"
+          }
+        },
+        "display_order": {
+          "type": "NUMBER",
+          "code": "display_order",
+          "label": "表示順",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": false,
+          "unique": false,
+          "defaultValue": "",
+          "displayScale": "",
+          "unit": "",
+          "unitPosition": "BEFORE"
+        },
+        "description": {
+          "type": "MULTI_LINE_TEXT",
+          "code": "description",
+          "label": "概要",
+          "noLabel": false,
+          "required": false,
+          "defaultValue": ""
+        },
+        "recommended_color": {
+          "type": "NUMBER",
+          "code": "recommended_color",
+          "label": "推奨色",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": false,
+          "unique": false,
+          "defaultValue": "1",
+          "displayScale": "",
+          "unit": "",
+          "unitPosition": "BEFORE"
+        },
+        "assignee_name": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "assignee_name",
+          "label": "担当者（氏名）",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "effort_mode": {
+          "type": "RADIO_BUTTON",
+          "code": "effort_mode",
+          "label": "工数モード",
+          "noLabel": false,
+          "required": true,
+          "options": {
+            "1日あたり工数": {
+              "label": "1日あたり工数",
+              "index": "1"
+            },
+            "タスク工数": {
+              "label": "タスク工数",
+              "index": "0"
+            }
+          },
+          "defaultValue": "タスク工数",
+          "align": "HORIZONTAL"
+        },
+        "task_list": {
+          "type": "REFERENCE_TABLE",
+          "code": "task_list",
+          "label": "タスク一覧",
+          "noLabel": false,
+          "referenceTable": {
+            "relatedApp": {
+              "app": "4121",
+              "code": ""
+            },
+            "condition": {
+              "field": "uuid",
+              "relatedField": "project_id"
+            },
+            "filterCond": "task_delete not in (\"ON\")",
+            "displayFields": [
+              "project_id",
+              "display_order",
+              "task_name",
+              "assignee",
+              "assignee_name",
+              "レコード番号",
+              "parent_task_id",
+              "dependency_ids"
+            ],
+            "sort": "display_order asc",
+            "size": "5"
+          }
+        },
+        "dependency_ids": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "dependency_ids",
+          "label": "依存タスクID",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "start_date": {
+          "type": "DATE",
+          "code": "start_date",
+          "label": "開始日",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        },
+        "作成者": {
+          "type": "CREATOR",
+          "code": "作成者",
+          "label": "作成者",
+          "noLabel": false
+        },
+        "更新日時": {
+          "type": "UPDATED_TIME",
+          "code": "更新日時",
+          "label": "更新日時",
+          "noLabel": false
+        },
+        "record_type": {
+          "type": "DROP_DOWN",
+          "code": "record_type",
+          "label": "レコード区分",
+          "noLabel": false,
+          "required": true,
+          "options": {
+            "task": {
+              "label": "task",
+              "index": "1"
+            },
+            "project": {
+              "label": "project",
+              "index": "0"
+            }
+          },
+          "defaultValue": ""
+        },
+        "manager_name": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "manager_name",
+          "label": "責任者（氏名）",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "milestone": {
+          "type": "CHECK_BOX",
+          "code": "milestone",
+          "label": "マイルストーン",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "ON": {
+              "label": "ON",
+              "index": "0"
+            }
+          },
+          "defaultValue": [],
+          "align": "HORIZONTAL"
+        },
+        "progress": {
+          "type": "NUMBER",
+          "code": "progress",
+          "label": "進捗率",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": true,
+          "unique": false,
+          "defaultValue": "",
+          "displayScale": "",
+          "unit": "%",
+          "unitPosition": "AFTER"
+        },
+        "baseline_captured_at": {
+          "type": "DATETIME",
+          "code": "baseline_captured_at",
+          "label": "ベースライン記録日時",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        },
+        "baseline_start_date": {
+          "type": "DATE",
+          "code": "baseline_start_date",
+          "label": "ベースライン開始日",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        }
+      }
+    },
+    "task_list": {
+      "app": 4121,
+      "appName": "ガントチャート",
+      "revision": "154",
+      "properties": {
+        "レコード番号": {
+          "type": "RECORD_NUMBER",
+          "code": "レコード番号",
+          "label": "レコード番号",
+          "noLabel": false
+        },
+        "parent_task_id": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "parent_task_id",
+          "label": "親タスクID",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "task_delete": {
+          "type": "CHECK_BOX",
+          "code": "task_delete",
+          "label": "タスク削除済",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "ON": {
+              "label": "ON",
+              "index": "0"
+            }
+          },
+          "defaultValue": [],
+          "align": "HORIZONTAL"
+        },
+        "project_status": {
+          "type": "DROP_DOWN",
+          "code": "project_status",
+          "label": "プロジェクト状態",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "planning": {
+              "label": "planning",
+              "index": "0"
+            },
+            "archived": {
+              "label": "archived",
+              "index": "3"
+            },
+            "active": {
+              "label": "active",
+              "index": "1"
+            },
+            "completed": {
+              "label": "completed",
+              "index": "2"
+            }
+          },
+          "defaultValue": ""
+        },
+        "ステータス": {
+          "type": "STATUS",
+          "code": "ステータス",
+          "label": "ステータス",
+          "enabled": false
+        },
+        "グループ": {
+          "type": "GROUP",
+          "code": "グループ",
+          "label": "Common",
+          "noLabel": false,
+          "openGroup": true
+        },
+        "project_name": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "project_name",
+          "label": "プロジェクト名",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "uuid": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "uuid",
+          "label": "uuid",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "カテゴリー": {
+          "type": "CATEGORY",
+          "code": "カテゴリー",
+          "label": "カテゴリー",
+          "enabled": false
+        },
+        "project_members": {
+          "type": "USER_SELECT",
+          "code": "project_members",
+          "label": "プロジェクトメンバー",
+          "noLabel": false,
+          "required": false,
+          "entities": [],
+          "defaultValue": []
+        },
+        "dependency_slide_mode": {
+          "type": "RADIO_BUTTON",
+          "code": "dependency_slide_mode",
+          "label": "依存連動スライド",
+          "noLabel": false,
+          "required": true,
+          "options": {
+            "OFF": {
+              "label": "OFF",
+              "index": "1"
+            },
+            "ON": {
+              "label": "ON",
+              "index": "0"
+            }
+          },
+          "defaultValue": "ON",
+          "align": "HORIZONTAL"
+        },
+        "project_id": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "project_id",
+          "label": "プロジェクトID",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "exclude_weekends_from_load": {
+          "type": "CHECK_BOX",
+          "code": "exclude_weekends_from_load",
+          "label": "休日を集計対象外",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "ON": {
+              "label": "ON",
+              "index": "0"
+            }
+          },
+          "defaultValue": [
+            "ON"
+          ],
+          "align": "HORIZONTAL"
+        },
+        "作業者": {
+          "type": "STATUS_ASSIGNEE",
+          "code": "作業者",
+          "label": "作業者",
+          "enabled": false
+        },
+        "color_mode": {
+          "type": "RADIO_BUTTON",
+          "code": "color_mode",
+          "label": "カラーモード",
+          "noLabel": false,
+          "required": true,
+          "options": {
+            "プロジェクト色": {
+              "label": "プロジェクト色",
+              "index": "0"
+            },
+            "個別指定": {
+              "label": "個別指定",
+              "index": "1"
+            }
+          },
+          "defaultValue": "プロジェクト色",
+          "align": "HORIZONTAL"
+        },
+        "project_priority": {
+          "type": "DROP_DOWN",
+          "code": "project_priority",
+          "label": "優先度",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "高": {
+              "label": "高",
+              "index": "0"
+            },
+            "中": {
+              "label": "中",
+              "index": "1"
+            },
+            "低": {
+              "label": "低",
+              "index": "2"
+            }
+          },
+          "defaultValue": ""
+        },
+        "project_code": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "project_code",
+          "label": "プロジェクトコード",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "64",
+          "expression": "",
+          "hideExpression": false,
+          "unique": true,
+          "defaultValue": ""
+        },
+        "priority": {
+          "type": "DROP_DOWN",
+          "code": "priority",
+          "label": "優先度",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "高": {
+              "label": "高",
+              "index": "0"
+            },
+            "中": {
+              "label": "中",
+              "index": "1"
+            },
+            "低": {
+              "label": "低",
+              "index": "2"
+            }
+          },
+          "defaultValue": ""
+        },
+        "manager_user": {
+          "type": "USER_SELECT",
+          "code": "manager_user",
+          "label": "責任者",
+          "noLabel": false,
+          "required": false,
+          "entities": [],
+          "defaultValue": []
+        },
+        "project_display_order": {
+          "type": "NUMBER",
+          "code": "project_display_order",
+          "label": "プロジェクト表示順",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": false,
+          "unique": false,
+          "defaultValue": "",
+          "displayScale": "",
+          "unit": "",
+          "unitPosition": "BEFORE"
+        },
+        "task_situation": {
+          "type": "DROP_DOWN",
+          "code": "task_situation",
+          "label": "状況",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "in_progress": {
+              "label": "in_progress",
+              "index": "1"
+            },
+            "on_hold": {
+              "label": "on_hold",
+              "index": "2"
+            },
+            "done": {
+              "label": "done",
+              "index": "3"
+            },
+            "not_started": {
+              "label": "not_started",
+              "index": "0"
+            }
+          },
+          "defaultValue": ""
+        },
+        "group_task": {
+          "type": "GROUP",
+          "code": "group_task",
+          "label": "Task",
+          "noLabel": false,
+          "openGroup": true
+        },
+        "estimated_hours": {
+          "type": "NUMBER",
+          "code": "estimated_hours",
+          "label": "工数（h）",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": true,
+          "unique": false,
+          "defaultValue": "",
+          "displayScale": "",
+          "unit": "",
+          "unitPosition": "BEFORE"
+        },
+        "assignable_members": {
+          "type": "MULTI_LINE_TEXT",
+          "code": "assignable_members",
+          "label": "アサイン可能メンバー",
+          "noLabel": false,
+          "required": false,
+          "defaultValue": ""
+        },
+        "baseline_end_date": {
+          "type": "DATE",
+          "code": "baseline_end_date",
+          "label": "ベースライン終了日",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        },
+        "assignee": {
+          "type": "USER_SELECT",
+          "code": "assignee",
+          "label": "担当者",
+          "noLabel": false,
+          "required": false,
+          "entities": [],
+          "defaultValue": []
+        },
+        "作成日時": {
+          "type": "CREATED_TIME",
+          "code": "作成日時",
+          "label": "作成日時",
+          "noLabel": false
+        },
+        "base_color": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "base_color",
+          "label": "カラー",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "task_name": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "task_name",
+          "label": "タスク名",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "end_date": {
+          "type": "DATE",
+          "code": "end_date",
+          "label": "終了日",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        },
+        "group_project": {
+          "type": "GROUP",
+          "code": "group_project",
+          "label": "Project",
+          "noLabel": false,
+          "openGroup": true
+        },
+        "更新者": {
+          "type": "MODIFIER",
+          "code": "更新者",
+          "label": "更新者",
+          "noLabel": false
+        },
+        "related_project": {
+          "type": "REFERENCE_TABLE",
+          "code": "related_project",
+          "label": "Related Project",
+          "noLabel": false,
+          "referenceTable": {
+            "relatedApp": {
+              "app": "4121",
+              "code": ""
+            },
+            "condition": {
+              "field": "project_id",
+              "relatedField": "uuid"
+            },
+            "filterCond": "",
+            "displayFields": [
+              "project_name",
+              "project_status",
+              "manager_user",
+              "exclude_weekends_from_load"
+            ],
+            "sort": "レコード番号 desc",
+            "size": "20"
+          }
+        },
+        "display_order": {
+          "type": "NUMBER",
+          "code": "display_order",
+          "label": "表示順",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": false,
+          "unique": false,
+          "defaultValue": "",
+          "displayScale": "",
+          "unit": "",
+          "unitPosition": "BEFORE"
+        },
+        "description": {
+          "type": "MULTI_LINE_TEXT",
+          "code": "description",
+          "label": "概要",
+          "noLabel": false,
+          "required": false,
+          "defaultValue": ""
+        },
+        "recommended_color": {
+          "type": "NUMBER",
+          "code": "recommended_color",
+          "label": "推奨色",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": false,
+          "unique": false,
+          "defaultValue": "1",
+          "displayScale": "",
+          "unit": "",
+          "unitPosition": "BEFORE"
+        },
+        "assignee_name": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "assignee_name",
+          "label": "担当者（氏名）",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "effort_mode": {
+          "type": "RADIO_BUTTON",
+          "code": "effort_mode",
+          "label": "工数モード",
+          "noLabel": false,
+          "required": true,
+          "options": {
+            "1日あたり工数": {
+              "label": "1日あたり工数",
+              "index": "1"
+            },
+            "タスク工数": {
+              "label": "タスク工数",
+              "index": "0"
+            }
+          },
+          "defaultValue": "タスク工数",
+          "align": "HORIZONTAL"
+        },
+        "task_list": {
+          "type": "REFERENCE_TABLE",
+          "code": "task_list",
+          "label": "タスク一覧",
+          "noLabel": false,
+          "referenceTable": {
+            "relatedApp": {
+              "app": "4121",
+              "code": ""
+            },
+            "condition": {
+              "field": "uuid",
+              "relatedField": "project_id"
+            },
+            "filterCond": "task_delete not in (\"ON\")",
+            "displayFields": [
+              "project_id",
+              "display_order",
+              "task_name",
+              "assignee",
+              "assignee_name",
+              "レコード番号",
+              "parent_task_id",
+              "dependency_ids"
+            ],
+            "sort": "display_order asc",
+            "size": "5"
+          }
+        },
+        "dependency_ids": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "dependency_ids",
+          "label": "依存タスクID",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "start_date": {
+          "type": "DATE",
+          "code": "start_date",
+          "label": "開始日",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        },
+        "作成者": {
+          "type": "CREATOR",
+          "code": "作成者",
+          "label": "作成者",
+          "noLabel": false
+        },
+        "更新日時": {
+          "type": "UPDATED_TIME",
+          "code": "更新日時",
+          "label": "更新日時",
+          "noLabel": false
+        },
+        "record_type": {
+          "type": "DROP_DOWN",
+          "code": "record_type",
+          "label": "レコード区分",
+          "noLabel": false,
+          "required": true,
+          "options": {
+            "task": {
+              "label": "task",
+              "index": "1"
+            },
+            "project": {
+              "label": "project",
+              "index": "0"
+            }
+          },
+          "defaultValue": ""
+        },
+        "manager_name": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "manager_name",
+          "label": "責任者（氏名）",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "milestone": {
+          "type": "CHECK_BOX",
+          "code": "milestone",
+          "label": "マイルストーン",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "ON": {
+              "label": "ON",
+              "index": "0"
+            }
+          },
+          "defaultValue": [],
+          "align": "HORIZONTAL"
+        },
+        "progress": {
+          "type": "NUMBER",
+          "code": "progress",
+          "label": "進捗率",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": true,
+          "unique": false,
+          "defaultValue": "",
+          "displayScale": "",
+          "unit": "%",
+          "unitPosition": "AFTER"
+        },
+        "baseline_captured_at": {
+          "type": "DATETIME",
+          "code": "baseline_captured_at",
+          "label": "ベースライン記録日時",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        },
+        "baseline_start_date": {
+          "type": "DATE",
+          "code": "baseline_start_date",
+          "label": "ベースライン開始日",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        }
+      }
+    }
+  },
+  "relatedNotes": []
+}

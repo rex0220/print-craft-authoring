@@ -70,6 +70,11 @@ export interface Engine {
   /** 読み込み時の注意（既知でない中身を許して続けたなど） */
   warnings: string[];
   setContext(ctx: Partial<KintoneContext>): void;
+  /**
+   * ユーザー情報の表（rex0220_users_info3.data。UINFO / OINFO / GINFO / OUSERS / GUSERS が読む）を差し替える（tools 2.3.0。お試しアプリの既定のテストデータ。
+   * 評価の子プロセスの仕事ごとに。print-craft の docs/authoring-try-plan.md 4.1）。ログインユーザーは setContext の loginUser
+   */
+  setUsers(table: unknown): void;
   /** 設定画面と同じ検証用のインスタンス（createFormula） */
   checker(pp: unknown, crec: unknown): FormulaInstance;
   /** デスクトップと同じ実行用のインスタンス（newFormula） */
@@ -249,7 +254,15 @@ async function startEngine(src: PluginSources & { kind: "zip" | "dev"; api: stri
     userCodes: { [u.code]: infoUser }, orgCodes: {}, groupCodes: {},
     userIds: { [u.id]: u.code }, orgIds: {}, groupIds: {}
   };
-  g.rex0220_users_info3 = { request: () => undefined, getUsersInfo: async () => usersInfo, data: usersInfo };
+  // data は差し替えられるように持つ（setUsers）
+  const users: { data: unknown } = { data: usersInfo };
+  g.rex0220_users_info3 = {
+    request: () => undefined,
+    getUsersInfo: async () => users.data,
+    get data() {
+      return users.data;
+    }
+  };
   window.kintone = g.kintone;
   window.cybozu = g.cybozu;
   window.rex0220_users_info3 = g.rex0220_users_info3;
@@ -294,6 +307,9 @@ async function startEngine(src: PluginSources & { kind: "zip" | "dev"; api: stri
       if (next.baseUrl) ctx.baseUrl = next.baseUrl.replace(/\/+$/, "");
       if (next.appId) ctx.appId = next.appId;
       if (next.loginUser) ctx.loginUser = { ...ctx.loginUser, ...next.loginUser };
+    },
+    setUsers(table) {
+      users.data = table;
     },
     checker: (pp, crec) => new Ctor("formula", pp, crec, true, true),
     runner: (pp, record) => new Ctor("formula", pp, record, true),

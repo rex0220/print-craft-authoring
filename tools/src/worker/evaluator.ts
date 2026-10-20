@@ -44,6 +44,8 @@ export interface PreviewInChildInput {
   button?: string;
   /** 検証済みの接続先 */
   baseUrl?: string;
+  /** 一覧帳票のボタンを描くときの一覧のレコード（選んだ順） */
+  listRecords?: unknown[];
 }
 
 /** 子プロセスの preview の結果（PreviewResult と、エンジンの読み込みの注意・診断） */
@@ -61,7 +63,7 @@ export async function previewInChild(ev: Evaluator, input: PreviewInChildInput):
       devPluginDir: ev.devPluginDir,
       mode: ev.mode,
       baseUrl: input.baseUrl,
-      preview: { settingsText: input.settingsText, settingsFile: input.settingsFile, fields: input.fields, recordFile: input.recordFile, policy: input.policy, button: input.button }
+      preview: { settingsText: input.settingsText, settingsFile: input.settingsFile, fields: input.fields, recordFile: input.recordFile, policy: input.policy, button: input.button, listRecords: input.listRecords }
     },
     ev.run
   );

@@ -6,6 +6,7 @@ import { threadId } from "node:worker_threads";
 import { DEFAULT_CONTEXT_BASE_URL, loadEngine } from "../engine.ts";
 import { InputError, normalizeSettings } from "../commands/normalize.ts";
 import { runPreview } from "../commands/preview.ts";
+import { DEFAULT_USERS, defaultUsersInfo } from "../try-apps/users/index.ts";
 import { PluginZipError } from "../plugin-zip.ts";
 import { PolicyError } from "../normalize/policy.ts";
 import { MAX_ERROR_CHARS, MAX_JOB_FORMULAS, MAX_MESSAGE_BYTES, MAX_PREVIEW_MESSAGE_BYTES, MAX_VALUE_BYTES, type EvalJob, type EvalMessage, type EvalOutcome, type FormulaEvalResult, type JsonValue } from "./eval-job.ts";
@@ -104,6 +105,12 @@ function evaluateOne(dq: (expression: string) => unknown, formula: string): Form
 export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
   const engine = await loadEngine({ pluginZip: job.pluginZip, devPluginDir: job.devPluginDir, mode: job.mode });
   if (job.baseUrl) engine.setContext({ baseUrl: job.baseUrl });
+  if (job.users === "default") {
+    // 既定のテストデータ（架空）。ログインユーザーは authoring（テストデータの 10 人目。formula の calc の既定と同じ）
+    const login = DEFAULT_USERS.users.find((u) => u.code === "authoring");
+    engine.setUsers(defaultUsersInfo());
+    if (login) engine.setContext({ loginUser: { id: String(login.id), code: login.code, name: login.name, email: login.email ?? "", language: login.locale ?? "ja" } });
+  }
   const outcome: EvalOutcome = {
     engine: { pluginVersion: engine.source.pluginVersion, apiVersion: engine.api.apiVersion, engineSha256: engine.source.engineSha256, decimalSha256: engine.source.decimalSha256 },
     engineWarnings: [...engine.warnings],
@@ -126,7 +133,7 @@ export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
     const p = job.preview;
     if (!p || typeof p.settingsText !== "string" || !p.fields) throw new InputError("preview の仕事に設定か項目定義が無い（preview.settingsText / preview.fields）");
     // 検査・接続先と appId（setContext）・描画・掃除は runPreview の中（親で動かしていたときと同じ）
-    const res = await runPreview({ settingsText: p.settingsText, settingsFile: p.settingsFile, fields: p.fields, recordFile: p.recordFile, engine, policy: p.policy, button: p.button, baseUrl: job.baseUrl });
+    const res = await runPreview({ settingsText: p.settingsText, settingsFile: p.settingsFile, fields: p.fields, recordFile: p.recordFile, engine, policy: p.policy, button: p.button, baseUrl: job.baseUrl, listRecords: p.listRecords });
     outcome.preview = { findings: [...res.findings.items], results: res.results, skipped: res.skipped, summary: res.summary };
     if (byteLength(JSON.stringify(outcome)) > MAX_PREVIEW_MESSAGE_BYTES) throw new InputError(`帳票の HTML が大きすぎて返せない（${MAX_PREVIEW_MESSAGE_BYTES.toLocaleString()} バイトまで。--button で 1 つのボタンに絞る）`);
   } else throw new InputError(`知らない仕事: ${String((job as { kind?: unknown }).kind)}`);

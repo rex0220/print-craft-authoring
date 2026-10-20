@@ -1,0 +1,30 @@
+{
+  "tool": "pcraft-authoring fields",
+  "fetchedAt": "2026-10-04T00:00:00.000Z",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 381,
+  "appName": "案件管理",
+  "preview": false,
+  "lang": "ja",
+  "revision": "1",
+  "properties": {
+    "レコード番号": { "type": "RECORD_NUMBER", "code": "レコード番号", "label": "レコード番号", "noLabel": false },
+    "顧客名": { "type": "SINGLE_LINE_TEXT", "code": "顧客名", "label": "顧客名", "noLabel": false, "required": true, "unique": false, "maxLength": "", "minLength": "", "defaultValue": "", "expression": "", "hideExpression": false },
+    "部署名": { "type": "SINGLE_LINE_TEXT", "code": "部署名", "label": "部署名", "noLabel": false, "required": false, "unique": false, "maxLength": "", "minLength": "", "defaultValue": "", "expression": "", "hideExpression": false },
+    "案件名": { "type": "SINGLE_LINE_TEXT", "code": "案件名", "label": "案件名", "noLabel": false, "required": true, "unique": false, "maxLength": "", "minLength": "", "defaultValue": "", "expression": "", "hideExpression": false },
+    "確度": { "type": "DROP_DOWN", "code": "確度", "label": "確度", "noLabel": false, "required": false, "defaultValue": "", "options": { "A": { "label": "A", "index": "0" }, "B": { "label": "B", "index": "1" }, "C": { "label": "C", "index": "2" } } },
+    "プラン費用": { "type": "NUMBER", "code": "プラン費用", "label": "プラン費用", "noLabel": false, "required": false, "unique": false, "maxValue": "", "minValue": "", "defaultValue": "", "digit": true, "displayScale": "", "unit": "¥", "unitPosition": "BEFORE" },
+    "オプション費用": { "type": "NUMBER", "code": "オプション費用", "label": "オプション費用", "noLabel": false, "required": false, "unique": false, "maxValue": "", "minValue": "", "defaultValue": "", "digit": true, "displayScale": "", "unit": "¥", "unitPosition": "BEFORE" },
+    "合計費用": { "type": "CALC", "code": "合計費用", "label": "合計費用", "noLabel": false, "required": false, "expression": "プラン費用+オプション費用", "format": "NUMBER_DIGIT", "displayScale": "", "hideExpression": false, "unit": "¥", "unitPosition": "BEFORE" },
+    "担当者": { "type": "USER_SELECT", "code": "担当者", "label": "担当者", "noLabel": false, "required": false, "entities": [], "defaultValue": [] },
+    "更新日時": { "type": "UPDATED_TIME", "code": "更新日時", "label": "更新日時", "noLabel": false },
+    "作成日時": { "type": "CREATED_TIME", "code": "作成日時", "label": "作成日時", "noLabel": false }
+  },
+  "layout": [
+    { "type": "ROW", "fields": [{ "type": "RECORD_NUMBER", "code": "レコード番号", "size": { "width": "100" } }, { "type": "SINGLE_LINE_TEXT", "code": "顧客名", "size": { "width": "250" } }, { "type": "SINGLE_LINE_TEXT", "code": "部署名", "size": { "width": "250" } }] },
+    { "type": "ROW", "fields": [{ "type": "SINGLE_LINE_TEXT", "code": "案件名", "size": { "width": "400" } }, { "type": "DROP_DOWN", "code": "確度", "size": { "width": "100" } }] },
+    { "type": "ROW", "fields": [{ "type": "NUMBER", "code": "プラン費用", "size": { "width": "150" } }, { "type": "NUMBER", "code": "オプション費用", "size": { "width": "150" } }, { "type": "CALC", "code": "合計費用", "size": { "width": "150" } }] },
+    { "type": "ROW", "fields": [{ "type": "USER_SELECT", "code": "担当者", "size": { "width": "200" } }, { "type": "CREATED_TIME", "code": "作成日時", "size": { "width": "150" } }, { "type": "UPDATED_TIME", "code": "更新日時", "size": { "width": "150" } }] }
+  ],
+  "note": "架空の案件管理アプリ（kintone アプリストアの案件管理の主な項目）。Qiita「一覧画面のPDF作成」「一覧画面の合計欄」の例に合わせた"
+}

@@ -1,0 +1,112 @@
+{
+  "tool": "pcraft-authoring try-app",
+  "fetchedAt": "",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 3740,
+  "id": 2,
+  "record": {
+    "$id": {
+      "type": "__ID__",
+      "value": "1002"
+    },
+    "$revision": {
+      "type": "__REVISION__",
+      "value": "3"
+    },
+    "見積番号": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "宛名": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "株式会社テスト長い文字の試しです。長い文字の試しです。長い文字の試しです。長い文字の試しです。"
+    },
+    "見積日": {
+      "type": "DATE",
+      "value": "2026-01-31"
+    },
+    "担当者": {
+      "type": "USER_SELECT",
+      "value": []
+    },
+    "備考": {
+      "type": "MULTI_LINE_TEXT",
+      "value": "1 行目\n2 行目\n3 行目"
+    },
+    "小計": {
+      "type": "CALC",
+      "value": "-1000"
+    },
+    "消費税": {
+      "type": "CALC",
+      "value": "-100"
+    },
+    "合計": {
+      "type": "CALC",
+      "value": "-1100"
+    },
+    "見積ファイル": {
+      "type": "FILE",
+      "value": []
+    },
+    "ダミー": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "見積明細": {
+      "type": "SUBTABLE",
+      "value": [
+        {
+          "id": "900001",
+          "value": {
+            "型番": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": ""
+            },
+            "商品名": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "長い品名長い文字の試しです。長い文字の試しです。長い文字の試しです。長い文字の試しです。"
+            },
+            "数量": {
+              "type": "NUMBER",
+              "value": "0"
+            },
+            "単価": {
+              "type": "NUMBER",
+              "value": "1000"
+            },
+            "金額": {
+              "type": "CALC",
+              "value": "0"
+            }
+          }
+        },
+        {
+          "id": "900002",
+          "value": {
+            "型番": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "D-01"
+            },
+            "商品名": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "値引き"
+            },
+            "数量": {
+              "type": "NUMBER",
+              "value": "1"
+            },
+            "単価": {
+              "type": "NUMBER",
+              "value": "-1000"
+            },
+            "金額": {
+              "type": "CALC",
+              "value": "-1000"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

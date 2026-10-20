@@ -1,0 +1,93 @@
+{
+  "tool": "pcraft-authoring try-app",
+  "fetchedAt": "",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 4121,
+  "id": 2,
+  "record": {
+    "$id": {
+      "type": "__ID__",
+      "value": "1002"
+    },
+    "$revision": {
+      "type": "__REVISION__",
+      "value": "3"
+    },
+    "record_type": {
+      "type": "DROP_DOWN",
+      "value": "project"
+    },
+    "project_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "タスクの無いプロジェクト"
+    },
+    "project_code": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "SP-001"
+    },
+    "project_status": {
+      "type": "DROP_DOWN",
+      "value": "active"
+    },
+    "project_priority": {
+      "type": "DROP_DOWN",
+      "value": "高"
+    },
+    "manager_user": {
+      "type": "USER_SELECT",
+      "value": [
+        {
+          "code": "user-a",
+          "name": "山田 太郎"
+        }
+      ]
+    },
+    "manager_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "山田 太郎"
+    },
+    "project_members": {
+      "type": "USER_SELECT",
+      "value": [
+        {
+          "code": "user-a",
+          "name": "山田 太郎"
+        },
+        {
+          "code": "user-b",
+          "name": "佐藤 花子"
+        },
+        {
+          "code": "user-c",
+          "name": "鈴木 一郎"
+        }
+      ]
+    },
+    "description": {
+      "type": "MULTI_LINE_TEXT",
+      "value": "社内ポータルを刷新する。\n要件定義から本番リリースまでを 5 つのフェーズで進める。"
+    },
+    "uuid": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "p-0001"
+    },
+    "exclude_weekends_from_load": {
+      "type": "CHECK_BOX",
+      "value": [
+        "ON"
+      ]
+    },
+    "display_order": {
+      "type": "NUMBER",
+      "value": ""
+    },
+    "related_project": {
+      "type": "SUBTABLE",
+      "value": []
+    },
+    "task_list": {
+      "type": "SUBTABLE",
+      "value": []
+    }
+  }
+}

@@ -1,0 +1,207 @@
+{
+  "tool": "pcraft-authoring try-app",
+  "fetchedAt": "",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 4121,
+  "id": 3,
+  "record": {
+    "$id": {
+      "type": "__ID__",
+      "value": "1011"
+    },
+    "$revision": {
+      "type": "__REVISION__",
+      "value": "1"
+    },
+    "レコード番号": {
+      "type": "RECORD_NUMBER",
+      "value": "11"
+    },
+    "parent_task_id": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "task_delete": {
+      "type": "CHECK_BOX",
+      "value": []
+    },
+    "project_status": {
+      "type": "DROP_DOWN",
+      "value": ""
+    },
+    "ステータス": {
+      "type": "STATUS",
+      "value": "未処理"
+    },
+    "project_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "uuid": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "カテゴリー": {
+      "type": "CATEGORY",
+      "value": []
+    },
+    "project_members": {
+      "type": "USER_SELECT",
+      "value": []
+    },
+    "dependency_slide_mode": {
+      "type": "RADIO_BUTTON",
+      "value": "ON"
+    },
+    "project_id": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "exclude_weekends_from_load": {
+      "type": "CHECK_BOX",
+      "value": []
+    },
+    "作業者": {
+      "type": "STATUS_ASSIGNEE",
+      "value": []
+    },
+    "color_mode": {
+      "type": "RADIO_BUTTON",
+      "value": "プロジェクト色"
+    },
+    "project_priority": {
+      "type": "DROP_DOWN",
+      "value": ""
+    },
+    "project_code": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "priority": {
+      "type": "DROP_DOWN",
+      "value": ""
+    },
+    "manager_user": {
+      "type": "USER_SELECT",
+      "value": []
+    },
+    "project_display_order": {
+      "type": "NUMBER",
+      "value": ""
+    },
+    "task_situation": {
+      "type": "DROP_DOWN",
+      "value": ""
+    },
+    "estimated_hours": {
+      "type": "NUMBER",
+      "value": ""
+    },
+    "assignable_members": {
+      "type": "MULTI_LINE_TEXT",
+      "value": ""
+    },
+    "baseline_end_date": {
+      "type": "DATE",
+      "value": ""
+    },
+    "assignee": {
+      "type": "USER_SELECT",
+      "value": []
+    },
+    "作成日時": {
+      "type": "CREATED_TIME",
+      "value": "2026-01-15T00:00:00Z"
+    },
+    "base_color": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "task_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "end_date": {
+      "type": "DATE",
+      "value": ""
+    },
+    "更新者": {
+      "type": "MODIFIER",
+      "value": {
+        "code": "demo_user01",
+        "name": "架空 社長"
+      }
+    },
+    "related_project": {
+      "type": "SUBTABLE",
+      "value": []
+    },
+    "display_order": {
+      "type": "NUMBER",
+      "value": ""
+    },
+    "description": {
+      "type": "MULTI_LINE_TEXT",
+      "value": ""
+    },
+    "recommended_color": {
+      "type": "NUMBER",
+      "value": ""
+    },
+    "assignee_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "effort_mode": {
+      "type": "RADIO_BUTTON",
+      "value": "タスク工数"
+    },
+    "task_list": {
+      "type": "SUBTABLE",
+      "value": []
+    },
+    "dependency_ids": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "start_date": {
+      "type": "DATE",
+      "value": ""
+    },
+    "作成者": {
+      "type": "CREATOR",
+      "value": {
+        "code": "demo_user01",
+        "name": "架空 社長"
+      }
+    },
+    "更新日時": {
+      "type": "UPDATED_TIME",
+      "value": "2026-01-15T00:00:00Z"
+    },
+    "record_type": {
+      "type": "DROP_DOWN",
+      "value": ""
+    },
+    "manager_name": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "milestone": {
+      "type": "CHECK_BOX",
+      "value": []
+    },
+    "progress": {
+      "type": "NUMBER",
+      "value": ""
+    },
+    "baseline_captured_at": {
+      "type": "DATETIME",
+      "value": ""
+    },
+    "baseline_start_date": {
+      "type": "DATE",
+      "value": ""
+    }
+  }
+}
