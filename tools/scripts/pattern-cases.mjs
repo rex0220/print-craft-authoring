@@ -203,5 +203,22 @@ export const PATTERN_CASES = [
       { formula: 'REPLACERE(ASC(電話番号), "-", "g", "")', expect: ["0312345678", "0312345678", ""], note: "\"g\" で全部。全角は ASC で半角に" },
       { formula: 'REPLACERE(電話番号, "-", "")', expect: ["031234-5678", "０３－１２３４－５６７８", ""], note: "\"g\" が無いと最初の 1 つだけ" }
     ]
+  },
+  // ---- 大きい帳票の式（印刷屋 Ver.9） ----
+  {
+    section: "大きい帳票の式（印刷屋 Ver.9）", pattern: "置換の組の配列（入れ子の REPLACERE を 1 回に）", data: [{ 文字列1: "(株)甲 （株）乙" }],
+    formulas: [
+      { formula: 'REPLACERE("a-b c-d", ARRAY("-", "_", "\\s", ""), "g")', expect: ["a_bc_d"], note: "先頭の組から順に置換（入れ子と同じ）。flag は全部の組に共通" },
+      { formula: 'REPLACERE(REPLACERE("a-b c-d", "-", "g", "_"), "\\s", "g", "")', expect: ["a_bc_d"], note: "同じ結果の入れ子の形" },
+      { formula: 'REPLACERE("a-b-c", ARRAY("-", "_"))', expect: ["a_b-c"], note: "flag を省くと、どの組も最初の 1 つだけ" },
+      { formula: 'REPLACEALL(文字列1, ARRAY("(株)", "株式会社", "（株）", "株式会社"))', expect: ["株式会社甲 株式会社乙"], note: "REPLACEALL も同じ（正規表現ではない）" }
+    ]
+  },
+  {
+    section: "大きい帳票の式（印刷屋 Ver.9）", pattern: "ループで前の回の結果を使う（LET の変数を FSET で書き換える）", data: [{}],
+    formulas: [
+      { formula: 'LET(s, "x", a, ARRAY_FOR(3, k, FSET(s, CONCAT(s, k))), s)', expect: ["x012"], note: "ループの前の LET で決めた変数は、ループの中の FSET で書き換えられ、次の回で読める" },
+      { formula: 'LET(s, 0, t, "", a, ARRAY_FOR(4, k, ARRAY(FSET(s, s + k), FSET(t, CONCAT(t, s, ",")))), t)', expect: ["0,1,3,6,"], note: "1 回に複数の FSET は ARRAY(…) に並べる（前から順に 1 回ずつ）。Ver.9 では 0 が 0 のまま" }
+    ]
   }
 ];
