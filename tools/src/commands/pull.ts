@@ -34,7 +34,8 @@ export interface PullResult {
 
 export const PLUGIN_ID_PATTERN = /^[a-p]{32}$/;
 
-export async function pullSettings(client: RestClient, engine: Engine, opt: PullOptions): Promise<PullResult> {
+/** engine は API と版だけを使う（式を評価しない。tools 2.3.0 で Pick にした。print-craft MCP は親のエンジンの一部だけを渡す） */
+export async function pullSettings(client: RestClient, engine: Pick<Engine, "api" | "source">, opt: PullOptions): Promise<PullResult> {
   if (!PLUGIN_ID_PATTERN.test(opt.pluginId)) throw new InputError(`プラグイン ID の形が違う: ${opt.pluginId}（a〜p の 32 文字）`);
   const app = await client.get<{ appId: string; name: string }>("app", { id: opt.app }, opt.guestSpaceId);
   const res = await client.get<{ config?: Record<string, unknown>; revision?: string | number }>(opt.preview ? "preview/app/plugin/config" : "app/plugin/config", { app: opt.app, id: opt.pluginId }, opt.guestSpaceId);

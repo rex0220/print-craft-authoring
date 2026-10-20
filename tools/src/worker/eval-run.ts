@@ -2,8 +2,8 @@
  * 子プロセスの中でも主スレッド（inline。テスト）でも同じ: 仕事 → 結果（zip の読み込み、式の評価）。print-craft の docs/authoring-try-plan.md 4.5・4.6（T0a）。
  * 誤りの種類の決め方は formula-authoring の tools/src/worker/eval-run.ts と同じ（instanceof。zip のコードの name は使わない）
  */
-import { loadEngine } from "../engine.ts";
-import { InputError } from "../commands/normalize.ts";
+import { DEFAULT_CONTEXT_BASE_URL, loadEngine } from "../engine.ts";
+import { InputError, normalizeSettings } from "../commands/normalize.ts";
 import { PluginZipError } from "../plugin-zip.ts";
 import { PolicyError } from "../normalize/policy.ts";
 import { MAX_ERROR_CHARS, MAX_JOB_FORMULAS, MAX_MESSAGE_BYTES, MAX_VALUE_BYTES, type EvalJob, type EvalMessage, type EvalOutcome, type FormulaEvalResult, type JsonValue } from "./eval-job.ts";
@@ -113,6 +113,13 @@ export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
     if (formulas.some((f) => typeof f !== "string")) throw new InputError("式は文字列");
     const kf = engine.runner({}, {});
     outcome.formulas = formulas.map((f) => evaluateOne((x) => kf.dq(x), f));
+  } else if (job.kind === "normalize") {
+    const n = job.normalize;
+    if (!n || typeof n.settingsText !== "string" || !n.fields) throw new InputError("normalize の仕事に設定か項目定義が無い（normalize.settingsText / normalize.fields）");
+    // 接続先と appId は保存・CLI の normalize と同じ（APP_URL などの元。接続先が無ければ実在しないテナント）
+    engine.setContext({ baseUrl: job.baseUrl ?? DEFAULT_CONTEXT_BASE_URL, appId: n.fields.appId });
+    const res = await normalizeSettings({ settingsText: n.settingsText, settingsFile: n.settingsFile, fields: n.fields, engine, policy: n.policy, check: n.check, baseUrl: job.baseUrl });
+    outcome.normalize = { findings: [...res.findings.items], output: res.output, body: res.body, size: res.size, checkDiffs: res.checkDiffs, summary: res.summary };
   } else throw new InputError(`知らない仕事: ${String((job as { kind?: unknown }).kind)}`);
   outcome.diag.maxRssMb = Math.round(process.resourceUsage().maxRSS / 1024);
   // メッセージの上限: 超えたら生の値を省き、それでも超えたら文字を省く（計画 4.2）

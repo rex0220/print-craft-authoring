@@ -61,6 +61,9 @@ export interface RunOptions {
   env?: Record<string, string | undefined>;
 }
 
+/** 子プロセスの入口が無い（パスは文に入れない。print-craft MCP が AI に返すため） */
+const missingEntry = (): EvalError => new EvalError("評価の子プロセスの入口が無い（tools / print-craft MCP を入れ直す）", "Error", undefined, "other");
+
 /** 自分の隣の子プロセスの入口（ビルド: dist/eval-worker.mjs。ソース: src/worker/eval-worker.ts） */
 export function defaultWorkerFile(): string {
   const here = fileURLToPath(import.meta.url);
@@ -69,7 +72,7 @@ export function defaultWorkerFile(): string {
   if (here.endsWith(".mjs") && existsSync(built)) return built;
   const src = path.join(dir, "eval-worker.ts");
   if (existsSync(src)) return src;
-  throw new Error(`評価の子プロセスの入口が無い: ${built}`);
+  throw missingEntry();
 }
 
 /** 子プロセスに渡す環境変数（呼ぶ側の環境変数のうち、動くのに要るものだけ） */
@@ -102,7 +105,7 @@ export async function runEval(job: EvalJob, opt: RunOptions = {}): Promise<EvalO
   }
   let entry: string;
   if (opt.workerFile !== undefined) {
-    if (!path.isAbsolute(opt.workerFile) || !existsSync(opt.workerFile)) throw new Error(`評価の子プロセスの入口が無い（絶対パスで指定する）: ${opt.workerFile}`);
+    if (!path.isAbsolute(opt.workerFile) || !existsSync(opt.workerFile)) throw missingEntry();
     entry = opt.workerFile;
   } else entry = defaultWorkerFile();
   const heapLimitMb = Math.max(16, Math.floor(opt.heapLimitMb ?? DEFAULT_HEAP_LIMIT_MB));

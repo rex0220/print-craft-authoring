@@ -3,13 +3,19 @@
  * 2026-10-20: Worker thread の resourceLimits では、印刷屋のエンジンでヒープの上限に当たるとプロセス全体が落ちた（FATAL ERROR）ので、
  * 計画の Q1 の決まりどおり子プロセスにした（ファイルの名前の worker は「評価を受け持つもの」の意味で残す）。
  * 形は formula-authoring の tools/src/worker/eval-job.ts を元にした。
- *   - kind "formulas": 空のレコードで式を評価する（T0a の確かめ。T3 の try の式の土台）。T0b で normalize、T0c で preview、T3 で try を足す
+ *   - kind "formulas": 空のレコードで式を評価する（T0a の確かめ。T3 の try の式の土台）
+ *   - kind "normalize": 設定の正規化（検査と派生値。T0b。CLI の normalize、print-craft MCP の pcraft_normalize と保存の検査）。T0c で preview、T3 で try を足す
  *   - 返すのは JSON にできる形だけ（エンジンの生の値は子プロセスの中で直す。循環、関数、DOM、BigNumber / Decimal を直接送らない）
  */
 
+import type { FieldsFile } from "../commands/fields.ts";
+import type { Finding } from "../normalize/findings.ts";
+import type { Policy } from "../normalize/policy.ts";
+import type { StoredSize } from "../normalize/size.ts";
+
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-export type EvalKind = "formulas";
+export type EvalKind = "formulas" | "normalize";
 
 export interface EvalJob {
   kind: EvalKind;
@@ -22,6 +28,24 @@ export interface EvalJob {
   baseUrl?: string;
   /** kind "formulas": 評価する式（1 回 MAX_JOB_FORMULAS まで） */
   formulas?: string[];
+  /** kind "normalize": 設定と項目定義（normalizeSettings の入力。エンジンは子プロセスが読む） */
+  normalize?: {
+    settingsText: string;
+    settingsFile?: string;
+    fields: FieldsFile;
+    policy?: Policy;
+    check?: boolean;
+  };
+}
+
+/** kind "normalize" の結果（normalizeSettings の結果。findings は Finding の配列で返し、親が Findings に直す） */
+export interface NormalizeOutcome {
+  findings: Finding[];
+  output?: Record<string, unknown>;
+  body?: Record<string, unknown>;
+  size?: StoredSize;
+  checkDiffs?: string[];
+  summary: string;
 }
 
 /** 1 つの式の結果 */
@@ -40,6 +64,7 @@ export interface FormulaEvalResult {
 
 export interface EvalOutcome {
   formulas?: FormulaEvalResult[];
+  normalize?: NormalizeOutcome;
   /** 読み込んだエンジン（版と SHA-256） */
   engine: { pluginVersion: string; apiVersion: number; engineSha256: string; decimalSha256?: string };
   /** エンジンの読み込みの注意 */

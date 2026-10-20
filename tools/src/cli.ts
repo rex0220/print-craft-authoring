@@ -25,6 +25,7 @@ import { ButtonNotFoundError, listButtons } from "./commands/buttons.ts";
 import { defaultPullName, pullSettings } from "./commands/pull.ts";
 import { runPreview } from "./commands/preview.ts";
 import { DEFAULT_CONTEXT_BASE_URL, loadEngine, type Engine } from "./engine.ts";
+import { normalizeInChild, type Evaluator } from "./worker/evaluator.ts";
 import { PluginZipError } from "./plugin-zip.ts";
 import { PolicyError } from "./normalize/policy.ts";
 import { isSupportedPluginVersion, schemaRevisionOf, toolsMeta } from "./meta.ts";
@@ -192,6 +193,11 @@ function writeJson(file: string, data: unknown, roots: readonly string[], op: Ch
 function shown(file: string): string {
   const rel = path.relative(W.root, file);
   return rel && !rel.startsWith("..") ? rel : file;
+}
+
+/** 評価を子プロセスで行う口（tools 2.3.0。zip の式の評価はこの道を通す。print-craft の docs/authoring-try-plan.md 4.6） */
+function evaluatorFor(): Evaluator {
+  return { pluginZip: pluginZipPath(authOpt()), devPluginDir: W.env.PCRAFT_ALLOW_DEV_PLUGIN === "1" ? printCraftProdDir(W.env) : undefined, run: { env: W.env } };
 }
 
 async function engineFor(): Promise<Engine> {
@@ -449,17 +455,16 @@ async function normalize(args: string[]): Promise<number> {
   if (out) allow(out, "settings");
   const fieldsData = await readFieldsFile(fieldsFile);
   const baseUrl = trustedBaseUrl(folder, args);
-  const engine = await engineFor();
-  engine.setContext({ baseUrl: baseUrl ?? DEFAULT_CONTEXT_BASE_URL, appId: fieldsData.appId });
-  const result = await normalizeSettings({
+  // 検査と派生値は子プロセスで（時間とメモリの上限。tools 2.3.0）
+  const result = await normalizeInChild(evaluatorFor(), {
     settingsText: readTextLimited(settingsFile),
     settingsFile: relativeSettingsPath(settingsArg, W.root),
     fields: fieldsData,
-    engine,
     policy: loadPolicy({ cwd: W.root }),
     check: flag(args, "check"),
     baseUrl
   });
+  for (const w of result.engineWarnings) console.error(`注意: ${w}`);
   if (flag(args, "json")) {
     console.log(JSON.stringify({ summary: result.summary, findings: result.findings.items, size: result.size, checkDiffs: result.checkDiffs, written: !!result.output && write }, null, 2));
   } else {

@@ -31,6 +31,8 @@ import { PermissionError, assertChangeAllowed } from "../permission.ts";
 import { SNAPSHOT_RE, appFolderOfFile, assertUsableInKintone, type WorkspaceMode } from "../workspace.ts";
 import { ConnectionError } from "../connections.ts";
 import { InputError, normalizeSettings, readFieldsFile } from "./normalize.ts";
+import { normalizeInChild, type Evaluator } from "../worker/evaluator.ts";
+import { EvalError } from "../worker/run.ts";
 import { FileExistsError, LockBusyError, acquireLock, cleanupAll, placeNew, tempPathFor, withRetry, type Lock } from "../commit-file.ts";
 
 export type SaveStatus = "ok" | "invalid" | "conflict" | "denied" | "failed";
@@ -53,7 +55,13 @@ export interface SaveResult {
 export interface SaveContext {
   /** 作業フォルダーの実際のパス（WorkContext.root） */
   root: string;
-  engine: Engine;
+  /**
+   * 保存の前の検査（normalize）を子プロセスで行う口（tools 2.3.0。print-craft の docs/authoring-try-plan.md 4.6。print-craft MCP と CLI はこちらを渡す）。
+   * 渡せば engine は使わない
+   */
+  evaluator?: Evaluator;
+  /** 2.2.0 までの形（このプロセスで検査する。時間とメモリの上限が無い）。evaluator が無いときだけ使う */
+  engine?: Engine;
   policy: Policy;
   /** iframe の同一オリジンの判定に使う接続先（検証済み） */
   baseUrl?: string;
@@ -135,6 +143,8 @@ function commit(ctx: SaveContext, target: string, text: string, mode: "new" | "r
 
 async function normalizeText(ctx: SaveContext, target: string, text: string, fields: string | undefined) {
   const fieldsData = await readFieldsFile(fieldsFileFor(ctx, target, fields));
+  if (ctx.evaluator) return normalizeInChild(ctx.evaluator, { settingsText: text, settingsFile: rel(ctx.root, target), fields: fieldsData, policy: ctx.policy, baseUrl: ctx.baseUrl });
+  if (!ctx.engine) throw new Error("保存の文脈に evaluator も engine も無い");
   ctx.engine.setContext({ baseUrl: ctx.baseUrl ?? "https://example.cybozu.com", appId: fieldsData.appId });
   return normalizeSettings({ settingsText: text, settingsFile: rel(ctx.root, target), fields: fieldsData, engine: ctx.engine, policy: ctx.policy, baseUrl: ctx.baseUrl });
 }
@@ -148,6 +158,8 @@ function statusOf(e: unknown): Exclude<SaveStatus, "ok"> {
   if (e instanceof ConflictError || e instanceof FileExistsError || e instanceof LockBusyError) return "conflict";
   if (e instanceof SaveDenied || e instanceof PermissionError || e instanceof PathError) return "denied";
   if (e instanceof InputError || e instanceof SyntaxError) return "invalid";
+  // 子プロセスの検査の誤り（tools 2.3.0）: 入力の誤り（中核の InputError）は invalid、ほか（zip、時間・メモリの上限、想定外）は failed
+  if (e instanceof EvalError && e.kind === "input") return "invalid";
   return "failed";
 }
 
@@ -173,6 +185,8 @@ function codeOf(e: unknown): string {
   if (e instanceof ConnectionError) return e.code;
   if (e instanceof ConflictError || e instanceof FileExistsError || e instanceof LockBusyError) return "ConflictError";
   if (e instanceof SaveDenied || e instanceof PermissionError) return "PermissionError";
+  // 子プロセスの誤りは、子プロセスの中で instanceof で決めた元のクラスの名前（input → InputError など。other は EvalError）
+  if (e instanceof EvalError) return e.kind === "other" ? "EvalError" : e.innerName;
   return e instanceof Error ? e.constructor.name : "Error";
 }
 
