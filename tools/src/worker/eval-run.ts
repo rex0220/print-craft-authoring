@@ -3,7 +3,7 @@
  * 誤りの種類の決め方は formula-authoring の tools/src/worker/eval-run.ts と同じ（instanceof。zip のコードの name は使わない）
  */
 import { threadId } from "node:worker_threads";
-import { DEFAULT_CONTEXT_BASE_URL, loadEngine } from "../engine.ts";
+import { DEFAULT_CONTEXT_BASE_URL, loadEngine, type Engine } from "../engine.ts";
 import { InputError, normalizeSettings } from "../commands/normalize.ts";
 import { runPreview } from "../commands/preview.ts";
 import { runTry } from "../commands/try.ts";
@@ -56,15 +56,17 @@ function evaluateOne(dq: (expression: string) => unknown, formula: string): Form
   }
 }
 
+/** 既定のテストデータ（架空）のユーザー情報を入れる。ログインユーザーは authoring（テストデータの 10 人目。formula の calc の既定と同じ）。scripts/verify-patterns.mjs も使う */
+export function setDefaultUsers(engine: Engine): void {
+  const login = DEFAULT_USERS.users.find((u) => u.code === "authoring");
+  engine.setUsers(defaultUsersInfo());
+  if (login) engine.setContext({ loginUser: { id: String(login.id), code: login.code, name: login.name, email: login.email ?? "", language: login.locale ?? "ja" } });
+}
+
 export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
   const engine = await loadEngine({ pluginZip: job.pluginZip, devPluginDir: job.devPluginDir, mode: job.mode });
   if (job.baseUrl) engine.setContext({ baseUrl: job.baseUrl });
-  if (job.users === "default") {
-    // 既定のテストデータ（架空）。ログインユーザーは authoring（テストデータの 10 人目。formula の calc の既定と同じ）
-    const login = DEFAULT_USERS.users.find((u) => u.code === "authoring");
-    engine.setUsers(defaultUsersInfo());
-    if (login) engine.setContext({ loginUser: { id: String(login.id), code: login.code, name: login.name, email: login.email ?? "", language: login.locale ?? "ja" } });
-  }
+  if (job.users === "default") setDefaultUsers(engine);
   const outcome: EvalOutcome = {
     engine: { pluginVersion: engine.source.pluginVersion, apiVersion: engine.api.apiVersion, engineSha256: engine.source.engineSha256, decimalSha256: engine.source.decimalSha256 },
     engineWarnings: [...engine.warnings],

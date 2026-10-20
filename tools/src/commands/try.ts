@@ -358,6 +358,34 @@ function fit(result: TryResult): TryResult {
   return result;
 }
 
+/**
+ * 式を対象のレコードで評価する（try の formulas。table を付けた式はその行ごと、20 行まで）。値はエンジンが式の評価として返したもの（4.5）。
+ * scripts/verify-patterns.mjs も同じ評価で資料（docs/計算パターン.md）の例を確かめる（架空の値のレコードを作って渡す）
+ */
+export function evaluateTryFormulas(engine: Engine, ppRun: unknown, targets: ReadonlyArray<{ label: string; record: KintoneRecord }>, formulas: readonly TryFormula[]): TryFormulaResult[] {
+  const api = engine.api as Api;
+  const version = engine.source.pluginVersion;
+  return formulas.map((f) => {
+    const out: TryFormulaResult = { formula: cutText(f.formula, 200), ...(f.table ? { table: f.table } : {}), values: [] };
+    for (const t of targets) {
+      if (!f.table) {
+        out.values.push({ target: t.label, ...evalValue(api, engine.runner(ppRun, structuredClone(t.record)), f.formula, version) });
+        continue;
+      }
+      const rows = ((t.record as Record<string, { value?: unknown[] }>)[f.table]?.value ?? []).length;
+      const kf = engine.runner(ppRun, structuredClone(t.record)) as unknown as { initTableInfo?: (c: string) => void; currRow?: (r: number) => unknown };
+      kf.initTableInfo?.(f.table);
+      for (let r = 0; r < Math.min(rows, TRY_MAX_TABLE_ROWS); r++) {
+        if (r > 0) kf.currRow?.(r);
+        out.values.push({ target: t.label, row: r + 1, ...evalValue(api, kf, f.formula, version) });
+      }
+      if (rows > TRY_MAX_TABLE_ROWS) out.rowsOmitted = (out.rowsOmitted ?? 0) + rows - TRY_MAX_TABLE_ROWS;
+      if (rows === 0) out.values.push({ target: t.label, row: 0, text: "（テーブルの行が無い）" });
+    }
+    return out;
+  });
+}
+
 /** お試しアプリで試す（評価の子プロセスの中で。users は既定のテストデータを入れてから呼ぶ） */
 export async function runTry(engine: Engine, raw: unknown, baseUrl?: string): Promise<TryOutcome> {
   const input = validateTryInput(raw);
@@ -380,25 +408,7 @@ export async function runTry(engine: Engine, raw: unknown, baseUrl?: string): Pr
   engine.setContext({ baseUrl: model.baseUrl || DEFAULT_CONTEXT_BASE_URL, appId: app.fields.appId });
 
   if (input.formulas) {
-    result.formulas = input.formulas.map((f) => {
-      const out: TryFormulaResult = { formula: cutText(f.formula, 200), ...(f.table ? { table: f.table } : {}), values: [] };
-      for (const t of usable) {
-        if (!f.table) {
-          out.values.push({ target: t.label, ...evalValue(api, engine.runner(model.ppRun, structuredClone(t.record)), f.formula, engine.source.pluginVersion) });
-          continue;
-        }
-        const rows = ((t.record as Record<string, { value?: unknown[] }>)[f.table]?.value ?? []).length;
-        const kf = engine.runner(model.ppRun, structuredClone(t.record)) as unknown as { initTableInfo?: (c: string) => void; currRow?: (r: number) => unknown };
-        kf.initTableInfo?.(f.table);
-        for (let r = 0; r < Math.min(rows, TRY_MAX_TABLE_ROWS); r++) {
-          if (r > 0) kf.currRow?.(r);
-          out.values.push({ target: t.label, row: r + 1, ...evalValue(api, kf, f.formula, engine.source.pluginVersion) });
-        }
-        if (rows > TRY_MAX_TABLE_ROWS) out.rowsOmitted = (out.rowsOmitted ?? 0) + rows - TRY_MAX_TABLE_ROWS;
-        if (rows === 0) out.values.push({ target: t.label, row: 0, text: "（テーブルの行が無い）" });
-      }
-      return out;
-    });
+    result.formulas = evaluateTryFormulas(engine, model.ppRun, usable, input.formulas);
     return { result: fit(result), files };
   }
 

@@ -34,6 +34,7 @@
     "gen-functions": "node scripts/gen-functions.mjs",
     "gen-schema": "node scripts/gen-schema-manifest.mjs",
     "gen-docs": "node scripts/gen-function-list.mjs",
+    "gen-patterns": "node scripts/verify-patterns.mjs",
     "prepack": "node scripts/vendor.mjs && node scripts/build.mjs"
   },
   "repository": {
