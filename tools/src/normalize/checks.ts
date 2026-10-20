@@ -245,59 +245,6 @@ function escapeFinding(f: Findings, where: string, formulas: string[]): void {
   if (lits.length) f.warning("formula.escape", where, `計算式の文字列は \\ を解釈しない: ${lits.slice(0, 3).join(" ")}（"\\n" は改行でなく \\ と n の 2 文字なので、REPLACE(…, "\\n", "<br>") は何も置き換えない）。改行は NEWLINE()（例 REPLACEALL(ESC_HTML(備考), NEWLINE(), "<br>")）`);
 }
 
-/**
- * NEWLINE() を探す REPLACE（2026-10-20）。REPLACE は最初の 1 つだけを置き換えるので、改行が 2 つ以上ある値は 2 つ目から <br> にならない
- * （お試しアプリの見積書の備考で発覚。文書と samples が REPLACE(ESC_HTML(備考), NEWLINE(), "<br>") を勧めていた）。全部は REPLACEALL
- */
-export function replaceOnceNewlines(formula: string): string[] {
-  const out: string[] = [];
-  let inString = false;
-  for (let i = 0; i < formula.length; i++) {
-    const c = formula[i];
-    if (inString) {
-      if (c === "\\") i++;
-      else if (c === '"') inString = false;
-      continue;
-    }
-    if (c === '"') {
-      inString = true;
-      continue;
-    }
-    const m = /^REPLACE\s*\(/.exec(formula.slice(i, i + 12));
-    if (!m || (i > 0 && /[\p{L}\p{N}_$]/u.test(formula[i - 1]))) continue;
-    const end = closingParen(formula, i + m[0].length - 1);
-    if (end < 0) continue;
-    const text = formula.slice(i, end + 1);
-    const call = parseCall(text);
-    if (call?.args.length === 3 && /^NEWLINE\(\s*\)$/.test(call.args[1])) out.push(text);
-  }
-  return [...new Set(out)];
-}
-
-/** open の位置の ( に対応する ) の位置（文字列の中は数えない）。無ければ -1 */
-function closingParen(s: string, open: number): number {
-  let depth = 0;
-  let inString = false;
-  for (let i = open; i < s.length; i++) {
-    const c = s[i];
-    if (inString) {
-      if (c === "\\") i++;
-      else if (c === '"') inString = false;
-      continue;
-    }
-    if (c === '"') inString = true;
-    else if (c === "(") depth++;
-    else if (c === ")" && --depth === 0) return i;
-  }
-  return -1;
-}
-
-/** 計算式（formulaSet と HTML の ${式}）の NEWLINE() を探す REPLACE を警告する（formula.replaceOnce） */
-function replaceOnceFinding(f: Findings, where: string, formulas: string[]): void {
-  const calls = [...new Set(formulas.flatMap(replaceOnceNewlines))];
-  if (calls.length) f.warning("formula.replaceOnce", where, `REPLACE は最初の 1 つだけを置き換える: ${calls.slice(0, 3).join(" ")}（改行が 2 つ以上ある値は 2 つ目から置き換わらない）。改行を全部置き換えるなら REPLACEALL（例 REPLACEALL(ESC_HTML(備考), NEWLINE(), "<br>")）`);
-}
-
 const HTML_LIKE = /<\s*[a-zA-Z!/]/;
 const CSS_LIKE = /url\s*\(|@import|image-set\s*\(|expression\s*\(|behavior\s*:/i;
 
@@ -446,7 +393,6 @@ export async function checkBody(body: Record<string, unknown>, model: Model, f: 
       if (!t.state) continue;
       if (t.formulaSet && commentInsideString(t.formulaSet)) f.error("formula.comment", where, "計算式の文字列の中に // がある（\"https://…\" など）。印刷屋は文字列の中でも // 以降をコメントとして捨てるので式が壊れる。URL は HTML の属性か ##目印## に置く");
       escapeFinding(f, where, [t.formula || "", ...(t.html ? expressionsOf(t.html) : [])]);
-      replaceOnceFinding(f, where, [t.formula || "", ...(t.html ? expressionsOf(t.html) : [])]);
       const formula = t.formula || "";
       if (formula && j >= 2) await checkFormulaHtml(formula, where, f, ctx);
       if (t.html) {
@@ -478,7 +424,6 @@ export async function checkBody(body: Record<string, unknown>, model: Model, f: 
       if (!c.state) continue;
       if (c.formulaSet && commentInsideString(c.formulaSet)) f.error("formula.comment", `${label} / 更新項目 ${j + 1} 行目 (${c.fieldcode})`, "計算式の文字列の中に // がある。印刷屋は文字列の中でも // 以降をコメントとして捨てるので式が壊れる");
       escapeFinding(f, `${label} / 更新項目 ${j + 1} 行目 (${c.fieldcode})`, [c.formula || ""]);
-      replaceOnceFinding(f, `${label} / 更新項目 ${j + 1} 行目 (${c.fieldcode})`, [c.formula || ""]);
       for (const code of Object.keys(c.usedFields ?? {})) {
         if (code === UOG_MARK) continue;
         if (!fieldExists(model, code)) f.error("field.unknown", `${label} / 更新項目 ${j + 1} 行目 (${c.fieldcode})`, `項目が fields に無い: ${code}`);

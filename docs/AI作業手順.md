@@ -107,7 +107,6 @@ tools のコマンドは 1 回に 1 つ実行する（`;`、`&&`、`if (…) { �
 | --- | --- |
 | `html.rawExpression` | `${式}` が文字列を `ESC_HTML` なしで差し込んでいる。新しく書いた式なら `${ESC_HTML(項目)}` に直す |
 | `formula.escape` | 計算式の文字列に `\n` など。`\` は解釈されないので改行にならない。`NEWLINE()` に直す |
-| `formula.replaceOnce` | `NEWLINE()` を探す `REPLACE`。最初の 1 つだけ置き換えるので、改行が 2 つ以上ある値は 2 つ目から残る。`REPLACEALL` に直す |
 | `formula.rawHtml` | 生の HTML を入れる関数（`TABLE_HTML`、`FVAL` など）。想定どおりなら伝えるだけ |
 | `formula.attr` / `formula.html` | 要素名・属性にレコードの値や式を入れている、計算式の文字列の HTML / CSS の危険な書き方 |
 | `preview.record` | 設定が使う項目がプレビューのレコードに無い（帳票では空になる）。`record --app N --id R --fields-from <この設定>` で取り直す |

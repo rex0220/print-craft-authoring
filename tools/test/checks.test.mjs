@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { checkCss, classifyUrl, extractUrls, hasCssFetch, stripCssComments } from "../src/normalize/css-check.ts";
 import { checkHtml, expressionsOf } from "../src/normalize/html-check.ts";
 import { isAllowed, isExternalRefsAllowed, parsePolicy, PolicyError } from "../src/normalize/policy.ts";
-import { backslashEscapes, callsOf, commentInsideString, isSafeExpression, parseCall, replaceOnceNewlines, splitTopLevel, stringLiterals } from "../src/normalize/checks.ts";
+import { backslashEscapes, callsOf, commentInsideString, isSafeExpression, parseCall, splitTopLevel, stringLiterals } from "../src/normalize/checks.ts";
 
 test("classifyUrl: 置き換えタグ、data:image、https、相対、使えないもの", () => {
   assert.equal(classifyUrl("#{&f(2025ABC)}"), "placeholder");
@@ -110,17 +110,6 @@ test("backslashEscapes: 文字列の定数の \\n / \\r / \\t（実エンジン�
   assert.deepEqual(backslashEscapes('REPLACE(ESC_HTML(備考), "\\n", "<br>") & "a\\tb" & "\\n"'), ['"\\n"', '"a\\tb"']);
   assert.deepEqual(backslashEscapes('REPLACE(ESC_HTML(備考), NEWLINE(), "<br>") & "say \\"hi\\""'), []);
   assert.deepEqual(backslashEscapes("ESC_HTML(備考)"), []);
-});
-
-test("replaceOnceNewlines: NEWLINE() を探す REPLACE（最初の 1 つだけ置き換える）。入れ子も見る。REPLACEALL と文字列の中は対象外", () => {
-  const once = 'REPLACE(ESC_HTML(備考), NEWLINE(), "<br>")';
-  assert.deepEqual(replaceOnceNewlines(once), [once]);
-  assert.deepEqual(replaceOnceNewlines(`REPLACE(html, "##備考##", ${once}) & ${once}`), [once]);
-  assert.deepEqual(replaceOnceNewlines('REPLACE( 備考 , NEWLINE( ), "<br>")'), ['REPLACE( 備考 , NEWLINE( ), "<br>")']);
-  assert.deepEqual(replaceOnceNewlines('REPLACEALL(ESC_HTML(備考), NEWLINE(), "<br>")'), []);
-  assert.deepEqual(replaceOnceNewlines('REPLACE(html, "##x##", "y") & REPLACE(備考, "a", NEWLINE())'), []);
-  assert.deepEqual(replaceOnceNewlines('"REPLACE(備考, NEWLINE(), \\"x\\")" & ESC_HTML(備考)'), []);
-  assert.deepEqual(replaceOnceNewlines('XREPLACE(備考, NEWLINE(), "x") & REPLACE(備考, NEWLINE()'), []);
 });
 
 test("commentInsideString: 実エンジンの文字列の規則（二重引用符だけ、直前の \\ がある \" はエスケープ）で // を見る", () => {
