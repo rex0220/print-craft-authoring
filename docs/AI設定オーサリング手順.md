@@ -123,4 +123,5 @@ requirements/納品書.md の要件で、settings/APP3740-見積書.json に「�
 - tools 2.2.0: 公開版で印刷屋プラグイン Ver.9 の zip の `version --expect 9` が一致（2026-10-20。印刷屋 Ver.9 の decimal.js を読み、数学関数 M_* と財務関数 R_* を検査・preview できる。`version` に decimal.js の行。Ver.8 の zip では「無い」と出る。CLI の使い方は 2.1.0 と同じ）
 - tools 2.3.0: 公開版で印刷屋プラグイン Ver.9 の zip の `version --expect 9` が一致し、`try`（お試しアプリ quote の式）が評価の子プロセスで動いた（2026-10-20。式の評価は別のプロセスで、時間とメモリの上限つき。CLI の今までのコマンドの使い方は 2.2.0 と同じ）
 - tools 2.3.1: 公開版で印刷屋プラグイン Ver.9 の zip の `version --expect 9` が一致し、`try` で `REPLACEALL(ESC_HTML(備考), NEWLINE(), "<br>")` が改行を全部 `<br>` にした（2026-10-20。資料と見本の複数行の書き方を `REPLACE` から `REPLACEALL` に直した版。検査は `REPLACEALL(ESC_HTML(…), …)` を安全な差し込みと見る。CLI の使い方は 2.3.0 と同じ）
+- tools 2.3.2: 公開版で印刷屋プラグイン Ver.9 の zip の `version --expect 9` が一致し、`try` でレシピ集の見積書に共通 CSS（既定の 4 行）の決まりが入った（2026-10-20。お試しの帳票が共通 CSS を切っていたのを、印刷屋の既定どおり有効にした版。CLI の使い方は 2.3.0 と同じ）
 - Windows 11 の Claude Code（VSCode）。macOS でも手順は同じ（`.env` の置き方は README）
