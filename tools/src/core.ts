@@ -74,7 +74,7 @@ export { MIN_PLUGIN_VERSION, PRINT_CRAFT_PLUGIN_ID, SUPPORTED_API_VERSIONS, isSu
 export { DEFAULT_CONTEXT_BASE_URL, loadEngine, type Engine, type LoadEngineOptions } from "./engine.ts";
 export { PluginZipError, type PluginZipErrorCode, type PluginZipErrorInfo } from "./plugin-zip.ts";
 // 評価の子プロセス（tools 2.3.0。print-craft の docs/authoring-try-plan.md 4.6）: zip の式を評価する道は runEval を通す
-export { DEFAULT_HEAP_LIMIT_MB, DEFAULT_TIMEOUT_SEC, EvalError, EvalExitError, EvalMemoryError, EvalTimeoutError, MAX_TIMEOUT_SEC, childEnv, defaultWorkerFile, runEval, type RunOptions } from "./worker/run.ts";
+export { DEFAULT_HEAP_LIMIT_MB, DEFAULT_TIMEOUT_SEC, EvalError, EvalExitError, EvalMemoryError, EvalTimeoutError, MAX_TIMEOUT_SEC, childEnv, defaultIsolation, defaultWorkerFile, runEval, type Isolation, type RunOptions } from "./worker/run.ts";
 export { MAX_ERROR_CHARS, MAX_JOB_FORMULAS, MAX_MESSAGE_BYTES, MAX_VALUE_BYTES, type EvalErrorKind, type EvalJob, type EvalKind, type EvalOutcome, type FormulaEvalResult, type JsonValue, type NormalizeOutcome } from "./worker/eval-job.ts";
 export { normalizeInChild, type Evaluator, type NormalizeInChildInput, type NormalizeInChildResult } from "./worker/evaluator.ts";
 

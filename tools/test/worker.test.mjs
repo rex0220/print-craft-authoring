@@ -4,6 +4,7 @@
  *   - ビルドした dist/eval-worker.mjs でも同じ（ビルドしていなければ飛ばす）
  *   - 時間の上限・メモリの上限で止めても親は落ちず、次の呼び出しに答える
  *   - 誤りの種類（zip / input / other。other は元の文を送らない）、結果を返さない終わり、標準出力・標準エラーは数えるだけ、子プロセスの環境変数
+ *   - Worker thread（isolation "thread"。Claude Desktop の Electron の Node は子プロセスを起こせない）: 同じ結果、時間の上限、Worker のメモリの上限、標準出力
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +12,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { PRINT_CRAFT_ROOT } from "../src/dev-paths.ts";
-import { EvalError, EvalExitError, EvalMemoryError, EvalTimeoutError, childEnv, runEval } from "../src/worker/run.ts";
+import { EvalError, EvalExitError, EvalMemoryError, EvalTimeoutError, childEnv, defaultIsolation, runEval } from "../src/worker/run.ts";
 import { classifyEvalError, toJsonSafe } from "../src/worker/eval-run.ts";
 import { AUTHORING_ROOT } from "../src/paths.ts";
 
@@ -37,7 +38,28 @@ test("子プロセスで式を評価: 値・生の値・式の評価のエラー
   const r = await runEval({ kind: "formulas", pluginZip: ZIP9, formulas: FORMULAS });
   assertFormulaResults(r);
   assert.notEqual(r.diag.pid, process.pid, "親と違うプロセスで評価した");
+  assert.equal(r.diag.isolation, "process");
+  assert.equal(defaultIsolation(), "process", "Electron でない Node では子プロセス");
   assert.deepEqual([r.diag.stdoutChars, r.diag.stderrChars], [0, 0]);
+});
+
+test("Worker thread（isolation thread）でも同じ結果。pid は親と同じ、threadId は主スレッドと違う", { skip }, async () => {
+  const r = await runEval({ kind: "formulas", pluginZip: ZIP9, formulas: FORMULAS }, { isolation: "thread" });
+  assertFormulaResults(r);
+  assert.equal(r.diag.isolation, "thread");
+  assert.equal(r.diag.pid, process.pid);
+  assert.notEqual(r.diag.threadId, 0);
+});
+
+test("Worker thread の時間の上限: 超えたら Worker を止めて EvalTimeoutError。次の呼び出しに答える", { skip }, async () => {
+  const t0 = Date.now();
+  await assert.rejects(
+    runEval({ kind: "formulas", pluginZip: ZIP9, formulas: ["ARRAY_COUNT(ARRAY_FOR(100000, i, ARRAY_COUNT(ARRAY_FOR(100000, j, i))))"] }, { isolation: "thread", timeoutSec: 1 }),
+    (e) => e instanceof EvalTimeoutError
+  );
+  assert.ok(Date.now() - t0 < 10_000, `止めるのが遅い（${Date.now() - t0} ms）`);
+  const r = await runEval({ kind: "formulas", pluginZip: ZIP9, formulas: ["2+2"] }, { isolation: "thread" });
+  assert.equal(r.formulas[0].text, "4");
 });
 
 test("inline（テストだけ）は親の中で同じ結果", { skip }, async () => {
@@ -93,12 +115,25 @@ function fakeEntry(body) {
 }
 
 test("子プロセスの標準出力・標準エラーは親に流さず文字数だけを数える", async () => {
-  const e = fakeEntry(`process.once("message", () => { console.log("x".repeat(10)); console.error("yy"); process.send({ ok: true, outcome: { engine: {}, engineWarnings: [], diag: { pid: process.pid, stdoutChars: 0, stderrChars: 0 } } }, () => process.disconnect()); });`);
+  const e = fakeEntry(`process.once("message", () => { console.log("x".repeat(10)); console.error("yy"); process.send({ ok: true, outcome: { engine: {}, engineWarnings: [], diag: { pid: process.pid, threadId: 0, stdoutChars: 0, stderrChars: 0 } } }, () => process.disconnect()); });`);
   try {
     const r = await runEval({ kind: "formulas", formulas: ["1"] }, { workerFile: e.file });
     assert.deepEqual([r.diag.stdoutChars, r.diag.stderrChars], [11, 3]);
   } finally {
     e.cleanup();
+  }
+});
+
+test("Worker thread のメモリの上限（ERR_WORKER_OUT_OF_MEMORY）は EvalMemoryError。標準出力は数えるだけ（素の JavaScript の入口で試す。印刷屋のエンジンはプロセスごと落ちることがある）", async () => {
+  const oom = fakeEntry(`const a = []; for (;;) a.push("x".repeat(100) + Math.random());`);
+  const out = fakeEntry(`import { parentPort } from "node:worker_threads"; console.log("abc"); parentPort.postMessage({ ok: true, outcome: { engine: {}, engineWarnings: [], diag: { pid: process.pid, threadId: 1, stdoutChars: 0, stderrChars: 0 } } });`);
+  try {
+    await assert.rejects(runEval({ kind: "formulas", formulas: ["1"] }, { isolation: "thread", workerFile: oom.file, heapLimitMb: 32 }), (e) => e instanceof EvalMemoryError && /32 MiB/.test(e.message));
+    const r = await runEval({ kind: "formulas", formulas: ["1"] }, { isolation: "thread", workerFile: out.file });
+    assert.deepEqual([r.diag.isolation, r.diag.stdoutChars], ["thread", 4]);
+  } finally {
+    oom.cleanup();
+    out.cleanup();
   }
 });
 

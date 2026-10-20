@@ -2,6 +2,7 @@
  * 子プロセスの中でも主スレッド（inline。テスト）でも同じ: 仕事 → 結果（zip の読み込み、式の評価）。print-craft の docs/authoring-try-plan.md 4.5・4.6（T0a）。
  * 誤りの種類の決め方は formula-authoring の tools/src/worker/eval-run.ts と同じ（instanceof。zip のコードの name は使わない）
  */
+import { threadId } from "node:worker_threads";
 import { DEFAULT_CONTEXT_BASE_URL, loadEngine } from "../engine.ts";
 import { InputError, normalizeSettings } from "../commands/normalize.ts";
 import { PluginZipError } from "../plugin-zip.ts";
@@ -105,7 +106,7 @@ export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
   const outcome: EvalOutcome = {
     engine: { pluginVersion: engine.source.pluginVersion, apiVersion: engine.api.apiVersion, engineSha256: engine.source.engineSha256, decimalSha256: engine.source.decimalSha256 },
     engineWarnings: [...engine.warnings],
-    diag: { pid: process.pid, stdoutChars: 0, stderrChars: 0 }
+    diag: { pid: process.pid, threadId, stdoutChars: 0, stderrChars: 0 }
   };
   if (job.kind === "formulas") {
     const formulas = job.formulas ?? [];

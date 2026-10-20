@@ -71,8 +71,12 @@ export interface EvalOutcome {
   engineWarnings: string[];
   /** 診断（結果の外。テストが子プロセスで評価されたことを確かめる） */
   diag: {
-    /** 評価したプロセスの ID（inline は親と同じ） */
+    /** 評価したプロセスの ID（inline と thread は親と同じ） */
     pid: number;
+    /** 評価したスレッド（主スレッドは 0。thread は Worker の番号） */
+    threadId: number;
+    /** 分け方（親が入れる。inline は無い） */
+    isolation?: "process" | "thread";
     /** 子プロセスの標準出力・標準エラーの文字数（親が数える。中身は流さない・返さない） */
     stdoutChars: number;
     stderrChars: number;
