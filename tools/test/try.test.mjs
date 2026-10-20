@@ -2,7 +2,7 @@
  * try（お試しアプリで式と帳票を試す。tools 2.3.0。print-craft の docs/authoring-try-plan.md 4.2〜4.5、T3）:
  *   - 入力の検査（知らないキー、併せて渡せないもの、番号、使えない標本、長さ、テーブルのコード）
  *   - 式: レコードごとの値と式の評価のエラー、テーブルの行ごと、count の $records、ユーザー情報は既定のテストデータ、大きすぎる結果
- *   - ボタン: ページの文字、ファイル名（評価のエラーなら既定の名前とエラー）、表示条件（評価のエラーなら出す。一覧帳票は評価しない）、帳票の files。
+ *   - ボタン: ページの文字、ファイル名（評価のエラーなら既定の名前とエラー）、表示条件（評価のエラーなら出す。一覧帳票は評価しない）、帳票の files、共通 CSS は印刷屋の既定。
  *     試す式は検査（normalize）を通り、レコードで評価すると失敗するもの（JSON_P）。知らない項目は検査で止まる
  *   - 関連レコード一覧の上限（1,001 行）は印刷屋と同じく作らない（refused、files は html 無し）
  *   - 結果は JSON の文字数 16,000 まで（ページが多ければ先頭・最後・エラーのページ）。Worker thread でも同じ
@@ -84,6 +84,17 @@ test("ボタン: ページの文字、ファイル名（評価のエラーなら
   assert.ok(one.displayCondition.evaluationError, "評価のエラーの文");
   assert.deepEqual(r.files.map((f) => [f.key, typeof f.html, typeof f.inner]), [["1", "string", "string"], ["3", "string", "string"]]);
   assert.match(r.files[0].inner, /株式会社あれこれ/);
+});
+
+test("ボタン: 共通 CSS は印刷屋の既定（有効、既定の 4 行）。レシピ集の見積書の class（pcraft-inv-*）の決まりが帳票に入り、ボタンの CSS はその後に足される", { skip }, async () => {
+  const r = await tryInChild(ev, { app: "quote", records: [1], button: { html: PAGE('<div class="pcraft-inv-header">見積書</div><div class="pcraft-inv-remarks-section">${ESC_HTML(備考)}</div>'), css: ".pcraft-inv-header { font-size: 31px; }" } });
+  assert.deepEqual(r.result.button.findings.filter((f) => f.level === "error"), []);
+  const inner = r.files[0].inner;
+  const common = inner.search(/\.pcraft-inv-header\s*\{/);
+  const own = inner.indexOf(".pcraft-inv-header { font-size: 31px; }");
+  assert.ok(common >= 0, "共通 CSS の pcraft-inv-header の決まり");
+  assert.match(inner, /\.pcraft-inv-remarks-section\s*\{/, "共通 CSS の備考の決まり");
+  assert.ok(own > common, "ボタンの CSS は共通 CSS の後（差分で上書きできる）");
 });
 
 test("一覧帳票のボタン: 表示条件は評価しない（applied: false）。docs/samples の一覧帳票の式で 25 件は 2 ページ", { skip }, async () => {

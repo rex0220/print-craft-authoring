@@ -40,6 +40,7 @@ tools のコマンドは 1 回に 1 つ実行する（`;`、`&&`、`if (…) { �
 - 式: `try --formula 'DATE_FORMAT(日付1, "YYYY年MM月DD日")' --formula '数値1 * 2'`（`--table テーブル1` でテーブルの行ごと）。`--records 1,3` で絞る。`--rows N`（`quote` 1,000・`gantt` 1,001 まで。テーブルを N 行に。1,001 は印刷屋と同じく作らない）、`--count N`（`list` 100 件まで。`$records` に入れる）
 - 式に `"` や `$` を含むなど、コマンドの引数に書きにくいときは `temp/try.json` に `{ "app": "quote", "records": [1], "formulas": [{ "formula": "…" }] }` を書いて `try --input temp/try.json`
 - ボタン: `temp/try-button.json` に `{ "html": "…", "css": "…", "bodyFormula": "…", "fileNameFormula": "…", "displayCondition": "…", "pageSize": "A4", "orientation": "p", "list": false }`（`html` 以外は省ける）を書いて `try --app quote --button temp/try-button.json`。保存と同じ検査（normalize）を通してから描き、ページ数・ページの文字・式のエラー・ファイル名・表示条件を出す。帳票は `out/try/<app>-<番号|rows|list>.html`（毎回上書き。値は架空なので利用者に Chrome で開いてもらってよい。AI はブラウザーを起動しない）
+- 共通 CSS は印刷屋の既定の 4 行（`docs/defaults/cssInfo.json`。レシピ集の `pcraft-inv-*` などの class）で、ボタンの `css` はその後に足す。アプリの共通 CSS を変えていれば、その分は実機と違う（tools 2.3.2 から。2.3.1 までは共通 CSS を入れていなかった）
 - 行が 1 ページに収まるか・はみ出すかは分からない（印刷屋のプレビューの PDF で確かめる）。答えには「お試しアプリ（架空の値）での結果」と書く。値の表（`--rows` / `--count` の行の値）は print-craft MCP の `try` の章と同じ（`i % 11` が空、`% 13` が 0、`% 17` が負、`% 7` が長い文字、`% 5` が改行）
 
 ## 接続のファイル（PCRAFT_KINTONE_CONFIG があるとき。複数のドメイン・アプリ）
