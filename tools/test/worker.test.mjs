@@ -12,7 +12,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { PRINT_CRAFT_ROOT } from "../src/dev-paths.ts";
-import { EvalError, EvalExitError, EvalMemoryError, EvalTimeoutError, childEnv, defaultIsolation, runEval } from "../src/worker/run.ts";
+import { EvalError, EvalExitError, EvalMemoryError, EvalTimeoutError, childEnv, defaultIsolation, evalLimitsFromEnv, runEval } from "../src/worker/run.ts";
 import { classifyEvalError, toJsonSafe } from "../src/worker/eval-run.ts";
 import { AUTHORING_ROOT } from "../src/paths.ts";
 
@@ -167,4 +167,28 @@ test("生の値は JSON にできる形に直す（循環・関数・クラス�
   const long = toJsonSafe(Array.from({ length: 150 }, (_, i) => i));
   assert.equal(long.length, 101);
   assert.match(long[100], /50 要素を省いた/);
+});
+
+test("環境変数の上限（PCRAFT_EVAL_TIMEOUT_SEC / PCRAFT_EVAL_HEAP_MB）: 整数だけ使い、範囲に丸める（秒 1〜600、MiB 32〜4,096）", () => {
+  assert.deepEqual(evalLimitsFromEnv({}), {});
+  assert.deepEqual(evalLimitsFromEnv({ PCRAFT_EVAL_TIMEOUT_SEC: "5", PCRAFT_EVAL_HEAP_MB: "2048" }), { timeoutSec: 5, heapLimitMb: 2048 });
+  assert.deepEqual(evalLimitsFromEnv({ PCRAFT_EVAL_TIMEOUT_SEC: "0", PCRAFT_EVAL_HEAP_MB: "9999" }), { timeoutSec: 1, heapLimitMb: 4096 });
+  assert.deepEqual(evalLimitsFromEnv({ PCRAFT_EVAL_TIMEOUT_SEC: "1.5", PCRAFT_EVAL_HEAP_MB: "abc" }), {});
+});
+
+test("どの道でも後に残さない: 成功・評価のエラー・時間切れ・結果を返さない終わりの後、子プロセス・Worker・パイプが残らない（T0d）", { skip }, async () => {
+  const handles = () => process._getActiveHandles().filter((h) => ["ChildProcess", "Worker", "Pipe", "Socket"].includes(h?.constructor?.name)).length;
+  const before = handles();
+  const exit3 = fakeEntry(`process.once("message", () => process.exit(3));`);
+  try {
+    for (const isolation of ["process", "thread"]) {
+      await runEval({ kind: "formulas", pluginZip: ZIP9, formulas: ["1+1", "zz"] }, { isolation });
+      await assert.rejects(runEval({ kind: "formulas", pluginZip: ZIP9, formulas: ["ARRAY_COUNT(ARRAY_FOR(100000, i, ARRAY_COUNT(ARRAY_FOR(100000, j, i))))"] }, { isolation, timeoutSec: 1 }), EvalTimeoutError);
+    }
+    await assert.rejects(runEval({ kind: "formulas", formulas: ["1"] }, { workerFile: exit3.file }), EvalExitError);
+  } finally {
+    exit3.cleanup();
+  }
+  await new Promise((r) => setImmediate(r));
+  assert.equal(handles(), before, "子プロセス・Worker・パイプが残っていない");
 });

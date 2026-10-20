@@ -25,7 +25,8 @@ import { ButtonNotFoundError, listButtons } from "./commands/buttons.ts";
 import { defaultPullName, pullSettings } from "./commands/pull.ts";
 import { runPreview } from "./commands/preview.ts";
 import { DEFAULT_CONTEXT_BASE_URL, loadEngine, type Engine } from "./engine.ts";
-import { normalizeInChild, type Evaluator } from "./worker/evaluator.ts";
+import { normalizeInChild, previewInChild, type Evaluator } from "./worker/evaluator.ts";
+import { evalLimitsFromEnv } from "./worker/run.ts";
 import { PluginZipError } from "./plugin-zip.ts";
 import { PolicyError } from "./normalize/policy.ts";
 import { isSupportedPluginVersion, schemaRevisionOf, toolsMeta } from "./meta.ts";
@@ -197,7 +198,8 @@ function shown(file: string): string {
 
 /** 評価を子プロセスで行う口（tools 2.3.0。zip の式の評価はこの道を通す。print-craft の docs/authoring-try-plan.md 4.6） */
 function evaluatorFor(): Evaluator {
-  return { pluginZip: pluginZipPath(authOpt()), devPluginDir: W.env.PCRAFT_ALLOW_DEV_PLUGIN === "1" ? printCraftProdDir(W.env) : undefined, run: { env: W.env } };
+  // 上限は既定（60 秒、1,024 MiB）。.env か環境変数の PCRAFT_EVAL_TIMEOUT_SEC / PCRAFT_EVAL_HEAP_MB で変えられる
+  return { pluginZip: pluginZipPath(authOpt()), devPluginDir: W.env.PCRAFT_ALLOW_DEV_PLUGIN === "1" ? printCraftProdDir(W.env) : undefined, run: { env: W.env, ...evalLimitsFromEnv(W.env) } };
 }
 
 async function engineFor(): Promise<Engine> {
@@ -638,17 +640,17 @@ async function preview(args: string[]): Promise<number> {
   usable(recordFile);
   const outDir = resolveWriteDir(option(args, "out-dir") ?? (folder ? path.join(folder.dir, "out") : "out"), WRITE_ROOTS.out);
   const fieldsData = await readFieldsFile(fieldsFile);
-  const engine = await engineFor();
-  const result = await runPreview({
+  // 検査と描画は子プロセスで（時間とメモリの上限。tools 2.3.0。重い式はここで止まる）
+  const result = await previewInChild(evaluatorFor(), {
     settingsText: readTextLimited(settingsFile),
     settingsFile: relativeSettingsPath(settingsArg, W.root),
     fields: fieldsData,
     recordFile: readJsonLimited(recordFile),
-    engine,
     policy: loadPolicy({ cwd: W.root }),
     button: option(args, "button"),
     baseUrl: trustedBaseUrl(folder, args)
   });
+  for (const w of result.engineWarnings) console.error(`注意: ${w}`);
   const written: string[] = [];
   if (!result.findings.hasErrors) {
     for (const r of result.results) {

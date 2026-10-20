@@ -114,6 +114,29 @@ test("normalize / preview: 読むのは作業フォルダーの中、書くの�
   }
 });
 
+const ZIP9 = path.join(path.dirname(PLUGIN_ZIP), "print-craft-plugin9.zip");
+test("preview: 重い式は評価の子プロセスの時間の上限（PCRAFT_EVAL_TIMEOUT_SEC）で止まり、終了コード 1 で描かない（tools 2.3.0、T0d）", { skip: existsSync(ZIP9) ? false : `Ver.9 の zip が無い: ${ZIP9}` }, () => {
+  const work = mkdtempSync(path.join(os.tmpdir(), "pcraft-cli-"));
+  try {
+    mkdirSync(path.join(work, "settings"));
+    mkdirSync(path.join(work, "fields"));
+    mkdirSync(path.join(work, "records"));
+    writeFileSync(path.join(work, "fields", "3740.json"), JSON.stringify(FIELDS_FILE));
+    const s = aiSettings();
+    s.pluginInfos[0].tagsInfo.fieldsInfo[2].formulaSet = "ARRAY_COUNT(ARRAY_FOR(100000, i, ARRAY_COUNT(ARRAY_FOR(100000, j, i))))";
+    writeFileSync(path.join(work, "settings", "a.json"), JSON.stringify(s));
+    writeFileSync(path.join(work, "records", "r.json"), JSON.stringify({ record: { $id: { type: "__ID__", value: "1" } } }));
+    const t0 = Date.now();
+    const r = run(["preview", "settings/a.json", "--fields", "fields/3740.json", "--record", "records/r.json"], { cwd: work, env: { PCRAFT_PLUGIN_ZIP: ZIP9, PCRAFT_EVAL_TIMEOUT_SEC: "1" } });
+    assert.equal(r.status, 1, r.stderr + r.stdout);
+    assert.match(r.stderr, /1 秒を超えたので止めた/);
+    assert.ok(Date.now() - t0 < 15_000, `止めるのが遅い（${Date.now() - t0} ms）`);
+    assert.ok(!existsSync(path.join(work, "out")), "描かない");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
 test("preview: レコードの形が分からないときは決まった文で終了コード 1（中核の InputError。B1 の Codex 3 回目）", () => {
   const work = mkdtempSync(path.join(os.tmpdir(), "pcraft-cli-"));
   try {

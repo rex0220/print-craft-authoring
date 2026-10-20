@@ -5,6 +5,7 @@
  */
 import { Findings } from "../normalize/findings.ts";
 import type { NormalizeResult } from "../commands/normalize.ts";
+import type { PreviewResult } from "../commands/preview.ts";
 import type { FieldsFile } from "../commands/fields.ts";
 import type { Policy } from "../normalize/policy.ts";
 import { runEval, type RunOptions } from "./run.ts";
@@ -32,6 +33,44 @@ export interface NormalizeInChildInput {
 
 /** 子プロセスの normalize の結果（NormalizeResult と、エンジンの読み込みの注意・診断） */
 export type NormalizeInChildResult = NormalizeResult & { engineWarnings: string[]; diag: EvalOutcome["diag"] };
+
+export interface PreviewInChildInput {
+  settingsText: string;
+  settingsFile?: string;
+  fields: FieldsFile;
+  /** レコードのファイルの中身（record コマンドの出力など） */
+  recordFile: unknown;
+  policy?: Policy;
+  button?: string;
+  /** 検証済みの接続先 */
+  baseUrl?: string;
+}
+
+/** 子プロセスの preview の結果（PreviewResult と、エンジンの読み込みの注意・診断） */
+export type PreviewInChildResult = PreviewResult & { engineWarnings: string[]; diag: EvalOutcome["diag"] };
+
+/**
+ * 帳票の試し出力（検査 → 描画 → 掃除 → verifyPreviewHtml）を子プロセスで行う（T0c）。重い式は時間とメモリの上限で止まる。
+ * 誤りは runEval と同じ。レコードの形の誤りは EvalError（kind input）、描画の想定外の誤りは EvalError（kind other。文はレコードの値を含みうるので決まった文）
+ */
+export async function previewInChild(ev: Evaluator, input: PreviewInChildInput): Promise<PreviewInChildResult> {
+  const outcome = await runEval(
+    {
+      kind: "preview",
+      pluginZip: ev.pluginZip,
+      devPluginDir: ev.devPluginDir,
+      mode: ev.mode,
+      baseUrl: input.baseUrl,
+      preview: { settingsText: input.settingsText, settingsFile: input.settingsFile, fields: input.fields, recordFile: input.recordFile, policy: input.policy, button: input.button }
+    },
+    ev.run
+  );
+  const p = outcome.preview;
+  if (!p) throw new Error("評価の子プロセスが preview の結果を返さなかった");
+  const findings = new Findings();
+  for (const f of p.findings) findings.add(f.level, f.rule, f.where, f.message);
+  return { findings, results: p.results, skipped: p.skipped, summary: p.summary, engineWarnings: outcome.engineWarnings, diag: outcome.diag };
+}
 
 /** 設定の正規化（検査と派生値）を子プロセスで行う。誤りは runEval と同じ（EvalError / EvalTimeoutError / EvalMemoryError / EvalExitError） */
 export async function normalizeInChild(ev: Evaluator, input: NormalizeInChildInput): Promise<NormalizeInChildResult> {

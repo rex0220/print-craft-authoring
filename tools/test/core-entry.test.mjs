@@ -15,7 +15,7 @@ test("入口は print-craft MCP が使う関数を出す（公開の約束。名
     "loadConnections", "pickProfile", "authFor", "snapshotOf", "semanticDigest", "assertSameConnection", "identityOf", "sameIdentity",
     "modeOf", "requireProfiles", "hasLegacyConfig", "legacyBlockedError", "ensureAppFolder", "assertAppMark", "readAppMark", "markOf", "assertUsableInKintone",
     "appFoldersOf", "unusedProfileDirs", "profileDirOf", "connectionStatusOf",
-    "runEval", "defaultWorkerFile", "childEnv", "normalizeInChild"
+    "runEval", "defaultWorkerFile", "childEnv", "normalizeInChild", "previewInChild", "defaultIsolation", "evalLimitsFromEnv"
   ]) {
     assert.equal(typeof core[name], "function", name);
   }

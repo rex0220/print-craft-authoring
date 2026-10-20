@@ -69,6 +69,20 @@ export interface RunOptions {
   env?: Record<string, string | undefined>;
 }
 
+/**
+ * 環境変数の上限（PCRAFT_EVAL_TIMEOUT_SEC = 秒、PCRAFT_EVAL_HEAP_MB = MiB。重い帳票で上げるときと、テストで小さくして試すとき。T0d）。
+ * 中核は process.env を読まないので、呼ぶ側（CLI は .env を含む環境変数、MCP は設定項目の値）の env を渡す。整数でなければ使わない。範囲に丸める
+ */
+export function evalLimitsFromEnv(env: Record<string, string | undefined> = {}): Pick<RunOptions, "timeoutSec" | "heapLimitMb"> {
+  const int = (v: string | undefined): number | undefined => (v !== undefined && /^\d+$/.test(v.trim()) ? Number(v.trim()) : undefined);
+  const t = int(env.PCRAFT_EVAL_TIMEOUT_SEC);
+  const h = int(env.PCRAFT_EVAL_HEAP_MB);
+  return {
+    ...(t !== undefined ? { timeoutSec: Math.min(Math.max(t, 1), MAX_TIMEOUT_SEC) } : {}),
+    ...(h !== undefined ? { heapLimitMb: Math.min(Math.max(h, 32), 4096) } : {})
+  };
+}
+
 /** 入口が無い（パスは文に入れない。print-craft MCP が AI に返すため） */
 const missingEntry = (): EvalError => new EvalError("評価の子プロセスの入口が無い（tools / print-craft MCP を入れ直す）", "Error", undefined, "other");
 

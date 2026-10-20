@@ -5,9 +5,10 @@
 import { threadId } from "node:worker_threads";
 import { DEFAULT_CONTEXT_BASE_URL, loadEngine } from "../engine.ts";
 import { InputError, normalizeSettings } from "../commands/normalize.ts";
+import { runPreview } from "../commands/preview.ts";
 import { PluginZipError } from "../plugin-zip.ts";
 import { PolicyError } from "../normalize/policy.ts";
-import { MAX_ERROR_CHARS, MAX_JOB_FORMULAS, MAX_MESSAGE_BYTES, MAX_VALUE_BYTES, type EvalJob, type EvalMessage, type EvalOutcome, type FormulaEvalResult, type JsonValue } from "./eval-job.ts";
+import { MAX_ERROR_CHARS, MAX_JOB_FORMULAS, MAX_MESSAGE_BYTES, MAX_PREVIEW_MESSAGE_BYTES, MAX_VALUE_BYTES, type EvalJob, type EvalMessage, type EvalOutcome, type FormulaEvalResult, type JsonValue } from "./eval-job.ts";
 
 /**
  * 子プロセスの中の誤りを種類に分ける。other の文は送らない（決まった文だけ。zip のコードの例外は値やパスを含みうる。計画 4.5）。
@@ -121,6 +122,13 @@ export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
     engine.setContext({ baseUrl: job.baseUrl ?? DEFAULT_CONTEXT_BASE_URL, appId: n.fields.appId });
     const res = await normalizeSettings({ settingsText: n.settingsText, settingsFile: n.settingsFile, fields: n.fields, engine, policy: n.policy, check: n.check, baseUrl: job.baseUrl });
     outcome.normalize = { findings: [...res.findings.items], output: res.output, body: res.body, size: res.size, checkDiffs: res.checkDiffs, summary: res.summary };
+  } else if (job.kind === "preview") {
+    const p = job.preview;
+    if (!p || typeof p.settingsText !== "string" || !p.fields) throw new InputError("preview の仕事に設定か項目定義が無い（preview.settingsText / preview.fields）");
+    // 検査・接続先と appId（setContext）・描画・掃除は runPreview の中（親で動かしていたときと同じ）
+    const res = await runPreview({ settingsText: p.settingsText, settingsFile: p.settingsFile, fields: p.fields, recordFile: p.recordFile, engine, policy: p.policy, button: p.button, baseUrl: job.baseUrl });
+    outcome.preview = { findings: [...res.findings.items], results: res.results, skipped: res.skipped, summary: res.summary };
+    if (byteLength(JSON.stringify(outcome)) > MAX_PREVIEW_MESSAGE_BYTES) throw new InputError(`帳票の HTML が大きすぎて返せない（${MAX_PREVIEW_MESSAGE_BYTES.toLocaleString()} バイトまで。--button で 1 つのボタンに絞る）`);
   } else throw new InputError(`知らない仕事: ${String((job as { kind?: unknown }).kind)}`);
   outcome.diag.maxRssMb = Math.round(process.resourceUsage().maxRSS / 1024);
   // メッセージの上限: 超えたら生の値を省き、それでも超えたら文字を省く（計画 4.2）

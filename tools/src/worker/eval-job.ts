@@ -4,7 +4,8 @@
  * 計画の Q1 の決まりどおり子プロセスにした（ファイルの名前の worker は「評価を受け持つもの」の意味で残す）。
  * 形は formula-authoring の tools/src/worker/eval-job.ts を元にした。
  *   - kind "formulas": 空のレコードで式を評価する（T0a の確かめ。T3 の try の式の土台）
- *   - kind "normalize": 設定の正規化（検査と派生値。T0b。CLI の normalize、print-craft MCP の pcraft_normalize と保存の検査）。T0c で preview、T3 で try を足す
+ *   - kind "normalize": 設定の正規化（検査と派生値。T0b。CLI の normalize、print-craft MCP の pcraft_normalize と保存の検査）
+ *   - kind "preview": 帳票の試し出力（normalize + 描画 + 掃除 + verifyPreviewHtml。T0c。CLI の preview、print-craft MCP の pcraft_preview）。T3 で try を足す
  *   - 返すのは JSON にできる形だけ（エンジンの生の値は子プロセスの中で直す。循環、関数、DOM、BigNumber / Decimal を直接送らない）
  */
 
@@ -12,10 +13,11 @@ import type { FieldsFile } from "../commands/fields.ts";
 import type { Finding } from "../normalize/findings.ts";
 import type { Policy } from "../normalize/policy.ts";
 import type { StoredSize } from "../normalize/size.ts";
+import type { RenderedButton } from "../preview/render.ts";
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-export type EvalKind = "formulas" | "normalize";
+export type EvalKind = "formulas" | "normalize" | "preview";
 
 export interface EvalJob {
   kind: EvalKind;
@@ -36,6 +38,24 @@ export interface EvalJob {
     policy?: Policy;
     check?: boolean;
   };
+  /** kind "preview": 設定・項目定義・レコード（runPreview の入力。エンジンは子プロセスが読む） */
+  preview?: {
+    settingsText: string;
+    settingsFile?: string;
+    fields: FieldsFile;
+    /** レコードのファイルの中身（record コマンドの出力など。形は runPreview が確かめる） */
+    recordFile: unknown;
+    policy?: Policy;
+    button?: string;
+  };
+}
+
+/** kind "preview" の結果（runPreview の結果。findings は Finding の配列で返し、親が Findings に直す） */
+export interface PreviewOutcome {
+  findings: Finding[];
+  results: Array<RenderedButton & { file: string }>;
+  skipped: string[];
+  summary: string;
 }
 
 /** kind "normalize" の結果（normalizeSettings の結果。findings は Finding の配列で返し、親が Findings に直す） */
@@ -65,6 +85,7 @@ export interface FormulaEvalResult {
 export interface EvalOutcome {
   formulas?: FormulaEvalResult[];
   normalize?: NormalizeOutcome;
+  preview?: PreviewOutcome;
   /** 読み込んだエンジン（版と SHA-256） */
   engine: { pluginVersion: string; apiVersion: number; engineSha256: string; decimalSha256?: string };
   /** エンジンの読み込みの注意 */
@@ -102,5 +123,7 @@ export const MAX_JOB_FORMULAS = 10;
 export const MAX_VALUE_BYTES = 262_144;
 /** エラーの文の上限（字。計画 4.2・4.5） */
 export const MAX_ERROR_CHARS = 1_000;
-/** 子プロセスからのメッセージの上限（UTF-8 のバイト数。計画 4.2） */
+/** 子プロセスからのメッセージの上限（UTF-8 のバイト数。計画 4.2。kind formulas と try） */
 export const MAX_MESSAGE_BYTES = 4_194_304;
+/** preview（利用者のレコードの帳票）のメッセージの上限（UTF-8 のバイト数。工程表 1,000 行・36 ページでも収まる大きさ。超えたら描いた帳票を返さない） */
+export const MAX_PREVIEW_MESSAGE_BYTES = 33_554_432;
