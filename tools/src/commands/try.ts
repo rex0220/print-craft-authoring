@@ -248,7 +248,8 @@ function trySettings(api: Api, app: TryApp, b: TryButton): string {
     appId: app.fields.appId,
     appName: app.fields.appName,
     pluginEnable: true,
-    commonCssEnable: false,
+    // 共通 CSS は印刷屋の既定（設定画面と normalize の既定は有効。cssInfo を省くと既定の 4 行）。レシピ集の見積書・請求書・表・カードの class は共通 CSS で決まる（2026-10-20。無効にしていたので Desktop の確かめで見た目が崩れた）
+    commonCssEnable: true,
     externalRefs: "block",
     pluginInfos: [
       {
