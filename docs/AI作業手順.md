@@ -10,6 +10,7 @@ tools のコマンドは 1 回に 1 つ実行する（`;`、`&&`、`if (…) { �
 
 | 知りたいこと | 読むもの |
 | --- | --- |
+| 利用者に聞かれた使い方・できること（帳票の種類）・頼み方・今の帳票の変え方 | [docs/使い方ナビ.md](使い方ナビ.md) |
 | 帳票の書き方（既定の形） | [docs/帳票レシピ集.md](帳票レシピ集.md) の 0 章。題材は該当の章だけ（R1 見積書、R2 CSS、R3 請求書、R4 複数ページ、R5 一覧帳票、R6 表示条件・ファイル名・更新項目、R7 Web フォント） |
 | 雛形（派生値なし。新しいボタンはこれを写す） | [docs/samples/見積書/settings-source.json](samples/見積書/settings-source.json)（詳細画面）、[docs/samples/一覧帳票/settings-source.json](samples/一覧帳票/settings-source.json)。同じフォルダーの `settings.json` は normalize 後の形なので読まない |
 | キーの意味・列挙・上限 | [docs/設定ファイル仕様.md](設定ファイル仕様.md) をキー名で検索する（大きい。全部は読まない） |

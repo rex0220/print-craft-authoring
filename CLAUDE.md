@@ -9,6 +9,7 @@
 帳票の設定を作る・直す前に、次のどちらかの手順を読む（読まずに作業しない）。
 
 - **Claude Code のプラグイン `print-craft` が使えるとき**（名前に `pcraft_` を含むツールがある）: 最初に `pcraft_docs` を呼び、その手順とツールで作業する。保存と差し替えは `pcraft_save_settings` / `pcraft_update_button` で行い、`settings/` と `kintone/` の JSON を Write / Edit で直接書かない（プラグインのフックが止める）
+- 利用者に使い方・できること（帳票の種類）・頼み方・今の帳票の変え方を聞かれたら、[docs/使い方ナビ.md](docs/使い方ナビ.md)（プラグインなら `pcraft_docs` の `navi`）で答える
 - **使えないとき**: [docs/AI作業手順.md](docs/AI作業手順.md) を読み、そのとおりに tools の CLI で作業する。読む資料、要約コマンド、新しい設定の作り方と既存の設定の変え方、normalize の結果の規則名と直し方、帳票の制約は、すべてそこにある
 
 ## 常に守ること
