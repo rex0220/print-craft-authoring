@@ -6,10 +6,14 @@ import { threadId } from "node:worker_threads";
 import { DEFAULT_CONTEXT_BASE_URL, loadEngine } from "../engine.ts";
 import { InputError, normalizeSettings } from "../commands/normalize.ts";
 import { runPreview } from "../commands/preview.ts";
+import { runTry } from "../commands/try.ts";
 import { DEFAULT_USERS, defaultUsersInfo } from "../try-apps/users/index.ts";
 import { PluginZipError } from "../plugin-zip.ts";
 import { PolicyError } from "../normalize/policy.ts";
-import { MAX_ERROR_CHARS, MAX_JOB_FORMULAS, MAX_MESSAGE_BYTES, MAX_PREVIEW_MESSAGE_BYTES, MAX_VALUE_BYTES, type EvalJob, type EvalMessage, type EvalOutcome, type FormulaEvalResult, type JsonValue } from "./eval-job.ts";
+import { MAX_JOB_FORMULAS, MAX_MESSAGE_BYTES, MAX_PREVIEW_MESSAGE_BYTES, MAX_VALUE_BYTES, type EvalJob, type EvalMessage, type EvalOutcome, type FormulaEvalResult } from "./eval-job.ts";
+import { byteLength, cutText, evaluationErrorText, toJsonSafe } from "./values.ts";
+
+export { cutText, evaluationErrorText, toJsonSafe };
 
 /**
  * 子プロセスの中の誤りを種類に分ける。other の文は送らない（決まった文だけ。zip のコードの例外は値やパスを含みうる。計画 4.5）。
@@ -33,56 +37,6 @@ export function builtinErrorName(e: unknown): string {
   if (e instanceof URIError) return "URIError";
   return "Error";
 }
-
-/** 文字を上限で切る（字） */
-export function cutText(s: string, max: number): string {
-  return s.length <= max ? s : `${s.slice(0, max)}…（${(s.length - max).toLocaleString()} 字を切った）`;
-}
-
-/** エンジンが投げた評価のエラーの文（上限つき） */
-export function evaluationErrorText(e: unknown): string {
-  let s: string;
-  try {
-    s = String((e as { message?: unknown } | undefined)?.message ?? e);
-  } catch {
-    s = "（エラーの文を読めない）";
-  }
-  return cutText(s, MAX_ERROR_CHARS);
-}
-
-/**
- * エンジンの生の値を JSON にできる形に直す（構造化クローンで送れる形。循環、関数、DOM、BigNumber / Decimal を直接送らない）。
- * 配列は 100 要素、オブジェクトは 50 キー、深さ 4 まで。数・文字・真偽・null 以外は文字にする
- */
-export function toJsonSafe(v: unknown, depth = 0): JsonValue {
-  if (v === null || v === undefined) return null;
-  if (typeof v === "string" || typeof v === "boolean") return v;
-  if (typeof v === "number") return Number.isFinite(v) ? v : String(v);
-  if (typeof v === "bigint") return v.toString();
-  if (typeof v === "function" || typeof v === "symbol") return `[${typeof v}]`;
-  if (depth >= 4) return "[入れ子が深い]";
-  if (Array.isArray(v)) {
-    const out = v.slice(0, 100).map((x) => toJsonSafe(x, depth + 1));
-    if (v.length > 100) out.push(`…（${(v.length - 100).toLocaleString()} 要素を省いた）`);
-    return out;
-  }
-  const proto = Object.getPrototypeOf(v);
-  if (proto === Object.prototype || proto === null) {
-    const out: { [key: string]: JsonValue } = {};
-    const keys = Object.keys(v as object);
-    for (const k of keys.slice(0, 50)) out[k] = toJsonSafe((v as Record<string, unknown>)[k], depth + 1);
-    if (keys.length > 50) out["…"] = `${(keys.length - 50).toLocaleString()} キーを省いた`;
-    return out;
-  }
-  // BigNumber / Decimal / Date / moment / DOM など: 文字にする（toString は zip のコードのことがある。失敗は印だけ）
-  try {
-    return String(v);
-  } catch {
-    return "[文字にできない値]";
-  }
-}
-
-const byteLength = (s: string): number => Buffer.byteLength(s, "utf8");
 
 /** 1 つの式を評価する（dq の直近だけを catch = 式の評価のエラー。その後の直しの失敗は evaluationError に入れない） */
 function evaluateOne(dq: (expression: string) => unknown, formula: string): FormulaEvalResult {
@@ -136,6 +90,10 @@ export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
     const res = await runPreview({ settingsText: p.settingsText, settingsFile: p.settingsFile, fields: p.fields, recordFile: p.recordFile, engine, policy: p.policy, button: p.button, baseUrl: job.baseUrl, listRecords: p.listRecords });
     outcome.preview = { findings: [...res.findings.items], results: res.results, skipped: res.skipped, summary: res.summary };
     if (byteLength(JSON.stringify(outcome)) > MAX_PREVIEW_MESSAGE_BYTES) throw new InputError(`帳票の HTML が大きすぎて返せない（${MAX_PREVIEW_MESSAGE_BYTES.toLocaleString()} バイトまで。--button で 1 つのボタンに絞る）`);
+  } else if (job.kind === "try") {
+    // ユーザー情報は既定のテストデータ（tryInChild が users: "default" を渡す）。結果の大きさの上限は runTry の中、HTML を含むメッセージは preview と同じ上限
+    outcome.try = await runTry(engine, job.try, job.baseUrl);
+    if (byteLength(JSON.stringify(outcome)) > MAX_PREVIEW_MESSAGE_BYTES) throw new InputError(`お試しの帳票の HTML が大きすぎて返せない（${MAX_PREVIEW_MESSAGE_BYTES.toLocaleString()} バイトまで。records で 1 件に絞る）`);
   } else throw new InputError(`知らない仕事: ${String((job as { kind?: unknown }).kind)}`);
   outcome.diag.maxRssMb = Math.round(process.resourceUsage().maxRSS / 1024);
   // メッセージの上限: 超えたら生の値を省き、それでも超えたら文字を省く（計画 4.2）

@@ -13,7 +13,7 @@ import type { Policy } from "../normalize/policy.ts";
 import { Findings } from "../normalize/findings.ts";
 import { buildModel } from "../normalize/model.ts";
 import { InputError, normalizeSettings } from "./normalize.ts";
-import { renderButton, type RenderedButton } from "../preview/render.ts";
+import { renderButton, type RenderLimits, type RenderedButton } from "../preview/render.ts";
 import { safeFileName } from "../safe-path.ts";
 import type { MenuRow } from "print-craft/src/config/schema.ts";
 
@@ -29,6 +29,8 @@ export interface PreviewInput {
   baseUrl?: string;
   /** 一覧帳票（list）のボタンを描くときの一覧のレコード（選んだ順。1 件以上）。渡さなければ一覧帳票は対象外 */
   listRecords?: unknown[];
+  /** 描画の大きさの上限（お試しアプリの try だけ） */
+  renderLimits?: RenderLimits;
 }
 
 export interface PreviewResult {
@@ -84,7 +86,7 @@ export async function runPreview(input: PreviewInput): Promise<PreviewResult> {
     }
     // 一覧帳票: 先頭のレコードを基点にし、$records に全部を入れる（印刷屋の startListPreview と同じ。エンジンの RECS_* が $records を読む）
     const base = row.list && listRecords ? { ...structuredClone(listRecords[0]), $records: listRecords.map((r) => structuredClone(r)) } : record;
-    const r = renderButton({ body: normalized.body!, row, model, engine: input.engine, record: base as KintoneRecord });
+    const r = renderButton({ body: normalized.body!, row, model, engine: input.engine, record: base as KintoneRecord, limits: input.renderLimits });
     // 正しいテンプレートでも、外へ読み込む書き方のある <style> / style 属性は preview で外れる（決まった文と件数だけ。レコードの値は入れない）
     if (r.removedStyles) findings.warning("preview.style", row.menu, `HTML の行（レコードの値を含む）の <style> / style 属性のうち、外へ読み込む書き方（url()・@import・@font-face・image-set() など）があるもの ${r.removedStyles} 個を preview では外した（中の規則・宣言も効かない。preview は外部を読まない。印刷屋の PDF では効く。帳票の CSS は行の css に書けば preview でも効く）`);
     results.push({ ...r, file: names[i] });

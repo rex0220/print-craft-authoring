@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -150,6 +150,37 @@ test("preview: レコードの形が分からないときは決まった文で�
     assert.equal(r.status, 1, r.stderr + r.stdout);
     assert.match(r.stderr, /レコードの JSON の形が分からない/);
     assert.ok(!existsSync(path.join(work, "out")), "描かない");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test("try: お試しアプリで式と 1 ボタンを試す。帳票は out/try/<app>-<番号>.html（毎回上書き）、描けなかった対象（関連レコード一覧の上限）は古いファイルを消して終了コード 1（tools 2.3.0、T3）", { skip: existsSync(ZIP9) ? false : `Ver.9 の zip が無い: ${ZIP9}` }, () => {
+  const work = mkdtempSync(path.join(os.tmpdir(), "pcraft-cli-try-"));
+  const env = { PCRAFT_PLUGIN_ZIP: ZIP9 };
+  try {
+    const f = run(["try", "--formula", 'DATE_FORMAT(日付1, "YYYY/MM/DD")', "--formula", "zz"], { cwd: work, env });
+    assert.equal(f.status, 0, f.stderr);
+    assert.match(f.stdout, /レコード 1: "2026\/01\/15"/);
+    assert.match(f.stdout, /エラー: getVal FIELD CODE NOT FOUND: zz/);
+    writeFileSync(path.join(work, "b.json"), JSON.stringify({ html: '<div class="rex0220-pcraft-page">${ESC_HTML(宛名)} 様</div>' }));
+    const b = run(["try", "--app", "quote", "--records", "1", "--button", "b.json", "--json"], { cwd: work, env });
+    assert.equal(b.status, 0, b.stderr);
+    const out = JSON.parse(b.stdout);
+    assert.deepEqual(out.written, ["out/try/quote-1.html"]);
+    assert.match(readFileSync(path.join(work, "out", "try", "quote-1.html"), "utf8"), /株式会社あれこれ/);
+    // 前の結果を置いてから、作らない対象（gantt の 1,001 行）で試す → 消す
+    mkdirSync(path.join(work, "out", "try"), { recursive: true });
+    writeFileSync(path.join(work, "out", "try", "gantt-rows.html"), "old");
+    writeFileSync(path.join(work, "g.json"), JSON.stringify({ html: '<div class="rex0220-pcraft-page">${COUNTROW(task_list)}</div>' }));
+    const g = run(["try", "--app", "gantt", "--rows", "1001", "--button", "g.json"], { cwd: work, env });
+    assert.equal(g.status, 1, g.stdout + g.stderr);
+    assert.match(g.stdout, /作らない: .*1,001 件/);
+    assert.match(g.stdout, /消した（前の結果）: out\/try\/gantt-rows.html/);
+    assert.equal(existsSync(path.join(work, "out", "try", "gantt-rows.html")), false);
+    const bad = run(["try", "--count", "3", "--formula", "1"], { cwd: work, env });
+    assert.equal(bad.status, 1);
+    assert.match(bad.stderr, /count を使えない/);
   } finally {
     rmSync(work, { recursive: true, force: true });
   }

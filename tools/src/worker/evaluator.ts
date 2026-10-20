@@ -6,6 +6,7 @@
 import { Findings } from "../normalize/findings.ts";
 import type { NormalizeResult } from "../commands/normalize.ts";
 import type { PreviewResult } from "../commands/preview.ts";
+import { validateTryInput, type TryInput, type TryOutcome } from "../commands/try.ts";
 import type { FieldsFile } from "../commands/fields.ts";
 import type { Policy } from "../normalize/policy.ts";
 import { runEval, type RunOptions } from "./run.ts";
@@ -72,6 +73,17 @@ export async function previewInChild(ev: Evaluator, input: PreviewInChildInput):
   const findings = new Findings();
   for (const f of p.findings) findings.add(f.level, f.rule, f.where, f.message);
   return { findings, results: p.results, skipped: p.skipped, summary: p.summary, engineWarnings: outcome.engineWarnings, diag: outcome.diag };
+}
+
+/**
+ * お試しアプリで式と帳票を試す（T3）。入力は親でも確かめる（validateTryInput。子プロセスを起こす前に断る）。ユーザー情報は既定のテストデータ。
+ * 結果は値が架空なので、式の評価の値とエラーの文、ページの文字を含む（4.5）
+ */
+export async function tryInChild(ev: Evaluator, input: TryInput, opt: { baseUrl?: string } = {}): Promise<TryOutcome & { engineWarnings: string[]; diag: EvalOutcome["diag"] }> {
+  validateTryInput(input);
+  const outcome = await runEval({ kind: "try", pluginZip: ev.pluginZip, devPluginDir: ev.devPluginDir, mode: ev.mode, baseUrl: opt.baseUrl, users: "default", try: input }, ev.run);
+  if (!outcome.try) throw new Error("評価の子プロセスが try の結果を返さなかった");
+  return { ...outcome.try, engineWarnings: outcome.engineWarnings, diag: outcome.diag };
 }
 
 /** 設定の正規化（検査と派生値）を子プロセスで行う。誤りは runEval と同じ（EvalError / EvalTimeoutError / EvalMemoryError / EvalExitError） */

@@ -5,7 +5,8 @@
  * 形は formula-authoring の tools/src/worker/eval-job.ts を元にした。
  *   - kind "formulas": 空のレコードで式を評価する（T0a の確かめ。T3 の try の式の土台）
  *   - kind "normalize": 設定の正規化（検査と派生値。T0b。CLI の normalize、print-craft MCP の pcraft_normalize と保存の検査）
- *   - kind "preview": 帳票の試し出力（normalize + 描画 + 掃除 + verifyPreviewHtml。T0c。CLI の preview、print-craft MCP の pcraft_preview）。T3 で try を足す
+ *   - kind "preview": 帳票の試し出力（normalize + 描画 + 掃除 + verifyPreviewHtml。T0c。CLI の preview、print-craft MCP の pcraft_preview）
+ *   - kind "try": お試しアプリで式と帳票を試す（T3。CLI の try、print-craft MCP の pcraft_try。ユーザー情報は既定のテストデータ）
  *   - 返すのは JSON にできる形だけ（エンジンの生の値は子プロセスの中で直す。循環、関数、DOM、BigNumber / Decimal を直接送らない）
  */
 
@@ -14,10 +15,11 @@ import type { Finding } from "../normalize/findings.ts";
 import type { Policy } from "../normalize/policy.ts";
 import type { StoredSize } from "../normalize/size.ts";
 import type { RenderedButton } from "../preview/render.ts";
+import type { TryOutcome } from "../commands/try.ts";
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-export type EvalKind = "formulas" | "normalize" | "preview";
+export type EvalKind = "formulas" | "normalize" | "preview" | "try";
 
 export interface EvalJob {
   kind: EvalKind;
@@ -55,6 +57,8 @@ export interface EvalJob {
     /** 一覧帳票のボタンを描くときの一覧のレコード（runPreview の listRecords） */
     listRecords?: unknown[];
   };
+  /** kind "try": お試しアプリの入力（commands/try.ts の TryInput。子プロセスでも validateTryInput で確かめる） */
+  try?: unknown;
 }
 
 /** kind "preview" の結果（runPreview の結果。findings は Finding の配列で返し、親が Findings に直す） */
@@ -93,6 +97,7 @@ export interface EvalOutcome {
   formulas?: FormulaEvalResult[];
   normalize?: NormalizeOutcome;
   preview?: PreviewOutcome;
+  try?: TryOutcome;
   /** 読み込んだエンジン（版と SHA-256） */
   engine: { pluginVersion: string; apiVersion: number; engineSha256: string; decimalSha256?: string };
   /** エンジンの読み込みの注意 */
