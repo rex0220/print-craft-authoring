@@ -94,14 +94,27 @@ test("警告と情報: 生の HTML を入れる関数、保存値の大きさ。
 test("警告: 文字列の項目を ESC_HTML なしで差し込むと html.rawExpression（FVAL(文字列) も）", async () => {
   const s = aiSettings();
   const row = s.pluginInfos[0].tagsInfo.fieldsInfo[2];
-  row.html = row.html.replace("${ESC_HTML(宛名)}", "${宛名} ${FVAL(備考)} ${合計金額} ${TODAY()} ${REPLACE(ESC_HTML(備考), NEWLINE(), \"<br>\")}");
+  row.html = row.html.replace("${ESC_HTML(宛名)}", "${宛名} ${FVAL(備考)} ${合計金額} ${TODAY()} ${REPLACE(ESC_HTML(備考), NEWLINE(), \"<br>\")} ${REPLACEALL(ESC_HTML(備考), NEWLINE(), \"<br>\")}");
   const r = await run(s);
   const w = r.findings.items.find((f) => f.rule === "html.rawExpression");
   assert.ok(w, "警告が出る");
   assert.ok(w.message.includes("${宛名}") && w.message.includes("${FVAL(備考)}"));
   const listed = w.message.split("（文字列の項目は")[0];
-  assert.ok(!listed.includes("${合計金額}") && !listed.includes("${TODAY()}") && !listed.includes("${REPLACE(ESC_HTML(備考)"), `数値・TODAY・REPLACE(ESC_HTML) は安全: ${listed}`);
-  assert.ok(w.message.includes('${REPLACE(ESC_HTML(項目), NEWLINE(), "<br>")}'), "複数行の書き方の案内は NEWLINE()");
+  assert.ok(!listed.includes("${合計金額}") && !listed.includes("${TODAY()}") && !listed.includes("${REPLACE(ESC_HTML(備考)") && !listed.includes("${REPLACEALL(ESC_HTML(備考)"), `数値・TODAY・REPLACE / REPLACEALL(ESC_HTML) は安全: ${listed}`);
+  assert.ok(w.message.includes('${REPLACEALL(ESC_HTML(項目), NEWLINE(), "<br>")}'), "複数行の書き方の案内は REPLACEALL と NEWLINE()");
+});
+
+test("警告: NEWLINE() を探す REPLACE は最初の 1 つだけ置き換える → formula.replaceOnce。REPLACEALL は警告しない", async () => {
+  assert.ok(!rules(await run(aiSettings()), "warning").includes("formula.replaceOnce"), "REPLACEALL の形は警告しない");
+  const s = aiSettings();
+  const row = s.pluginInfos[0].tagsInfo.fieldsInfo[2];
+  row.html = row.html.replace("##備考##", '${REPLACE(ESC_HTML(備考), NEWLINE(), "<br>")}');
+  s.pluginInfos[0].calcInfo.fieldsInfo.push({ state: true, fieldcode: "備考", formulaSet: 'REPLACE(備考, NEWLINE(), " / ") // REPLACE(備考, NEWLINE(), "x") はコメント' });
+  const r = await run(s);
+  const w = r.findings.items.filter((f) => f.rule === "formula.replaceOnce");
+  assert.equal(w.length, 2, r.findings.format());
+  assert.ok(w[0].message.includes('REPLACE(ESC_HTML(備考), NEWLINE(), "<br>")') && w[0].message.includes("REPLACEALL"));
+  assert.ok(w[1].message.includes('REPLACE(備考, NEWLINE(), " / ")') && !w[1].message.includes('"x"'));
 });
 
 test('警告: 計算式の文字列の "\\n" は改行でない（実エンジンは \\ を解釈しない）→ formula.escape。改行は NEWLINE()', async () => {

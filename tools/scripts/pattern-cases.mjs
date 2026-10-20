@@ -15,10 +15,11 @@ export const PATTERN_CASES = [
   // ---- 帳票に差し込む ----
   {
     section: "帳票に差し込む", pattern: "文字列・複数行・金額", fields: [{ code: "備考", type: "MULTI_LINE_TEXT" }],
-    data: [{ 文字列1: "株式会社<テスト>", 備考: "1 行目\n2 行目 & 3", 数値1: 1234.567 }, { 文字列1: "", 備考: "", 数値1: "" }],
+    data: [{ 文字列1: "株式会社<テスト>", 備考: "1 行目\n2 行目 & 3\n3 行目", 数値1: 1234.567 }, { 文字列1: "", 備考: "", 数値1: "" }],
     formulas: [
       { formula: "ESC_HTML(文字列1)", expect: ["株式会社&lt;テスト&gt;", ""], note: "文字列は ESC_HTML（< > & をエスケープ）" },
-      { formula: 'REPLACE(ESC_HTML(備考), NEWLINE(), "<br>")', expect: ["1 行目<br>2 行目 &amp; 3", ""], note: "複数行は ESC_HTML してから改行を <br> に" },
+      { formula: 'REPLACEALL(ESC_HTML(備考), NEWLINE(), "<br>")', expect: ["1 行目<br>2 行目 &amp; 3<br>3 行目", ""], note: "複数行は ESC_HTML してから改行を全部 <br> に" },
+      { formula: 'REPLACE(ESC_HTML(備考), NEWLINE(), "<br>")', expect: ["1 行目<br>2 行目 &amp; 3\n3 行目", ""], note: "REPLACE は最初の 1 つだけ置き換える（2 つ目の改行が残る。検査は formula.replaceOnce の警告）" },
       { formula: "YEN(数値1)", expect: ["\\1,234.567", ""], note: "YEN は \\ 付きの桁区切り。印刷屋が帳票の \\ を &yen; に置き換えるので ¥ に見える。空は空" },
       { formula: "YEN(数値1, 0)", expect: ["\\1,235", ""], note: "2 つ目の引数で小数の桁数（四捨五入）" }
     ]
