@@ -119,3 +119,8 @@ test("結果は JSON の文字数 16,000 まで: 工程表 1,000 行（36 ペー
     assert.equal(r.diag.isolation, isolation);
   }
 });
+
+test("Ver.9 の zip では M_* / R_* が使えるので、Ver.9 から使えるの一言は出ない（Ver.8 は engine-v8.test.mjs）", { skip }, async () => {
+  const r = await tryInChild(ev, { records: [1], formulas: [{ formula: "M_SIN(0)" }, { formula: 'R_PMT(0, 12, 120000)' }] });
+  assert.deepEqual(r.result.formulas.map((f) => [f.values[0].text, f.values[0].evaluationError]), [["0", undefined], ["-10000", undefined]]);
+});

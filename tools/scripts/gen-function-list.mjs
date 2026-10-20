@@ -117,6 +117,12 @@ for (const line of chapter) {
   if (m && !qiitaNames.includes(m[1])) qiitaNames.push(m[1]);
 }
 const removed = qiitaNames.filter((n) => !libSet.has(n));
+// 中核が実行時に使う一覧（Ver.8 までの zip で M_* / R_* の「not available」に「Ver.9 から使える」を添える。print-craft の docs/authoring-try-plan.md 4.4）
+writeFileSync(
+  path.join(tools, "src", "normalize", "since-v9.ts"),
+  `// tools/scripts/gen-function-list.mjs が作る（印刷屋 Ver.9 から使える関数。関数一覧の「（Ver.9 から）」と同じ ${SINCE_V9.size} 個）。手で直さない\nexport const SINCE_V9_FUNCTIONS: readonly string[] = ${JSON.stringify([...SINCE_V9].sort(), null, 2)};\n`,
+  "utf8"
+);
 writeFileSync(path.join(docs, "関数一覧.md"), out.join("\n").replace("{{REMOVED}}", removed.length ? removed.map((n) => `\`${n}\``).join(" ") : "なし") + "\n", "utf8");
 console.log(`docs/関数一覧.md: ${libNames.length} 関数、分類 ${orderedCategories.length}。計算式プラグインにあって lib に無い: ${removed.join(" ") || "なし"}`);
 

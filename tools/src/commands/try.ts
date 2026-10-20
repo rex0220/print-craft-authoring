@@ -18,6 +18,7 @@ import type { Finding } from "../normalize/findings.ts";
 import type { KintoneRecord } from "./record.ts";
 import { MAX_COUNT, TRY_APP_KEYS, fixedRecord, relatedOverLimit, tryApp, withCount, withRows, type TryApp, type TryAppKey } from "../try-apps/index.ts";
 import { byteLength, cutText, evaluationErrorText, toJsonSafe } from "../worker/values.ts";
+import { renderErrorHint, sinceV9Hint } from "../normalize/derive.ts";
 import type { JsonValue } from "../worker/eval-job.ts";
 
 export const TRY_MAX_FORMULAS = 10;
@@ -213,12 +214,19 @@ type Api = Engine["api"] & {
   DEFAULT_FILE_NAME?: string;
 };
 
-function evalValue(api: Api, kf: unknown, formula: string): Omit<TryValue, "target" | "row"> {
+/** 評価のエラーの文（Ver.8 までの zip の M_* / R_* には Ver.9 から使えることを添える。4.4） */
+function errorText(e: unknown, pluginVersion: string): string {
+  const text = evaluationErrorText(e);
+  const hint = sinceV9Hint(text, pluginVersion);
+  return cutText(hint ? `${text}（${hint}）` : text, TRY_MAX_ERROR_CHARS);
+}
+
+function evalValue(api: Api, kf: unknown, formula: string, pluginVersion: string): Omit<TryValue, "target" | "row"> {
   let v: unknown;
   try {
     v = api.evaluate(kf, formula);
   } catch (e) {
-    return { evaluationError: cutText(evaluationErrorText(e), TRY_MAX_ERROR_CHARS) };
+    return { evaluationError: errorText(e, pluginVersion) };
   }
   try {
     const text = v == null ? "" : String(v);
@@ -376,7 +384,7 @@ export async function runTry(engine: Engine, raw: unknown, baseUrl?: string): Pr
       const out: TryFormulaResult = { formula: cutText(f.formula, 200), ...(f.table ? { table: f.table } : {}), values: [] };
       for (const t of usable) {
         if (!f.table) {
-          out.values.push({ target: t.label, ...evalValue(api, engine.runner(model.ppRun, structuredClone(t.record)), f.formula) });
+          out.values.push({ target: t.label, ...evalValue(api, engine.runner(model.ppRun, structuredClone(t.record)), f.formula, engine.source.pluginVersion) });
           continue;
         }
         const rows = ((t.record as Record<string, { value?: unknown[] }>)[f.table]?.value ?? []).length;
@@ -384,7 +392,7 @@ export async function runTry(engine: Engine, raw: unknown, baseUrl?: string): Pr
         kf.initTableInfo?.(f.table);
         for (let r = 0; r < Math.min(rows, TRY_MAX_TABLE_ROWS); r++) {
           if (r > 0) kf.currRow?.(r);
-          out.values.push({ target: t.label, row: r + 1, ...evalValue(api, kf, f.formula) });
+          out.values.push({ target: t.label, row: r + 1, ...evalValue(api, kf, f.formula, engine.source.pluginVersion) });
         }
         if (rows > TRY_MAX_TABLE_ROWS) out.rowsOmitted = (out.rowsOmitted ?? 0) + rows - TRY_MAX_TABLE_ROWS;
         if (rows === 0) out.values.push({ target: t.label, row: 0, text: "（テーブルの行が無い）" });
@@ -428,7 +436,7 @@ export async function runTry(engine: Engine, raw: unknown, baseUrl?: string): Pr
       try {
         api.evaluate(kf(), b.fileNameFormula);
       } catch (e) {
-        fileName = { value: r.fileName, usedDefault: true, evaluationError: cutText(evaluationErrorText(e), TRY_MAX_ERROR_CHARS) };
+        fileName = { value: r.fileName, usedDefault: true, evaluationError: errorText(e, engine.source.pluginVersion) };
       }
     }
     // ボタン表示条件: 一覧帳票は印刷屋が評価しない。詳細画面は評価の結果の真偽、例外なら印刷屋と同じく出す
@@ -440,7 +448,7 @@ export async function runTry(engine: Engine, raw: unknown, baseUrl?: string): Pr
         const v = api.evaluate(kf(), b.displayCondition);
         displayCondition = { applied: true, set: true, shown: !!v, value: cutText(v == null ? "" : String(v), 200) };
       } catch (e) {
-        displayCondition = { applied: true, set: true, shown: true, evaluationError: cutText(evaluationErrorText(e), TRY_MAX_ERROR_CHARS) };
+        displayCondition = { applied: true, set: true, shown: true, evaluationError: errorText(e, engine.source.pluginVersion) };
       }
     }
     const htmlTooLarge = byteLength(r.inner) > TRY_MAX_HTML_OUT_BYTES;
@@ -449,7 +457,10 @@ export async function runTry(engine: Engine, raw: unknown, baseUrl?: string): Pr
       key: t.key,
       pages: r.pages,
       pageTexts: pageTextsOf(engine, r.inner),
-      errors: r.errors.map((e) => cutText(e, TRY_MAX_ERROR_CHARS)),
+      errors: r.errors.map((e) => {
+        const hint = renderErrorHint(e, engine.source.pluginVersion);
+        return cutText(hint ? `${e}（${hint}）` : e, TRY_MAX_ERROR_CHARS);
+      }),
       errorCount: r.errors.length,
       fileName,
       displayCondition,

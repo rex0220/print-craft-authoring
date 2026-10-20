@@ -49,8 +49,8 @@ export interface PreviewInChildInput {
   listRecords?: unknown[];
 }
 
-/** 子プロセスの preview の結果（PreviewResult と、エンジンの読み込みの注意・診断） */
-export type PreviewInChildResult = PreviewResult & { engineWarnings: string[]; diag: EvalOutcome["diag"] };
+/** 子プロセスの preview の結果（PreviewResult と、子が読んだ zip の印刷屋の版、エンジンの読み込みの注意・診断） */
+export type PreviewInChildResult = PreviewResult & { pluginVersion: string; engineWarnings: string[]; diag: EvalOutcome["diag"] };
 
 /**
  * 帳票の試し出力（検査 → 描画 → 掃除 → verifyPreviewHtml）を子プロセスで行う（T0c）。重い式は時間とメモリの上限で止まる。
@@ -72,7 +72,7 @@ export async function previewInChild(ev: Evaluator, input: PreviewInChildInput):
   if (!p) throw new Error("評価の子プロセスが preview の結果を返さなかった");
   const findings = new Findings();
   for (const f of p.findings) findings.add(f.level, f.rule, f.where, f.message);
-  return { findings, results: p.results, skipped: p.skipped, summary: p.summary, engineWarnings: outcome.engineWarnings, diag: outcome.diag };
+  return { findings, results: p.results, skipped: p.skipped, summary: p.summary, pluginVersion: outcome.engine.pluginVersion, engineWarnings: outcome.engineWarnings, diag: outcome.diag };
 }
 
 /**

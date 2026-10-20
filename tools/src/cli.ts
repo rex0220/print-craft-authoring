@@ -26,6 +26,7 @@ import { defaultPullName, pullSettings } from "./commands/pull.ts";
 import { runPreview } from "./commands/preview.ts";
 import { DEFAULT_CONTEXT_BASE_URL, loadEngine, type Engine } from "./engine.ts";
 import { normalizeInChild, previewInChild, tryInChild, type Evaluator } from "./worker/evaluator.ts";
+import { renderErrorHint } from "./normalize/derive.ts";
 import type { TryButton, TryInput, TryOutcome } from "./commands/try.ts";
 import { evalLimitsFromEnv } from "./worker/run.ts";
 import { PluginZipError } from "./plugin-zip.ts";
@@ -755,6 +756,12 @@ async function preview(args: string[]): Promise<number> {
     baseUrl: trustedBaseUrl(folder, args)
   });
   for (const w of result.engineWarnings) console.error(`注意: ${w}`);
+  // Ver.8 までの zip の M_* / R_* の式のエラーには Ver.9 から使えることを添える（4.4）
+  const errorsOf = (errors: string[]): string[] =>
+    errors.map((e) => {
+      const hint = renderErrorHint(e, result.pluginVersion);
+      return hint ? `${e}（${hint}）` : e;
+    });
   const written: string[] = [];
   if (!result.findings.hasErrors) {
     for (const r of result.results) {
@@ -765,13 +772,13 @@ async function preview(args: string[]): Promise<number> {
     }
   }
   if (flag(args, "json")) {
-    console.log(JSON.stringify({ summary: result.summary, findings: result.findings.items, results: result.results.map((r) => ({ menu: r.menu, file: shown(path.join(outDir, r.file)), fileName: r.fileName, pages: r.pages, errors: r.errors })), skipped: result.skipped, written }, null, 2));
+    console.log(JSON.stringify({ summary: result.summary, findings: result.findings.items, results: result.results.map((r) => ({ menu: r.menu, file: shown(path.join(outDir, r.file)), fileName: r.fileName, pages: r.pages, errors: errorsOf(r.errors) })), skipped: result.skipped, written }, null, 2));
   } else {
     console.log(`preview: ${settingsArg}（${result.summary}）`);
     console.log(result.findings.format());
     for (const r of result.results) {
       console.log(`${r.menu}: ${r.pages} ページ、ファイル名 ${r.fileName}${r.errors.length ? `、式のエラー ${r.errors.length}` : ""} → ${shown(path.join(outDir, r.file))}`);
-      for (const e of r.errors) console.log(`  ${e}`);
+      for (const e of errorsOf(r.errors)) console.log(`  ${e}`);
     }
     for (const s of result.skipped) console.log(`対象外: ${s}`);
     if (result.findings.hasErrors) console.error("設定にエラーがあるのでプレビューは書かない（normalize で直す）");

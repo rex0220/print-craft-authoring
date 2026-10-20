@@ -77,6 +77,9 @@ export { PluginZipError, type PluginZipErrorCode, type PluginZipErrorInfo } from
 export { DEFAULT_HEAP_LIMIT_MB, DEFAULT_TIMEOUT_SEC, EvalError, EvalExitError, EvalMemoryError, EvalTimeoutError, MAX_TIMEOUT_SEC, childEnv, defaultIsolation, defaultWorkerFile, evalLimitsFromEnv, runEval, type Isolation, type RunOptions } from "./worker/run.ts";
 export { MAX_ERROR_CHARS, MAX_JOB_FORMULAS, MAX_MESSAGE_BYTES, MAX_VALUE_BYTES, type EvalErrorKind, type EvalJob, type EvalKind, type EvalOutcome, type FormulaEvalResult, type JsonValue, type NormalizeOutcome, type PreviewOutcome, MAX_PREVIEW_MESSAGE_BYTES } from "./worker/eval-job.ts";
 export { normalizeInChild, previewInChild, tryInChild, type Evaluator, type NormalizeInChildInput, type NormalizeInChildResult, type PreviewInChildInput, type PreviewInChildResult } from "./worker/evaluator.ts";
+// Ver.8 までの zip の M_* / R_* の式のエラーに添える一言（tools 2.3.0。4.4。MCP の preview は式のエラーの文を返さないので、これだけを足す）
+export { renderErrorHint, sinceV9Hint } from "./normalize/derive.ts";
+export { SINCE_V9_FUNCTIONS } from "./normalize/since-v9.ts";
 export { TRY_MAX_FORMULAS, validateTryInput, type TryButton, type TryButtonTarget, type TryFormula, type TryFormulaResult, type TryInput, type TryOutcome, type TryResult, type TryValue } from "./commands/try.ts";
 export { MAX_COUNT, MAX_RELATED_ROWS, MAX_ROWS, TRY_APP_KEYS, tryApp, type TryAppKey } from "./try-apps/index.ts";
 
