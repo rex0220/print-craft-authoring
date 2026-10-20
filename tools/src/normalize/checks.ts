@@ -1,7 +1,7 @@
 /**
  * 正規化した設定の検査（docs/authoring-plan.md 12.3）。派生値は derive.ts が作った後に呼ぶ。列挙の定数は印刷屋の API から。
  * 1-10 レビューと再レビューで足したこと:
- *   - `isSafeExpression` は式全体を見る（"ESC_HTML(x) & HTML(…)" を安全にしない。& でつないだ項がすべて安全なら安全。REPLACE の置換文字列は <br> か記号無しの定数だけ）
+ *   - `isSafeExpression` は式全体を見る（"ESC_HTML(x) & HTML(…)" を安全にしない。& でつないだ項がすべて安全なら安全。REPLACE / REPLACEALL の置換文字列は <br> か記号無しの定数だけ）
  *   - HTML 設定の 1 行目 $out / 2 行目 $fname の欠落、有効なボタンの HTML 設定の欠落、有効なボタン名の重複はエラー
  * 2026-10-04 Takashi「ver.6 にチェックを組み込めばよい」: kintone 以外への読み込みとスクリプトは印刷屋 Ver.6 が描画の前に除く（共通の設定「外部参照」externalRefs = "block"。
  * print-craft の src/shared/sanitize.ts）。計算式が作る HTML を tools の静的検査で止め切れない（Codex レビュー 5 回）ので、止めるのは本体、tools は次の分担にした:
@@ -49,9 +49,9 @@ const NUMBER_LITERAL = /^-?\d+(?:\.\d+)?$/;
 const IDENT = /^[\p{L}_$][\p{L}\p{N}_$]*$/u;
 /** HTML の記号を含まない文字列の定数 */
 const isPlainLiteral = (s: string): boolean => STRING_LITERAL.test(s) && !/[<>&"']/.test(s.slice(1, -1));
-/** REPLACE の置換に使える定数: 記号無し、または <br> */
+/** REPLACE / REPLACEALL の置換に使える定数: 記号無し、または <br> */
 const isSafeReplacement = (s: string): boolean => isPlainLiteral(s) || /^"<br\s*\/?>"$/i.test(s);
-/** REPLACE の検索に使える値: 文字列の定数か NEWLINE()（改行は NEWLINE() で書く。"\n" は \ と n の 2 文字） */
+/** REPLACE / REPLACEALL の検索に使える値: 文字列の定数か NEWLINE()（改行は NEWLINE() で書く。"\n" は \ と n の 2 文字） */
 const isSafeSearch = (s: string): boolean => STRING_LITERAL.test(s) || /^NEWLINE\(\s*\)$/.test(s);
 
 /**
@@ -191,7 +191,7 @@ function isNumericSafe(arg: string, pp: Record<string, { type: string }>): boole
 
 /**
  * HTML の ${式} が安全な差し込みか（12.3 の html.rawExpression）。式**全体**が次のどれか（& でつないだ項はすべてがこれなら安全）:
- *   ESC_HTML(…)、REPLACE(ESC_HTML(…), NEWLINE() か "文字列", "<br>" か記号無しの文字列)、数値・日付の項目そのもの、数値・日付の項目（と算術・整える関数の入れ子）を
+ *   ESC_HTML(…)、REPLACE / REPLACEALL(ESC_HTML(…), NEWLINE() か "文字列", "<br>" か記号無しの文字列)、数値・日付の項目そのもの、数値・日付の項目（と算術・整える関数の入れ子）を
  *   整える関数（FVAL(合計) など。残りの引数は記号無しの文字列や数の定数）、TODAY() / NOW()、数の定数、HTML の記号を含まない文字列の定数
  * それ以外（文字列系の項目、FVAL(文字列項目)、HTML(…)、記号を含む定数）は警告
  */
@@ -206,7 +206,7 @@ export function isSafeExpression(expr: string, pp: Record<string, { type: string
   const call = parseCall(e);
   if (!call) return false;
   if (call.name === "ESC_HTML") return call.args.length >= 1;
-  if (call.name === "REPLACE") return call.args.length === 3 && parseCall(call.args[0])?.name === "ESC_HTML" && isSafeSearch(call.args[1]) && isSafeReplacement(call.args[2]);
+  if (call.name === "REPLACE" || call.name === "REPLACEALL") return call.args.length === 3 && parseCall(call.args[0])?.name === "ESC_HTML" && isSafeSearch(call.args[1]) && isSafeReplacement(call.args[2]);
   if (FORMAT_FUNCTIONS.has(call.name)) {
     if (call.name === "TODAY" || call.name === "NOW") return call.args.length === 0;
     if (call.args.length === 0 || !isNumericSafe(call.args[0], pp)) return false;
@@ -242,7 +242,7 @@ function externalFinding(f: Findings, ctx: Ctx, where: string, url: string, via:
 /** 計算式（formulaSet と HTML の ${式}）の文字列の \n などを警告する（formula.escape） */
 function escapeFinding(f: Findings, where: string, formulas: string[]): void {
   const lits = [...new Set(formulas.flatMap(backslashEscapes))];
-  if (lits.length) f.warning("formula.escape", where, `計算式の文字列は \\ を解釈しない: ${lits.slice(0, 3).join(" ")}（"\\n" は改行でなく \\ と n の 2 文字なので、REPLACE(…, "\\n", "<br>") は何も置き換えない）。改行は NEWLINE()（例 REPLACE(ESC_HTML(備考), NEWLINE(), "<br>")）`);
+  if (lits.length) f.warning("formula.escape", where, `計算式の文字列は \\ を解釈しない: ${lits.slice(0, 3).join(" ")}（"\\n" は改行でなく \\ と n の 2 文字なので、REPLACE(…, "\\n", "<br>") は何も置き換えない）。改行は NEWLINE()（例 REPLACEALL(ESC_HTML(備考), NEWLINE(), "<br>")）`);
 }
 
 const HTML_LIKE = /<\s*[a-zA-Z!/]/;
@@ -401,7 +401,7 @@ export async function checkBody(body: Record<string, unknown>, model: Model, f: 
         for (const w of r.warnings) f.warning("html.rule", where, w);
         for (const u of r.externals) externalFinding(f, ctx, where, u.url, u.via);
         const rawExprs = expressionsOf(t.html).filter((e) => !isSafeExpression(e, pp));
-        if (rawExprs.length) f.warning("html.rawExpression", where, `\${式} が文字列をエスケープせずに差し込んでいる: ${rawExprs.slice(0, 5).map((e) => `\${${e}}`).join(" ")}${rawExprs.length > 5 ? ` 他 ${rawExprs.length - 5}` : ""}（文字列の項目は \${ESC_HTML(項目)}、複数行は \${REPLACE(ESC_HTML(項目), NEWLINE(), "<br>")}。数値・日付の項目と FVAL / DATE_FORMAT はそのままでよい）`);
+        if (rawExprs.length) f.warning("html.rawExpression", where, `\${式} が文字列をエスケープせずに差し込んでいる: ${rawExprs.slice(0, 5).map((e) => `\${${e}}`).join(" ")}${rawExprs.length > 5 ? ` 他 ${rawExprs.length - 5}` : ""}（文字列の項目は \${ESC_HTML(項目)}、複数行は \${REPLACEALL(ESC_HTML(項目), NEWLINE(), "<br>")}。数値・日付の項目と FVAL / DATE_FORMAT はそのままでよい）`);
       }
       if (t.css) {
         const r = checkCss(t.css);

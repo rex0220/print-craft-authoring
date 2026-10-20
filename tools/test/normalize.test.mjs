@@ -94,14 +94,14 @@ test("警告と情報: 生の HTML を入れる関数、保存値の大きさ。
 test("警告: 文字列の項目を ESC_HTML なしで差し込むと html.rawExpression（FVAL(文字列) も）", async () => {
   const s = aiSettings();
   const row = s.pluginInfos[0].tagsInfo.fieldsInfo[2];
-  row.html = row.html.replace("${ESC_HTML(宛名)}", "${宛名} ${FVAL(備考)} ${合計金額} ${TODAY()} ${REPLACE(ESC_HTML(備考), NEWLINE(), \"<br>\")}");
+  row.html = row.html.replace("${ESC_HTML(宛名)}", "${宛名} ${FVAL(備考)} ${合計金額} ${TODAY()} ${REPLACE(ESC_HTML(備考), NEWLINE(), \"<br>\")} ${REPLACEALL(ESC_HTML(備考), NEWLINE(), \"<br>\")}");
   const r = await run(s);
   const w = r.findings.items.find((f) => f.rule === "html.rawExpression");
   assert.ok(w, "警告が出る");
   assert.ok(w.message.includes("${宛名}") && w.message.includes("${FVAL(備考)}"));
   const listed = w.message.split("（文字列の項目は")[0];
-  assert.ok(!listed.includes("${合計金額}") && !listed.includes("${TODAY()}") && !listed.includes("${REPLACE(ESC_HTML(備考)"), `数値・TODAY・REPLACE(ESC_HTML) は安全: ${listed}`);
-  assert.ok(w.message.includes('${REPLACE(ESC_HTML(項目), NEWLINE(), "<br>")}'), "複数行の書き方の案内は NEWLINE()");
+  assert.ok(!listed.includes("${合計金額}") && !listed.includes("${TODAY()}") && !listed.includes("${REPLACE(ESC_HTML(備考)") && !listed.includes("${REPLACEALL(ESC_HTML(備考)"), `数値・TODAY・REPLACE / REPLACEALL(ESC_HTML) は安全: ${listed}`);
+  assert.ok(w.message.includes('${REPLACEALL(ESC_HTML(項目), NEWLINE(), "<br>")}'), "複数行の書き方の案内は REPLACEALL と NEWLINE()");
 });
 
 test('警告: 計算式の文字列の "\\n" は改行でない（実エンジンは \\ を解釈しない）→ formula.escape。改行は NEWLINE()', async () => {

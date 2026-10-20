@@ -120,7 +120,7 @@ tools のコマンドは 1 回に 1 つ実行する（`;`、`&&`、`if (…) { �
 
 - **封筒なし（素の設定だけ）の JSON は誤り。** `pluginID` / `PluginVersion` が違うとインポートできない・tools が止まる
 - HTML 設定の行は 1 行目 `$out`（ボタン表示条件。計算式が空か `state: false` なら常に出す）、2 行目 `$fname`（ファイル名）、3 行目以降が帳票（上から連結）。`<div class="rex0220-pcraft-page">…</div>` が 1 ページ（用紙に固定。はみ出しは切れる。長い表は `TABLE_HTML` の `pagination`）
-- `${式}` は**エスケープされない**。文字列は `${ESC_HTML(項目)}`、金額や日付は `${FVAL(項目)}` / `${DATE_FORMAT(項目, "YYYY年M月D日")}`、複数行は `${REPLACE(ESC_HTML(項目), NEWLINE(), "<br>")}`
+- `${式}` は**エスケープされない**。文字列は `${ESC_HTML(項目)}`、金額や日付は `${FVAL(項目)}` / `${DATE_FORMAT(項目, "YYYY年M月D日")}`、複数行は `${REPLACEALL(ESC_HTML(項目), NEWLINE(), "<br>")}`（`REPLACE` は最初の 1 つだけ置き換える）
 - 計算式の文字列は `\` を解釈しない（`"\n"` は改行でなく `\` と `n` の 2 文字）。改行は `NEWLINE()`
 - 計算式の文字列の中に `//` を書かない（`"https://…"` など）
 - `LET` の変数名を、項目のフィールドコード（テーブルの子、関連レコード一覧の `親$子`、`$html` などの疑似項目を含む）や外側の `LET` / `ARRAY_*` の変数名と同じにしない（印刷屋 Ver.9 から、その式はエラー「LET() variable name (…) is already defined.」。Ver.8 までは、その項目が以後の式で使えなくなっていた）

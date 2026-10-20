@@ -88,12 +88,12 @@ test("expressionsOf: ${式} を列挙", () => {
   assert.deepEqual(expressionsOf('<p>${ESC_HTML(宛名)} ${ FVAL(合計) }</p>'), ["ESC_HTML(宛名)", "FVAL(合計)"]);
 });
 
-test("isSafeExpression: 式全体で判定する（& でつないだ項がすべて安全なら安全。REPLACE の置換は <br> か記号無しの定数だけ）", () => {
+test("isSafeExpression: 式全体で判定する（& でつないだ項がすべて安全なら安全。REPLACE / REPLACEALL の置換は <br> か記号無しの定数だけ）", () => {
   const pp = { 宛名: { type: "SINGLE_LINE_TEXT" }, 備考: { type: "MULTI_LINE_TEXT" }, 合計: { type: "NUMBER" }, 税: { type: "CALC" }, 見積日: { type: "DATE" } };
-  for (const ok of ["ESC_HTML(宛名)", "ESC_HTML(宛名 & 備考)", 'REPLACE(ESC_HTML(備考), NEWLINE(), "<br>")', 'REPLACE(ESC_HTML(備考), "\\n", "<br>")', 'REPLACE(ESC_HTML(備考), "\\n", "<br/>")', 'REPLACE(ESC_HTML(備考), "x", "y")', "合計", "FVAL(合計)", "FVAL(合計 * 1.1)", "ROUND(合計 + 税, 0)", 'DATE_FORMAT(見積日, "YYYY年M月D日")', 'DATE_FORMAT(DATE_ADD(見積日, 1, "days"), "YYYY-MM-DD")', "TODAY()", "NOW()", "123", '"御中"', 'ESC_HTML(宛名) & " 御中"', 'FVAL(合計) & " 円（税込 " & FVAL(税) & "）"']) {
+  for (const ok of ["ESC_HTML(宛名)", "ESC_HTML(宛名 & 備考)", 'REPLACE(ESC_HTML(備考), NEWLINE(), "<br>")', 'REPLACE(ESC_HTML(備考), "\\n", "<br>")', 'REPLACE(ESC_HTML(備考), "\\n", "<br/>")', 'REPLACE(ESC_HTML(備考), "x", "y")', 'REPLACEALL(ESC_HTML(備考), NEWLINE(), "<br>")', 'REPLACEALL(ESC_HTML(備考), "x", "y")', "合計", "FVAL(合計)", "FVAL(合計 * 1.1)", "ROUND(合計 + 税, 0)", 'DATE_FORMAT(見積日, "YYYY年M月D日")', 'DATE_FORMAT(DATE_ADD(見積日, 1, "days"), "YYYY-MM-DD")', "TODAY()", "NOW()", "123", '"御中"', 'ESC_HTML(宛名) & " 御中"', 'FVAL(合計) & " 円（税込 " & FVAL(税) & "）"']) {
     assert.equal(isSafeExpression(ok, pp), true, ok);
   }
-  for (const bad of ["宛名", "FVAL(備考)", "FVAL(宛名)", 'ESC_HTML(宛名) & UNESC_HTML("<img onerror=x>")', 'REPLACE(ESC_HTML(備考), "\\n", "<br>") & HTML(備考)', "TODAY() & HTML(備考)", '"</div><img onerror=alert(1)>"', "HTML(備考)", 'REPLACE(ESC_HTML(備考), 宛名, "<br>")', 'REPLACE(ESC_HTML(備考), NEWLINE(宛名), "<br>")', 'REPLACE(ESC_HTML(備考), "x", "<img src=\'https://evil.example/pixel\'>")', 'REPLACE(ESC_HTML(備考), "x", "<b>")', "FVAL(合計, 宛名)", "ESC_HTML(宛名", "TODAY(宛名)", "DATE_FORMAT(宛名, \"YYYY\")", 'ESC_HTML(宛名) & 宛名', "&", 'ESC_HTML(宛名) &']) {
+  for (const bad of ["宛名", "FVAL(備考)", "FVAL(宛名)", 'ESC_HTML(宛名) & UNESC_HTML("<img onerror=x>")', 'REPLACE(ESC_HTML(備考), "\\n", "<br>") & HTML(備考)', "TODAY() & HTML(備考)", '"</div><img onerror=alert(1)>"', "HTML(備考)", 'REPLACE(ESC_HTML(備考), 宛名, "<br>")', 'REPLACE(ESC_HTML(備考), NEWLINE(宛名), "<br>")', 'REPLACE(ESC_HTML(備考), "x", "<img src=\'https://evil.example/pixel\'>")', 'REPLACE(ESC_HTML(備考), "x", "<b>")', 'REPLACEALL(ESC_HTML(備考), "x", "<b>")', 'REPLACEALL(備考, NEWLINE(), "<br>")', 'REPLACEALL(ESC_HTML(備考), ARRAY(NEWLINE(), "<br>"))', "FVAL(合計, 宛名)", "ESC_HTML(宛名", "TODAY(宛名)", "DATE_FORMAT(宛名, \"YYYY\")", 'ESC_HTML(宛名) & 宛名', "&", 'ESC_HTML(宛名) &']) {
     assert.equal(isSafeExpression(bad, pp), false, bad);
   }
   assert.deepEqual(stringLiterals('REPLACE(x, "a\\"b", \'c\') & "<img src=\\"x\\">"'), ['a"b', "c", '<img src="x">']);

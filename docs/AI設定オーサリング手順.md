@@ -121,4 +121,5 @@ requirements/納品書.md の要件で、settings/APP3740-見積書.json に「�
 - tools 1.3.0: 公開版で印刷屋プラグイン Ver.7 の zip の `version` を確認（2026-10-09。CLI の使い方は 1.2.0 と同じ。print-craft MCP が使う中核の入口を足した）
 - tools 2.1.0: 公開版で印刷屋プラグイン Ver.8 の zip の `version --expect 8` が一致（2026-10-12。印刷屋 Ver.8 の関連レコード一覧 = authoring API 3 に対応。`fields` が参照先の項目定義を `related` に入れ、`record` が参照先のレコードを仮のテーブルとして取る。CLI の使い方は 2.0.x と同じ）
 - tools 2.2.0: 公開版で印刷屋プラグイン Ver.9 の zip の `version --expect 9` が一致（2026-10-20。印刷屋 Ver.9 の decimal.js を読み、数学関数 M_* と財務関数 R_* を検査・preview できる。`version` に decimal.js の行。Ver.8 の zip では「無い」と出る。CLI の使い方は 2.1.0 と同じ）
+- tools 2.3.0: 公開版で印刷屋プラグイン Ver.9 の zip の `version --expect 9` が一致し、`try`（お試しアプリ quote の式）が評価の子プロセスで動いた（2026-10-20。式の評価は別のプロセスで、時間とメモリの上限つき。CLI の今までのコマンドの使い方は 2.2.0 と同じ）
 - Windows 11 の Claude Code（VSCode）。macOS でも手順は同じ（`.env` の置き方は README）
