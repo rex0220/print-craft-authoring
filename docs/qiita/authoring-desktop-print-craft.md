@@ -90,7 +90,7 @@ flowchart TB
 | kintone | 対象アプリの**レコード閲覧だけの API トークン**（おすすめ）。またはログイン名とパスワード（**2 要素認証なし**のアカウント） |
 | 対象アプリ | 記事の例は見積書アプリ（アプリ番号 3740。見積明細のテーブル、小計・消費税・合計の計算項目、添付ファイル項目「見積ファイル」がある）。本番のアプリでなく、**テストアプリとテストデータで作る**のがおすすめです（「事前準備」） |
 
-本記事の手順は、macOS の Claude Desktop と、拡張機能 0.1.0〜0.2.0 で確かめました（最初に公開した版は 0.1.5。0.2.0（2026-10-12）は印刷屋プラグイン Ver.8 の関連レコード一覧に対応）。
+本記事の手順は、macOS の Claude Desktop と、拡張機能 0.1.0〜0.2.1 で確かめました（最初に公開した版は 0.1.5。0.2.0（2026-10-12）は印刷屋プラグイン Ver.8 の関連レコード一覧、0.2.1（2026-10-20）は Ver.9 の数学関数・財務関数に対応）。0.3.0（2026-10-20）からは、架空の値のお試しアプリで式や帳票の形を試せます（「見積書の形を試して」と頼むと、会話の中に帳票が出ます）。使い方や作れる帳票の種類は「印刷屋で何が作れる？」と聞けば答えます。
 
 > AI（Claude）が読んだ項目定義とレコードの形は、Claude の処理に使われます。レコードの**値**は、拡張機能のツールが AI に返しません（後述の「AI に渡るもの・渡らないもの」）。
 
@@ -100,7 +100,7 @@ flowchart TB
 
 ## 1. 拡張機能を入れる
 
-[GitHub のリリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest) から拡張機能のファイル `print-craft-authoring-<版>.mcpb`（0.2.0 なら `print-craft-authoring-0.2.0.mcpb`）をダウンロードして、ダブルクリックします。インストールの画面が出たら、**インストール** を選びます。
+[GitHub のリリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest) から拡張機能のファイル `print-craft-authoring-<版>.mcpb`（0.3.0 なら `print-craft-authoring-0.3.0.mcpb`）をダウンロードして、ダブルクリックします。インストールの画面が出たら、**インストール** を選びます。
 
 ダブルクリックで Claude Desktop が開かないときは、Claude Desktop の **設定 → 拡張機能** の画面に、ファイルをドラッグして入れます。
 
@@ -411,7 +411,7 @@ AI（Claude）が扱うのは**アプリの構造と帳票の設定**で、**レ
 
 - **チャットで頼み、会話の中で確かめ、設定画面で取り込む。** AI はアプリの項目とレコードの形を確かめて設定を書き、拡張機能が検査とプレビューをします
 - kintone には読み取りだけ。拡張機能は、レコードの値を AI への応答に含めません
-- 拡張機能: https://github.com/rex0220/print-craft-authoring-mcp（[最新のリリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest)）
+- 拡張機能: [https://github.com/rex0220/print-craft-authoring-mcp](https://github.com/rex0220/print-craft-authoring-mcp)（[最新のリリース](https://github.com/rex0220/print-craft-authoring-mcp/releases/latest)）
 - Claude Code（VSCode）で作る方法: [rex0220 印刷屋プラグイン - AI(Claude Code)に帳票を作らせる](https://qiita.com/rex0220/items/0ce0afc9405bdc39013b)
 - プラグインの機能全般は [製品紹介記事](https://qiita.com/rex0220/items/9be2d9b20a3a1f016c76)、よくある質問は [FAQ](https://qiita.com/rex0220/items/a866440c50c1028acb4f) へ
 
