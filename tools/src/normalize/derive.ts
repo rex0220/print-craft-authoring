@@ -13,6 +13,7 @@ import type { Findings } from "./findings.ts";
 import { calcIneligibleReason, type Model } from "./model.ts";
 import type { CalcField, MenuRow, TagRow } from "print-craft/src/config/schema.ts";
 import type { PrintCraftSaved } from "print-craft/src/config/load.ts";
+import { SINCE_V9_FUNCTIONS } from "./since-v9.ts";
 
 /** 封筒のキー（kit の export-import.ts と同じ） */
 export const ENVELOPE_KEYS = ["date", "pluginName", "pluginID", "PluginVersion", "appId", "appName"] as const;
@@ -47,6 +48,30 @@ export function evaluateFormula(engine: Engine, model: Model, formulaSet: string
  */
 export function evalErrorText(error: string): string {
   return /\b[MR]_[A-Z0-9_]+\(\) is not available\./.test(error) ? `${error}（数学関数 M_* と財務関数 R_* は印刷屋 Ver.9 から使える。使っている印刷屋の zip が Ver.8 まで）` : error;
+}
+
+const NOT_AVAILABLE = /^([MR]_[A-Z0-9_]+)\(\) is not available\.$/;
+// preview の式のエラーの形（src/preview/render.ts の renderRows）: 「HTML 設定 N 行目 ${式}: 文」「HTML 設定 N 行目の計算式: 文」
+const RENDER_ERROR = /^HTML 設定 \d+ 行目(?: \$\{[^}]*\}|の計算式): ([\s\S]*)$/;
+
+/**
+ * Ver.9 から使える関数の一言（tools 2.3.0。print-craft の docs/authoring-try-plan.md 4.4、Codex r1 N1）: Ver.8 までの zip の preview と try の式のエラーに添える
+ * （MCP の preview は式のエラーの文を返さず場所だけなので、この一言だけを足す）。条件は 3 つ: zip の印刷屋の版が 9 より前、評価のエラーの文が厳密に
+ * 「<名前>() is not available.」、名前が Ver.9 から使える関数の一覧（since-v9.ts。gen-function-list.mjs が作る）にある。返すのは関数名と決まった文だけ
+ * （引数、式の全文、元の例外の文は入れない）
+ */
+export function sinceV9Hint(message: string, pluginVersion: string): string | undefined {
+  const m = NOT_AVAILABLE.exec(message);
+  if (!m || !SINCE_V9_FUNCTIONS.includes(m[1])) return undefined;
+  if (!/^\d+$/.test(pluginVersion) || Number(pluginVersion) >= 9) return undefined;
+  const v = Number(pluginVersion);
+  return `${m[1]}() は印刷屋 Ver.9 から使える（使っている印刷屋の zip は Ver.${v}）`;
+}
+
+/** preview の式のエラー（場所: 文）の文の部分で sinceV9Hint を見る */
+export function renderErrorHint(error: string, pluginVersion: string): string | undefined {
+  const m = RENDER_ERROR.exec(error);
+  return m ? sinceV9Hint(m[1], pluginVersion) : undefined;
 }
 
 export function rowLabel(row: MenuRow, index: number): string {

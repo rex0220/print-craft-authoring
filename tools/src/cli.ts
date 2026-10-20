@@ -6,7 +6,7 @@
  *   - .env、policy/authoring-policy.json、印刷屋の zip の場所は固定。オプションで別の場所を指定できない（AI が書けるファイルを読ませない）
  * 終了コード: 0 成功、1 検査のエラー・認証・kintone・zip・入力の誤り、2 使い方の誤り（パスの制限を含む）。
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { jsonErrorWhere } from "./json-error.ts";
 import path from "node:path";
 import { AuthError, baseUrlFromEnv, describeAuth, kintoneConfigPath, loadAuth, pluginZipPath } from "./env.ts";
@@ -25,6 +25,10 @@ import { ButtonNotFoundError, listButtons } from "./commands/buttons.ts";
 import { defaultPullName, pullSettings } from "./commands/pull.ts";
 import { runPreview } from "./commands/preview.ts";
 import { DEFAULT_CONTEXT_BASE_URL, loadEngine, type Engine } from "./engine.ts";
+import { normalizeInChild, previewInChild, tryInChild, type Evaluator } from "./worker/evaluator.ts";
+import { renderErrorHint } from "./normalize/derive.ts";
+import type { TryButton, TryInput, TryOutcome } from "./commands/try.ts";
+import { evalLimitsFromEnv } from "./worker/run.ts";
 import { PluginZipError } from "./plugin-zip.ts";
 import { PolicyError } from "./normalize/policy.ts";
 import { isSupportedPluginVersion, schemaRevisionOf, toolsMeta } from "./meta.ts";
@@ -64,6 +68,12 @@ const USAGE = `使い方: npx @rex0220/print-craft-authoring-tools <command> [op
   preview <settings.json> --fields <fields.json> --record <record.json> [--button <名前>] [--out-dir out/<dir>] [--json]
       有効なボタンごとに帳票の HTML を out/<ボタン名>.html に書く（sandbox の iframe + CSP。外部と通信しない。画像はダミー。Web フォントは読まない）。
       一覧帳票は対象外。式の失敗は赤字で埋めて終了コード 1。
+  try [--app <名前>] [--records 1,2 | --rows N | --count N] (--formula <式> [--formula <式> ...] [--table <テーブル>] | --button <ボタンの JSON>) [--out-dir out/try] [--json]
+  try --input <try.json> [--out-dir out/try] [--json]
+      お試しアプリ（架空の値。利用者のアプリ・レコード・kintone は使わない）で、式や 1 ボタンの帳票を試す。--app は formula-sample（既定。全項目タイプ）/ quote（見積書）/
+      list（一覧帳票）/ gantt（工程表。関連レコード一覧）。対象は既定でレコード 1〜3（典型・端・空）、--rows はテーブルの行数（quote 1,000・gantt 1,001 まで）、
+      --count は一覧帳票の件数（100 まで）。--button は { html, css?, bodyFormula?, fileNameFormula?, displayCondition?, pageSize?, orientation?, dpi?, list? } の JSON の
+      ファイル。式の値・エラーの文・ページの文字を出す（値は架空）。帳票は out/try/<app>-<番号|rows|list>.html（毎回上書き）。項目コードはお試しアプリのもの
 
 kintone の接続のファイル（PCRAFT_KINTONE_CONFIG があるとき。kSQL の ksql.config.json と同じ形。複数のドメイン・アプリ）:
   PCRAFT_KINTONE_CONFIG は OS の環境変数（絶対パス）か .env（.env のフォルダーからの相対パスでもよい）。接続のファイルは作業フォルダーの外に置く。
@@ -192,6 +202,12 @@ function writeJson(file: string, data: unknown, roots: readonly string[], op: Ch
 function shown(file: string): string {
   const rel = path.relative(W.root, file);
   return rel && !rel.startsWith("..") ? rel : file;
+}
+
+/** 評価を子プロセスで行う口（tools 2.3.0。zip の式の評価はこの道を通す。print-craft の docs/authoring-try-plan.md 4.6） */
+function evaluatorFor(): Evaluator {
+  // 上限は既定（60 秒、4,096 MiB）。.env か環境変数の PCRAFT_EVAL_TIMEOUT_SEC / PCRAFT_EVAL_HEAP_MB で変えられる
+  return { pluginZip: pluginZipPath(authOpt()), devPluginDir: W.env.PCRAFT_ALLOW_DEV_PLUGIN === "1" ? printCraftProdDir(W.env) : undefined, run: { env: W.env, ...evalLimitsFromEnv(W.env) } };
 }
 
 async function engineFor(): Promise<Engine> {
@@ -449,17 +465,16 @@ async function normalize(args: string[]): Promise<number> {
   if (out) allow(out, "settings");
   const fieldsData = await readFieldsFile(fieldsFile);
   const baseUrl = trustedBaseUrl(folder, args);
-  const engine = await engineFor();
-  engine.setContext({ baseUrl: baseUrl ?? DEFAULT_CONTEXT_BASE_URL, appId: fieldsData.appId });
-  const result = await normalizeSettings({
+  // 検査と派生値は子プロセスで（時間とメモリの上限。tools 2.3.0）
+  const result = await normalizeInChild(evaluatorFor(), {
     settingsText: readTextLimited(settingsFile),
     settingsFile: relativeSettingsPath(settingsArg, W.root),
     fields: fieldsData,
-    engine,
     policy: loadPolicy({ cwd: W.root }),
     check: flag(args, "check"),
     baseUrl
   });
+  for (const w of result.engineWarnings) console.error(`注意: ${w}`);
   if (flag(args, "json")) {
     console.log(JSON.stringify({ summary: result.summary, findings: result.findings.items, size: result.size, checkDiffs: result.checkDiffs, written: !!result.output && write }, null, 2));
   } else {
@@ -620,6 +635,103 @@ async function files(args: string[]): Promise<number> {
   return 0;
 }
 
+/** 同じオプションを何回も渡したときの値（--formula） */
+function allOptions(args: string[], name: string): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < args.length; i++) if (args[i] === `--${name}` && args[i + 1] !== undefined) out.push(args[i + 1]);
+  return out;
+}
+
+/** 書く: 同じフォルダーの一時ファイルに書いてから、書く先を検査し直して rename で置き換える（別のプロセスと同時でも壊れたファイルを残さない。お試しアプリの out/try/） */
+function writeAtomic(file: string, text: string, roots: readonly string[], op: ChangeOp): string {
+  const real = resolveWrite(file, roots);
+  allow(real, op);
+  mkdirSync(path.dirname(real), { recursive: true });
+  const tmp = `${real}.${process.pid}.${Date.now().toString(36)}.tmp`;
+  writeFileSync(tmp, text, "utf8");
+  try {
+    if (resolveWrite(file, roots) !== real) throw new InputError(`書く先のフォルダーが途中で変わった（symlink など）: ${shown(real)}`);
+    renameSync(tmp, real);
+  } catch (e) {
+    rmSync(tmp, { force: true });
+    throw e;
+  }
+  return real;
+}
+
+/** お試しアプリで式と帳票を試す（tools 2.3.0。print-craft の docs/authoring-try-plan.md 4.2。評価は子プロセス） */
+async function tryCommand(args: string[]): Promise<number> {
+  let input: TryInput;
+  const inputFile = option(args, "input");
+  if (inputFile) input = readJsonLimited(resolveRead(inputFile)) as unknown as TryInput;
+  else {
+    input = {};
+    const app = option(args, "app");
+    if (app !== undefined) input.app = app;
+    const recs = option(args, "records");
+    if (recs !== undefined) input.records = recs.split(",").map((x) => Number(x.trim()));
+    const rows = option(args, "rows");
+    if (rows !== undefined) input.rows = Number(rows);
+    const count = option(args, "count");
+    if (count !== undefined) input.count = Number(count);
+    const formulas = allOptions(args, "formula");
+    const table = option(args, "table");
+    if (formulas.length) input.formulas = formulas.map((formula) => (table ? { formula, table } : { formula }));
+    const buttonFile = option(args, "button");
+    if (buttonFile !== undefined) input.button = readJsonLimited(resolveRead(buttonFile)) as unknown as TryButton;
+  }
+  const r: TryOutcome = await tryInChild(evaluatorFor(), input);
+  for (const w of (r as TryOutcome & { engineWarnings?: string[] }).engineWarnings ?? []) console.error(`注意: ${w}`);
+  const result = r.result;
+  const outDir = resolveWriteDir(option(args, "out-dir") ?? path.join("out", "try"), WRITE_ROOTS.out);
+  const written: string[] = [];
+  const removed: string[] = [];
+  for (const f of r.files) {
+    const file = path.join(outDir, `${result.app}-${f.key}.html`);
+    if (f.html !== undefined) written.push(shown(writeAtomic(file, f.html, WRITE_ROOTS.out, "preview")));
+    else {
+      // 描けなかった対象: 同じ名前の古いファイルを消す（前の結果を残さない）
+      const real = resolveWrite(file, WRITE_ROOTS.out);
+      if (existsSync(real)) {
+        allow(real, "preview");
+        rmSync(real, { force: true });
+        removed.push(shown(real));
+      }
+    }
+  }
+  const failed = !!result.refused?.length || !!result.button?.findings.some((f) => f.level === "error");
+  if (flag(args, "json")) {
+    console.log(JSON.stringify({ ...result, written, removed }, null, 2));
+    return failed ? 1 : 0;
+  }
+  console.log(`try: お試しアプリ ${result.app}（${result.title}）、対象 ${result.targets.join("・")}`);
+  for (const f of result.formulas ?? []) {
+    console.log(`式: ${f.formula}${f.table ? `（テーブル ${f.table} の行ごと）` : ""}`);
+    for (const v of f.values) {
+      const where = v.row !== undefined ? `${v.target} の ${v.row} 行目` : v.target;
+      const value = v.evaluationError !== undefined ? `エラー: ${v.evaluationError}` : v.tooLarge ? "（結果が大きすぎる）" : v.convertFailed ? "（値を文字にできない）" : JSON.stringify(v.text);
+      console.log(`  ${where}: ${value}`);
+    }
+    if (f.rowsOmitted) console.log(`  …（${f.rowsOmitted} 行は省いた）`);
+  }
+  if (result.button) {
+    const items = result.button.findings;
+    for (const f of items) console.log(`  [${f.level}] ${f.rule}（${f.where}）: ${f.message}`);
+    for (const b of result.button.results) {
+      const cond = b.displayCondition.applied ? (b.displayCondition.set ? `表示条件 ${b.displayCondition.shown ? "出す" : "出さない"}${b.displayCondition.evaluationError ? `（エラーなので出す: ${b.displayCondition.evaluationError}）` : ""}` : "表示条件なし") : "表示条件は一覧帳票では評価しない";
+      console.log(`${b.target}: ${b.pages} ページ、式のエラー ${b.errorCount}、ファイル名 ${b.fileName.value}${b.fileName.evaluationError ? `（エラーなので既定の名前: ${b.fileName.evaluationError}）` : ""}、${cond}`);
+      for (const e of b.errors) console.log(`  式のエラー: ${e}`);
+      for (const p of b.pageTexts) console.log(`  ${p.page} ページ目: ${p.text.slice(0, 200)}${p.text.length > 200 || p.cutChars ? " …" : ""}`);
+      if (b.pagesOmitted?.length) console.log(`  省いたページ: ${b.pagesOmitted.join(", ")}`);
+    }
+  }
+  for (const x of result.refused ?? []) console.log(`作らない: ${x.target}: ${x.message}`);
+  for (const n of result.notes) console.log(`注: ${n}`);
+  for (const w of written) console.log(`書いた: ${w}`);
+  for (const w of removed) console.log(`消した（前の結果）: ${w}`);
+  return failed ? 1 : 0;
+}
+
 async function preview(args: string[]): Promise<number> {
   const [settingsArg] = positional(args);
   if (!settingsArg) throw new UsageError("設定 JSON のパスが要る");
@@ -633,17 +745,23 @@ async function preview(args: string[]): Promise<number> {
   usable(recordFile);
   const outDir = resolveWriteDir(option(args, "out-dir") ?? (folder ? path.join(folder.dir, "out") : "out"), WRITE_ROOTS.out);
   const fieldsData = await readFieldsFile(fieldsFile);
-  const engine = await engineFor();
-  const result = await runPreview({
+  // 検査と描画は子プロセスで（時間とメモリの上限。tools 2.3.0。重い式はここで止まる）
+  const result = await previewInChild(evaluatorFor(), {
     settingsText: readTextLimited(settingsFile),
     settingsFile: relativeSettingsPath(settingsArg, W.root),
     fields: fieldsData,
     recordFile: readJsonLimited(recordFile),
-    engine,
     policy: loadPolicy({ cwd: W.root }),
     button: option(args, "button"),
     baseUrl: trustedBaseUrl(folder, args)
   });
+  for (const w of result.engineWarnings) console.error(`注意: ${w}`);
+  // Ver.8 までの zip の M_* / R_* の式のエラーには Ver.9 から使えることを添える（4.4）
+  const errorsOf = (errors: string[]): string[] =>
+    errors.map((e) => {
+      const hint = renderErrorHint(e, result.pluginVersion);
+      return hint ? `${e}（${hint}）` : e;
+    });
   const written: string[] = [];
   if (!result.findings.hasErrors) {
     for (const r of result.results) {
@@ -654,13 +772,13 @@ async function preview(args: string[]): Promise<number> {
     }
   }
   if (flag(args, "json")) {
-    console.log(JSON.stringify({ summary: result.summary, findings: result.findings.items, results: result.results.map((r) => ({ menu: r.menu, file: shown(path.join(outDir, r.file)), fileName: r.fileName, pages: r.pages, errors: r.errors })), skipped: result.skipped, written }, null, 2));
+    console.log(JSON.stringify({ summary: result.summary, findings: result.findings.items, results: result.results.map((r) => ({ menu: r.menu, file: shown(path.join(outDir, r.file)), fileName: r.fileName, pages: r.pages, errors: errorsOf(r.errors) })), skipped: result.skipped, written }, null, 2));
   } else {
     console.log(`preview: ${settingsArg}（${result.summary}）`);
     console.log(result.findings.format());
     for (const r of result.results) {
       console.log(`${r.menu}: ${r.pages} ページ、ファイル名 ${r.fileName}${r.errors.length ? `、式のエラー ${r.errors.length}` : ""} → ${shown(path.join(outDir, r.file))}`);
-      for (const e of r.errors) console.log(`  ${e}`);
+      for (const e of errorsOf(r.errors)) console.log(`  ${e}`);
     }
     for (const s of result.skipped) console.log(`対象外: ${s}`);
     if (result.findings.hasErrors) console.error("設定にエラーがあるのでプレビューは書かない（normalize で直す）");
@@ -702,6 +820,8 @@ async function main(argv: string[]): Promise<number> {
       return files(args);
     case "preview":
       return preview(args);
+    case "try":
+      return tryCommand(args);
     default:
       console.error(`不明なコマンド: ${command}\n${USAGE}`);
       return 2;

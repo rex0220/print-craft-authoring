@@ -85,18 +85,39 @@ function errorSpan(expression: string, e: unknown): string {
   return `<span class="pcraft-authoring-error">式のエラー: ${escapeHtml(expression)} — ${escapeHtml(message)}</span>`;
 }
 
+/**
+ * 描画の大きさの上限（お試しアプリの try だけ。print-craft の docs/authoring-try-plan.md 4.2、Codex r2 M3）: 式 1 つの結果（UTF-8 のバイト数）と、
+ * HTML の累計。超えた式はエラー（大きすぎる）にして DOM に入れず、累計が超えそうなら残りの行を描かない（大きい文字列と DOM を作ってから切らない）
+ */
+export interface RenderLimits {
+  maxValueBytes: number;
+  maxTotalBytes: number;
+}
+
+const utf8Bytes = (s: string): number => Buffer.byteLength(s, "utf8");
+
 /** authoring 専用の行単位レンダラー（印刷屋の buildReportHtml と同じ順序・同じ \ → &yen; の置き換え。失敗しても続ける） */
-export function renderRows(api: PrintCraftAuthoringApi, row: MenuRow, record: KintoneRecord, kf: FormulaInstance, errors: string[]): string {
+export function renderRows(api: PrintCraftAuthoringApi, row: MenuRow, record: KintoneRecord, kf: FormulaInstance, errors: string[], limits?: RenderLimits): string {
   const rows: TagRow[] = row.tagsInfo?.fieldsInfo ?? [];
   let html = "";
+  const tooLarge = (where: string, bytes: number): string => {
+    errors.push(`${where}: 結果が大きすぎる（${bytes.toLocaleString()} バイト。${limits!.maxValueBytes.toLocaleString()} バイトまで）`);
+    return errorSpan(where, new Error("結果が大きすぎる"));
+  };
   for (let index = 2; index < rows.length; index++) {
     const info = rows[index];
     if (!info.state) continue;
+    if (limits && utf8Bytes(html) > limits.maxTotalBytes) {
+      errors.push(`帳票の HTML が大きすぎるので、HTML 設定 ${index + 1} 行目から先を描かない（${limits.maxTotalBytes.toLocaleString()} バイトまで）`);
+      break;
+    }
     let tmp = info.html
       ? info.html.replace(/\$\{(.*?)\}/g, (_m, key: string) => {
           try {
             const v = kf.dq(key);
-            return v == null ? "" : String(v);
+            const s = v == null ? "" : String(v);
+            if (limits && utf8Bytes(s) > limits.maxValueBytes) return tooLarge(`HTML 設定 ${index + 1} 行目 \${${key}}`, utf8Bytes(s));
+            return s;
           } catch (e) {
             errors.push(`HTML 設定 ${index + 1} 行目 \${${key}}: ${e instanceof Error ? e.message : String(e)}`);
             return errorSpan(`\${${key}}`, e);
@@ -109,6 +130,7 @@ export function renderRows(api: PrintCraftAuthoringApi, row: MenuRow, record: Ki
       try {
         const v = kf.dq(formula);
         tmp = v == null ? "" : String(v);
+        if (limits && utf8Bytes(tmp) > limits.maxTotalBytes) tmp = tooLarge(`HTML 設定 ${index + 1} 行目の計算式`, utf8Bytes(tmp));
       } catch (e) {
         errors.push(`HTML 設定 ${index + 1} 行目の計算式: ${e instanceof Error ? e.message : String(e)}`);
         tmp += errorSpan(formula.length > 120 ? formula.slice(0, 120) + "…" : formula, e);
@@ -342,6 +364,8 @@ export interface RenderInput {
   model: Model;
   engine: Engine;
   record: KintoneRecord;
+  /** 描画の大きさの上限（お試しアプリの try だけ） */
+  limits?: RenderLimits;
 }
 
 export function renderButton(input: RenderInput): RenderedButton {
@@ -358,7 +382,7 @@ export function renderButton(input: RenderInput): RenderedButton {
   // 共通 CSS が無い設定は、印刷屋の設定画面が既定の 4 行で保存する（全置換）ので、その形で見せる（一部置換・追加では取り込み先のアプリの共通 CSS が使われる）
   const cssBody = Array.isArray(body.cssInfo) ? body : { ...body, cssInfo: api.defaultCssRows() };
   const css = api.buildReportCss(cssBody as Parameters<PrintCraftAuthoringApi["buildReportCss"]>[0], row, paper.scr, font);
-  const html = renderRows(api, row, record, kf, errors);
+  const html = renderRows(api, row, record, kf, errors, input.limits);
 
   const doc = (engine.window as { document: Document }).document;
   const host = doc.createElement("div");

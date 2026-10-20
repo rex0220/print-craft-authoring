@@ -125,6 +125,7 @@ kintone/
 | `npx @rex0220/print-craft-authoring-tools normalize settings/<ファイル>.json --fields fields/N.json` | 派生値の生成と検査。エラーがあれば書き戻さない。`--check` で派生値の差、`--dry-run` で書かない |
 | `npx @rex0220/print-craft-authoring-tools preview settings/<ファイル>.json --fields fields/N.json --record records/N-R.json` | ボタンごとの帳票 HTML を `out/` に |
 | `npx @rex0220/print-craft-authoring-tools diff <前.json> <後.json>` | 既存設定の変更の差分 |
+| `npx @rex0220/print-craft-authoring-tools try [--app quote] --formula <式> …` / `try --app quote --button <ボタンの JSON>` | お試しアプリ（架空の値の標本: `formula-sample` / `quote` / `list` / `gantt`）で式の値と 1 ボタンの帳票を試す（tools 2.3.0 から。利用者のアプリ・レコードは使わず、通信しない）。帳票は `out/try/` に。`--rows N` でテーブルの行数、`--count N` で一覧帳票の件数 |
 | `npx @rex0220/print-craft-authoring-tools pull --app N [--preview]` | アプリに入っている印刷屋の今の設定を取って、設定画面の「設定をダウンロード」と同じ形で `settings/APP<番号>-<アプリ名>.json` に保存（GET だけ。tools 0.1.1 から。0.1.0 は `settings/<アプリ名>.json`）。kintone の API ラボの API を使うので、cybozu.com 共通管理者がアップデートオプションの「検討中の新機能」で「アプリに追加されているプラグインの設定情報を取得または更新するREST API」を有効にした環境だけ。権限は運用中の設定がレコード閲覧（API トークンでも可）、`--preview`（保存して未反映の設定）がアプリ管理。既にあるファイルは `--force` で上書き |
 | `npx @rex0220/print-craft-authoring-tools take [--profile <名前>]` | `inbox/` の設定のダウンロードを、アプリのフォルダーへ名前のまま移す（接続のファイルがあるとき） |
 | `npx @rex0220/print-craft-authoring-tools edit --app <番号>` | 今の設定（一番新しいダウンロード / pull）を `…-edit.json` に写す。直すのはこちら（接続のファイルがあるとき） |
@@ -161,7 +162,7 @@ git commit -m "テンプレートの更新を取り込む"
 - テンプレートのファイルを自分で直していた場合、その変更は消えます。Claude Code の許可を足すなら `.claude/settings.local.json`、git で無視するファイルを足すなら `.git/info/exclude` に書いてください。テンプレートで消えたファイルは残るので、気になれば消してください
 - `git merge template/main --allow-unrelated-histories` では取り込まないでください。テンプレートから作ったリポジトリはテンプレートと履歴がつながっていないので、手を入れていないファイルまで衝突し、`-X theirs` で解くと自分の `policy/authoring-policy.json` の承認がテンプレートの空のものに戻ります
 - テンプレート側は `settings/` に README.md 以外、`requirements/` に example.md 以外、`policy/` に README.md と空の `authoring-policy.json` 以外のファイルを追加しません
-- tools の版は印刷屋プラグインの版とは別です。tools が扱う印刷屋の版は `npx @rex0220/print-craft-authoring-tools version` に出ます（tools 1.1.0 以降は「扱う印刷屋 Ver.6 以降、API 1, 2」、2.1.0 以降は「API 1, 2, 3」。印刷屋 Ver.8 の zip は 2.1.0 以降で読めます。印刷屋 Ver.9 の数学関数 M_* と財務関数 R_*（decimal.js）を検査・preview するには 2.2.0 以降が要ります）。印刷屋を上げたら `.env` の zip も入れ替え、`npx @rex0220/print-craft-authoring-tools version --expect <印刷屋の版>` で確かめます。「authoring API の版 … には対応していない」と出たら tools を新しい版にします
+- tools の版は印刷屋プラグインの版とは別です。tools が扱う印刷屋の版は `npx @rex0220/print-craft-authoring-tools version` に出ます（tools 1.1.0 以降は「扱う印刷屋 Ver.6 以降、API 1, 2」、2.1.0 以降は「API 1, 2, 3」。印刷屋 Ver.8 の zip は 2.1.0 以降で読めます。印刷屋 Ver.9 の数学関数 M_* と財務関数 R_*（decimal.js）を検査・preview するには 2.2.0 以降が要ります。お試しアプリの `try` と、式の評価の時間とメモリの上限（評価の子プロセス）は 2.3.0 以降）。印刷屋を上げたら `.env` の zip も入れ替え、`npx @rex0220/print-craft-authoring-tools version --expect <印刷屋の版>` で確かめます。「authoring API の版 … には対応していない」と出たら tools を新しい版にします
 
 ## ドキュメント
 
@@ -169,7 +170,9 @@ git commit -m "テンプレートの更新を取り込む"
 | :--- | :--- |
 | [docs/設定ファイル仕様.md](docs/設定ファイル仕様.md) | 設定 JSON の形式の**正本**（キー、誰が書くか、列挙、制約、検査すること / しないこと） |
 | [docs/帳票関数リファレンス.md](docs/帳票関数リファレンス.md) | 帳票の評価の流れ、置き換えタグ、印刷屋固有の関数と**エスケープの扱い** |
+| [docs/使い方ナビ.md](docs/使い方ナビ.md) | できること（帳票の種類と記事）、使い方の流れ、頼み方の例（新しい帳票・今の帳票の変更） |
 | [docs/帳票レシピ集.md](docs/帳票レシピ集.md) | 帳票の書き方（既定の形）とレシピ |
+| [docs/計算パターン.md](docs/計算パターン.md) | 式の書き方のパターン（和暦・曜日・支払期限・年度、文字列の整え方、空・比較・端数）。例はお試しアプリで確かめたもの（結果は [計算パターン_検証.md](docs/計算パターン_検証.md)） |
 | [docs/関数一覧.md](docs/関数一覧.md) | 使える計算式の関数 243 個。例は [関数の使い方（計算式プラグインの記事）.md](docs/関数の使い方（計算式プラグインの記事）.md)、詳細は [関数リファレンス（詳細）.md](docs/関数リファレンス（詳細）.md) |
 | [docs/AI設定オーサリング手順.md](docs/AI設定オーサリング手順.md) | 利用者がすること（要件の書き方、プレビューと差分の確かめ方、反映）と、AI への指示の例 |
 | [docs/バージョンアップ手順.md](docs/バージョンアップ手順.md) | 印刷屋プラグイン・tools・テンプレートを新しい版にする手順（作り直さなくてよい） |

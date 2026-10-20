@@ -126,6 +126,32 @@ test("updateButton: digest を照合してボタン 1 つを差し替える。�
   }
 });
 
+test("updateButton: 差し替えたボタンの list / viewsCsv が前と違えば警告（保存は止めない。足したボタン・同じ値なら出さない。0.3.0 の T6）", async () => {
+  const root = makeWork();
+  const ctx = { root, engine, policy };
+  try {
+    const saved = await saveNewSettings(ctx, { path: "settings/見積書.json", content: JSON.stringify(aiSettings()), fields: "fields/3740.json", expectedAbsent: true });
+    assert.equal(saved.status, "ok", saved.message);
+    const row = aiSettings().pluginInfos[0];
+    const rules = (r) => r.findings.filter((f) => f.rule.startsWith("button.")).map((f) => f.rule);
+    const same = await updateButton(ctx, { path: "settings/見積書.json", button: "見積書", expectedDigest: saved.digest, replacement: JSON.stringify({ ...row, desc: "x" }), fields: "fields/3740.json" });
+    assert.deepEqual([same.status, rules(same)], ["ok", []], "同じ値なら出さない");
+    const views = await updateButton(ctx, { path: "settings/見積書.json", button: "見積書", expectedDigest: same.digest, replacement: JSON.stringify({ ...row, viewsCsv: "-" }), fields: "fields/3740.json" });
+    assert.deepEqual([views.status, rules(views)], ["ok", ["button.viewsChanged"]], JSON.stringify(views.findings));
+    const w = views.findings.find((f) => f.rule === "button.viewsChanged");
+    assert.equal(w.level, "warning");
+    assert.match(w.message, /"" から "-" に変わった/);
+    const list = await updateButton(ctx, { path: "settings/見積書.json", button: "見積書", expectedDigest: views.digest, replacement: JSON.stringify({ ...row, viewsCsv: "-", list: true, filecode: "" }), fields: "fields/3740.json" });
+    assert.equal(list.status, "ok", JSON.stringify(list.findings));
+    assert.deepEqual(rules(list), ["button.listChanged"]);
+    assert.match(list.findings.find((f) => f.rule === "button.listChanged").message, /false から true に変わった（一覧画面のボタン（一覧帳票）になる）/);
+    const added = await updateButton(ctx, { path: "settings/見積書.json", button: "請求書", expectedDigest: list.digest, replacement: JSON.stringify({ ...row, menu: "請求書", viewsCsv: "-" }), fields: "fields/3740.json" });
+    assert.deepEqual([added.status, rules(added)], ["ok", []], "足したボタンには出さない");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("updateButton: ダウンロード / pull のファイルは書き換えない（denied）、無いファイルは conflict", async () => {
   const root = makeWork();
   const ctx = { root, engine, policy };

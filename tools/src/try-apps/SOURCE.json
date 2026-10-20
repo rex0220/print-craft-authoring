@@ -1,0 +1,132 @@
+{
+  "formula": {
+    "note": "formula の標本「計算式サンプル」（アプリ 4329。架空の値）とユーザー情報の既定のテストデータ（架空の 10 人）。scripts/copy-formula-sample.mjs が写した。手で直さない",
+    "repository": "rex0220/formula-authoring",
+    "commit": "011cc656a4dddf2da2054636ce296809f57817d0",
+    "files": [
+      {
+        "from": "tools/src/sample-app/fields.json",
+        "to": "formula-sample/fields.json",
+        "sourceSha256": "ed46cdf6fe9cc0240bd9ae2888ba133e1504f5ae2941297ed2496c2ff9936971",
+        "destSha256": "ed46cdf6fe9cc0240bd9ae2888ba133e1504f5ae2941297ed2496c2ff9936971",
+        "transform": "none"
+      },
+      {
+        "from": "tools/src/sample-app/record-1.json",
+        "to": "formula-sample/record-1.json",
+        "sourceSha256": "7a6a73d7ff606bb89aeeed7218a5cc5a4af5e800ea5ee356c7d1bb8ecf7d145b",
+        "destSha256": "7a6a73d7ff606bb89aeeed7218a5cc5a4af5e800ea5ee356c7d1bb8ecf7d145b",
+        "transform": "none"
+      },
+      {
+        "from": "tools/src/sample-app/record-2.json",
+        "to": "formula-sample/record-2.json",
+        "sourceSha256": "cce46f35aaac3db4c5bc4bf655d7bdc38dceddeee4dd90e75dc1acc44e37a779",
+        "destSha256": "cce46f35aaac3db4c5bc4bf655d7bdc38dceddeee4dd90e75dc1acc44e37a779",
+        "transform": "none"
+      },
+      {
+        "from": "tools/src/sample-app/record-3.json",
+        "to": "formula-sample/record-3.json",
+        "sourceSha256": "4cf21c0947ef86226a9c4e85a4730e203e0dab42c75355883460d637509bca5e",
+        "destSha256": "4cf21c0947ef86226a9c4e85a4730e203e0dab42c75355883460d637509bca5e",
+        "transform": "none"
+      },
+      {
+        "from": "tools/src/users/default-users.ts",
+        "to": "users/default-users.ts",
+        "sourceSha256": "9931c50e046662ab775db6ce840b4c7d99cc2152fc7c7d7611bd3bd10882e7fa",
+        "destSha256": "9931c50e046662ab775db6ce840b4c7d99cc2152fc7c7d7611bd3bd10882e7fa",
+        "transform": "none"
+      },
+      {
+        "from": "tools/src/users/index.ts",
+        "to": "users/index.ts",
+        "sourceSha256": "925ec59edb86d85fc475dd3f0b2d0c3e2573dadf8045bedbbf54f4942db85211",
+        "destSha256": "925ec59edb86d85fc475dd3f0b2d0c3e2573dadf8045bedbbf54f4942db85211",
+        "transform": "none"
+      }
+    ]
+  },
+  "reports": {
+    "note": "帳票のパターンの項目定義（docs/samples の写し）と固定のレコード（1 = 典型、2 = 端、3 = 空）。scripts/gen-try-apps.mjs が作った。手で直さない",
+    "quote": {
+      "sample": "docs/samples/見積書",
+      "sourceFieldsSha256": "991c6b06ad69cbce791d05b52d2794be1b3b2aec4ba02ece5664081cf3dbf2ad",
+      "files": [
+        {
+          "to": "quote/fields.json",
+          "from": "docs/samples/見積書/fields.json",
+          "sha256": "991c6b06ad69cbce791d05b52d2794be1b3b2aec4ba02ece5664081cf3dbf2ad"
+        },
+        {
+          "to": "quote/record-1.json",
+          "from": "docs/samples/見積書/record.json（record を写した）",
+          "sha256": "fc3b23ecb8626cafd919d57ce22ea484def48c778ba3a362c129b573b880d3e9"
+        },
+        {
+          "to": "quote/record-2.json",
+          "from": "scripts/gen-try-apps.mjs",
+          "sha256": "311d3740104234cb3338c4e429adf3a6f44f9a698bdc1f959dd367daca83d38f"
+        },
+        {
+          "to": "quote/record-3.json",
+          "from": "scripts/gen-try-apps.mjs",
+          "sha256": "995703cab23b24221944393b2be34d95d258161d25b3bef67c9d28098bbb1723"
+        }
+      ]
+    },
+    "list": {
+      "sample": "docs/samples/一覧帳票",
+      "sourceFieldsSha256": "a3a9718977c38f52c7422b1cb61af5bf873684aa67be27486f3d96b4cad4fc05",
+      "files": [
+        {
+          "to": "list/fields.json",
+          "from": "docs/samples/一覧帳票/fields.json",
+          "sha256": "a3a9718977c38f52c7422b1cb61af5bf873684aa67be27486f3d96b4cad4fc05"
+        },
+        {
+          "to": "list/record-1.json",
+          "from": "scripts/gen-try-apps.mjs",
+          "sha256": "4417a7129f487806377353adb87b1c3d0868f27e401f44f980834e6bf80c896f"
+        },
+        {
+          "to": "list/record-2.json",
+          "from": "scripts/gen-try-apps.mjs",
+          "sha256": "13f19d739210320c60da4178efda45b526c9eee07ced79febe49931a7a6878a3"
+        },
+        {
+          "to": "list/record-3.json",
+          "from": "scripts/gen-try-apps.mjs",
+          "sha256": "0c79ac3bb92d91d7d6411cbeda6274a928c69c06fa5105e6b0f513fc2f72293b"
+        }
+      ]
+    },
+    "gantt": {
+      "sample": "docs/samples/工程表",
+      "sourceFieldsSha256": "6c68ae37273942252bd0707e8375afa5f80825e4871f91acf0c728aee047b949",
+      "files": [
+        {
+          "to": "gantt/fields.json",
+          "from": "docs/samples/工程表/fields.json",
+          "sha256": "6c68ae37273942252bd0707e8375afa5f80825e4871f91acf0c728aee047b949"
+        },
+        {
+          "to": "gantt/record-1.json",
+          "from": "docs/samples/工程表/record.json（record を写した）",
+          "sha256": "d7724ed7ea688ca8371ae5eab1cddac20a2777a356e827f02fd97e77bf8749e7"
+        },
+        {
+          "to": "gantt/record-2.json",
+          "from": "scripts/gen-try-apps.mjs",
+          "sha256": "9d90e4008f1fa74b035372d31d7dcb993257c9e6c55fd31a8589e5e8968c1382"
+        },
+        {
+          "to": "gantt/record-3.json",
+          "from": "scripts/gen-try-apps.mjs",
+          "sha256": "bba32d3f8c0c1058acee1a04aba8428061dddda355eae19dde6136bb69eae8be"
+        }
+      ]
+    }
+  }
+}

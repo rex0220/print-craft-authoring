@@ -270,3 +270,20 @@ test("Ver.8 の zip には decimal.js が無い: decimalSha256 なし、M_SIN �
   assert.ok(err && err.message.includes("M_SIN() is not available.") && err.message.includes("印刷屋 Ver.9 から使える"), r.findings.format());
   assert.deepEqual(r.results, [], "検査のエラーで描かない");
 });
+
+test("Ver.8 の zip の preview: HTML の ${…} の M_SIN は検査を通り（HTML の ${…} は検査で評価しない）、式のエラーに Ver.9 から使えることを添えられる（4.4。renderErrorHint）。try の式も同じ", { skip }, async () => {
+  const engine = await engineP;
+  const { runPreview } = await import("../src/commands/preview.ts");
+  const { renderErrorHint } = await import("../src/normalize/derive.ts");
+  const record = { $id: v("__ID__", "7"), $revision: v("__REVISION__", "2"), プロジェクト名: v("SINGLE_LINE_TEXT", "計画 A"), uuid: v("SINGLE_LINE_TEXT", "abc"), 添付: v("FILE", []), task_list: v("SUBTABLE", []) };
+  const recordFile = { tool: "pcraft-authoring record", fetchedAt: "", baseUrl: "https://x.cybozu.com", appId: 4120, id: 7, record };
+  const settings = settingsOf(engine, { html: '<div class="rex0220-pcraft-page">${M_SIN(1)} ${R_PMT(0.01, 12, 100000)}</div>', formula: "" });
+  const r = await runPreview({ settingsText: JSON.stringify(settings), settingsFile: "settings/工程表.json", fields: FIELDS8, recordFile, engine });
+  assert.ok(!r.findings.hasErrors, r.findings.format());
+  assert.deepEqual(r.results[0].errors, ["HTML 設定 3 行目 ${M_SIN(1)}: M_SIN() is not available.", "HTML 設定 3 行目 ${R_PMT(0.01, 12, 100000)}: R_PMT() is not available."]);
+  assert.deepEqual(r.results[0].errors.map((e) => renderErrorHint(e, engine.source.pluginVersion)), ["M_SIN() は印刷屋 Ver.9 から使える（使っている印刷屋の zip は Ver.8）", "R_PMT() は印刷屋 Ver.9 から使える（使っている印刷屋の zip は Ver.8）"]);
+
+  const { tryInChild } = await import("../src/worker/evaluator.ts");
+  const t = await tryInChild({ pluginZip: ZIP8 }, { records: [1], formulas: [{ formula: "M_SIN(1)" }] });
+  assert.equal(t.result.formulas[0].values[0].evaluationError, "M_SIN() is not available.（M_SIN() は印刷屋 Ver.9 から使える（使っている印刷屋の zip は Ver.8））");
+});

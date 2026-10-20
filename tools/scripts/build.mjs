@@ -79,6 +79,39 @@ if (coreLeaked.length) {
   console.error(`中核の入口に入れてはいけないもの（印刷屋 / kit / rexgrid のコード、cli.ts、dev-paths.ts）が入っている:\n  ${coreLeaked.join("\n  ")}`);
   process.exit(1);
 }
+
+// 評価の子プロセスの入口（dist/eval-worker.mjs。cli.mjs・core.mjs の隣。print-craft の docs/authoring-try-plan.md 4.6。tools 2.3.0）:
+// 中核の runEval が fork する。happy-dom は依存のまま外に置く（print-craft MCP は自分のビルドで happy-dom ごと束ねる）
+const workerBanner = `/*! @rex0220/print-craft-authoring-tools eval-worker ${meta.toolsVersion} (c) rex0220. MIT License. 計算式エンジンと印刷屋のコードは利用者の印刷屋プラグインの zip から読む（このファイルには含まれない）。commit ${meta.commit}. */`;
+const worker = await build({
+  entryPoints: [path.join(root, "src", "worker", "eval-worker.ts")],
+  outfile: path.join(root, "dist", "eval-worker.mjs"),
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  target: "node20",
+  charset: "utf8",
+  legalComments: "none",
+  external: ["happy-dom"],
+  banner: { js: workerBanner },
+  define: { __PCRAFT_TOOLS_META__: JSON.stringify(JSON.stringify(meta)) },
+  alias: { "print-craft": PRINT_CRAFT_ROOT, "plugin-config-kit": kitRoot(), rexgrid: rexgridRoot() },
+  absWorkingDir: root,
+  metafile: true,
+  logLevel: "warning"
+});
+const workerInputs = Object.keys(worker.metafile.inputs);
+const workerLeaked = workerInputs.filter((p) => /print-craft[\\/](src|lib|prod)[\\/]|plugin-config-kit[\\/]src|rexgrid[\\/]src|[\\/]src[\\/](cli|dev-paths)\.ts$/.test(p));
+if (workerLeaked.length) {
+  console.error(`評価の子プロセスの入口に入れてはいけないもの（印刷屋 / kit / rexgrid のコード、cli.ts、dev-paths.ts）が入っている:\n  ${workerLeaked.join("\n  ")}`);
+  process.exit(1);
+}
+const workerCheck = spawnSync(process.execPath, ["--check", path.join(root, "dist", "eval-worker.mjs")], { encoding: "utf8" });
+if (workerCheck.status !== 0) {
+  console.error(`dist/eval-worker.mjs の構文に誤り（exit ${workerCheck.status}）:\n${workerCheck.stderr}`);
+  process.exit(1);
+}
+console.log(`wrote dist/eval-worker.mjs (${readFileSync(path.join(root, "dist", "eval-worker.mjs")).length.toLocaleString()} bytes; ${workerInputs.length} inputs)`);
 // 型: ① 本物の型（印刷屋の型を含む）で検査する（誤りがあれば止める）→ ② 印刷屋の型を代わりの型（scripts/types-stub/。any）にして宣言だけを作る
 // （印刷屋の型は印刷屋のリポジトリにあり npm に出さない。② の検査の誤りは代わりの型によるものなので見ない。正しさは ① で確かめる）
 // → ③ 宣言の中の印刷屋の参照を、同梱した代わりの型（dist/types/_print-craft/）に向け直す → ④ 読み込む側の設定で、宣言の検査も省かずに通るか

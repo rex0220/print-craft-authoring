@@ -14,11 +14,12 @@ test("入口は print-craft MCP が使う関数を出す（公開の約束。名
     "pullSettings", "takeInbox", "writeNewFile", "findAppDir", "listAppFolder", "assertInsideWorkspace",
     "loadConnections", "pickProfile", "authFor", "snapshotOf", "semanticDigest", "assertSameConnection", "identityOf", "sameIdentity",
     "modeOf", "requireProfiles", "hasLegacyConfig", "legacyBlockedError", "ensureAppFolder", "assertAppMark", "readAppMark", "markOf", "assertUsableInKintone",
-    "appFoldersOf", "unusedProfileDirs", "profileDirOf", "connectionStatusOf"
+    "appFoldersOf", "unusedProfileDirs", "profileDirOf", "connectionStatusOf",
+    "runEval", "defaultWorkerFile", "childEnv", "normalizeInChild", "previewInChild", "defaultIsolation", "evalLimitsFromEnv"
   ]) {
     assert.equal(typeof core[name], "function", name);
   }
-  for (const name of ["PathError", "PermissionError", "WorkspaceError", "InputError", "AuthError", "RestError", "QueryError", "PluginZipError", "FileExistsError", "LockBusyError", "ConnectionError"]) {
+  for (const name of ["PathError", "PermissionError", "WorkspaceError", "InputError", "AuthError", "RestError", "QueryError", "PluginZipError", "FileExistsError", "LockBusyError", "ConnectionError", "EvalError", "EvalTimeoutError", "EvalMemoryError", "EvalExitError"]) {
     assert.ok(core[name].prototype instanceof Error, name);
   }
 });

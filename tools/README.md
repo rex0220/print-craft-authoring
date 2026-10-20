@@ -30,10 +30,13 @@ Projects/
 - `src/workspace.ts` … 動く形（1 接続 / profile / 未設定 / 移行で止まっている）、`kintone/<profile>/<番号>-<アプリ名>/` のフォルダーと印 `.pcraft-app.json`、ダウンロードの名前（`src/commands/take.ts` が inbox から移す）。`kintone/` と profile のフォルダー、アプリのフォルダーの `records/` `out/`、`inbox/` は、実体が作業フォルダーの中のときだけ一覧する（`assertInsideWorkspace`）。1.x の `environments.json` は読まない（接続のファイルが無くてこれがあれば止まる）
 - `src/env.ts` / `src/kintone-rest.ts` … `.env`（kintone 公式 MCP と同じ `KINTONE_*` + `PCRAFT_PLUGIN_ZIP`）と GET 専用・許可 API 固定・送信先固定の REST
 - `src/commands/` … 各コマンド。`save.ts` は保存の約束（新しい設定の保存、ボタン 1 つの差し替え。print-craft MCP の保存のツールの本体）、`records.ts` はレコードを数件・形だけで見る（print-craft MCP の kintone_list_records）。`src/normalize/` … 派生値の生成、検査（HTML / CSS の allowlist、policy、大きさ）、行の差分。`src/preview/` … 帳票 HTML（sandbox + CSP + DOM の無害化）
+- `src/worker/` … 評価の子プロセス（2.3.0。印刷屋の zip の式を評価する道は `runEval` を通す。Claude Code と CLI は `child_process.fork`、Electron（Claude Desktop）は Worker thread。時間とメモリの上限 `PCRAFT_EVAL_TIMEOUT_SEC` / `PCRAFT_EVAL_HEAP_MB`、既定 60 秒・4,096 MiB。`evaluator.ts` の `normalizeInChild` / `previewInChild` / `tryInChild`）
+- `src/try-apps/` … お試しアプリ（2.3.0。架空の値の標本 `formula-sample` / `quote` / `list` / `gantt` と、`rows` / `count` の値の表、既定のユーザー情報）。`src/commands/try.ts` が CLI の `try` と print-craft MCP の `pcraft_try` の本体
 - `src/meta.ts` … tools の版、扱う印刷屋（プラグイン ID `PRINT_CRAFT_PLUGIN_ID`、版の下限 `MIN_PLUGIN_VERSION`）、API の版（`SUPPORTED_API_VERSIONS`）、API の契約（`REQUIRED_API`）
 - `scripts/vendor.mjs` … moment 2.24.0 を CDN から `vendor/` に取る（`vendor/moment.json` の SHA-256 と照合）
 - `scripts/build.mjs` … esbuild で `dist/cli.mjs`（Node 20、ESM。印刷屋 / kit のコードが入ったら失敗）と中核の入口 `dist/core.mjs`・型 `dist/types/`（型の検査 → 宣言 → 読み込む側の設定で使えるかを確かめる）
 - `scripts/gen-schema-manifest.mjs` … `docs/schema-manifest.json` と `docs/defaults/*.json`（API の CONFIG_SCHEMA から）
+- `scripts/verify-patterns.mjs` … `docs/計算パターン_検証.md`（`scripts/pattern-cases.mjs` の式をお試しアプリで評価。`npm run gen-patterns`）
 - `scripts/gen-functions.mjs` … `functions.json`（関数の分類）。`scripts/gen-function-list.mjs` … `docs/関数一覧.md` ほか（lib の説明表 p.desc から）
 - `test/` … `node --test`（src の .ts を直接読む。`test/helpers.mjs` が fixture の zip を PCRAFT_PLUGIN_ZIP に置く）
 

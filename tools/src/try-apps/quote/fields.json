@@ -1,0 +1,469 @@
+{
+  "tool": "pcraft-authoring fields",
+  "fetchedAt": "2026-10-04T00:00:00.000Z",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 3740,
+  "appName": "見積書(印刷屋)",
+  "preview": false,
+  "lang": "ja",
+  "revision": "143",
+  "properties": {
+    "備考": {
+      "type": "MULTI_LINE_TEXT",
+      "code": "備考",
+      "label": "備考",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": ""
+    },
+    "ダミー": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "ダミー",
+      "label": "ダミー",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "レコード番号": {
+      "type": "RECORD_NUMBER",
+      "code": "レコード番号",
+      "label": "レコード番号",
+      "noLabel": false
+    },
+    "作業者": {
+      "type": "STATUS_ASSIGNEE",
+      "code": "作業者",
+      "label": "作業者",
+      "enabled": false
+    },
+    "更新者": {
+      "type": "MODIFIER",
+      "code": "更新者",
+      "label": "更新者",
+      "noLabel": false
+    },
+    "作成者": {
+      "type": "CREATOR",
+      "code": "作成者",
+      "label": "作成者",
+      "noLabel": false
+    },
+    "ステータス": {
+      "type": "STATUS",
+      "code": "ステータス",
+      "label": "ステータス",
+      "enabled": false
+    },
+    "担当者": {
+      "type": "USER_SELECT",
+      "code": "担当者",
+      "label": "担当者",
+      "noLabel": false,
+      "required": false,
+      "entities": [],
+      "defaultValue": [
+        {
+          "type": "FUNCTION",
+          "code": "LOGINUSER()"
+        }
+      ]
+    },
+    "合計": {
+      "type": "CALC",
+      "code": "合計",
+      "label": "合計",
+      "noLabel": false,
+      "required": false,
+      "expression": "小計+消費税",
+      "format": "NUMBER_DIGIT",
+      "displayScale": "",
+      "hideExpression": false,
+      "unit": "\\",
+      "unitPosition": "BEFORE"
+    },
+    "見積ファイル": {
+      "type": "FILE",
+      "code": "見積ファイル",
+      "label": "見積ファイル",
+      "noLabel": false,
+      "required": false,
+      "thumbnailSize": "150"
+    },
+    "更新日時": {
+      "type": "UPDATED_TIME",
+      "code": "更新日時",
+      "label": "更新日時",
+      "noLabel": false
+    },
+    "見積日": {
+      "type": "DATE",
+      "code": "見積日",
+      "label": "見積日",
+      "noLabel": false,
+      "required": false,
+      "unique": false,
+      "defaultValue": "",
+      "defaultNowValue": true
+    },
+    "見積番号": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "見積番号",
+      "label": "見積番号",
+      "noLabel": false,
+      "required": true,
+      "minLength": "",
+      "maxLength": "64",
+      "expression": "",
+      "hideExpression": false,
+      "unique": true,
+      "defaultValue": ""
+    },
+    "カテゴリー": {
+      "type": "CATEGORY",
+      "code": "カテゴリー",
+      "label": "カテゴリー",
+      "enabled": false
+    },
+    "小計": {
+      "type": "CALC",
+      "code": "小計",
+      "label": "小計",
+      "noLabel": false,
+      "required": false,
+      "expression": "SUM(金額)",
+      "format": "NUMBER_DIGIT",
+      "displayScale": "",
+      "hideExpression": false,
+      "unit": "\\",
+      "unitPosition": "BEFORE"
+    },
+    "消費税": {
+      "type": "CALC",
+      "code": "消費税",
+      "label": "消費税",
+      "noLabel": false,
+      "required": false,
+      "expression": "ROUNDDOWN(小計*0.1)",
+      "format": "NUMBER_DIGIT",
+      "displayScale": "",
+      "hideExpression": false,
+      "unit": "\\",
+      "unitPosition": "BEFORE"
+    },
+    "見積明細": {
+      "type": "SUBTABLE",
+      "code": "見積明細",
+      "noLabel": true,
+      "label": "見積明細",
+      "fields": {
+        "単価": {
+          "type": "NUMBER",
+          "code": "単価",
+          "label": "単価",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": true,
+          "unique": false,
+          "defaultValue": "",
+          "displayScale": "",
+          "unit": "\\",
+          "unitPosition": "BEFORE"
+        },
+        "数量": {
+          "type": "NUMBER",
+          "code": "数量",
+          "label": "数量",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": true,
+          "unique": false,
+          "defaultValue": "",
+          "displayScale": "",
+          "unit": "",
+          "unitPosition": "BEFORE"
+        },
+        "型番": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "型番",
+          "label": "型番",
+          "noLabel": false,
+          "required": false,
+          "lookup": {
+            "relatedApp": {
+              "app": "3741",
+              "code": ""
+            },
+            "relatedKeyField": "型番",
+            "fieldMappings": [
+              {
+                "field": "商品名",
+                "relatedField": "商品名"
+              },
+              {
+                "field": "単価",
+                "relatedField": "価格"
+              }
+            ],
+            "lookupPickerFields": [
+              "型番",
+              "商品名",
+              "価格"
+            ],
+            "filterCond": "",
+            "sort": "レコード番号 desc"
+          }
+        },
+        "商品名": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "商品名",
+          "label": "商品名",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "金額": {
+          "type": "CALC",
+          "code": "金額",
+          "label": "金額",
+          "noLabel": false,
+          "required": false,
+          "expression": "単価*数量",
+          "format": "NUMBER_DIGIT",
+          "displayScale": "",
+          "hideExpression": false,
+          "unit": "\\",
+          "unitPosition": "BEFORE"
+        }
+      }
+    },
+    "宛名": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "宛名",
+      "label": "宛名",
+      "noLabel": true,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "作成日時": {
+      "type": "CREATED_TIME",
+      "code": "作成日時",
+      "label": "作成日時",
+      "noLabel": false
+    }
+  },
+  "layout": [
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "SPACER",
+          "elementId": null,
+          "size": {
+            "width": "278",
+            "height": "43"
+          }
+        },
+        {
+          "type": "LABEL",
+          "label": "<font size=\"6\"><b>お見積書</b></font>",
+          "elementId": "",
+          "size": {
+            "width": "163"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "宛名",
+          "size": {
+            "width": "212"
+          }
+        },
+        {
+          "type": "LABEL",
+          "label": "様",
+          "elementId": "",
+          "size": {
+            "width": "48"
+          }
+        },
+        {
+          "type": "SPACER",
+          "elementId": null,
+          "size": {
+            "width": "373",
+            "height": "44"
+          }
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "見積番号",
+          "size": {
+            "width": "117"
+          }
+        },
+        {
+          "type": "DATE",
+          "code": "見積日",
+          "size": {
+            "width": "117"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "SPACER",
+          "elementId": null,
+          "size": {
+            "width": "260",
+            "height": "38"
+          }
+        },
+        {
+          "type": "USER_SELECT",
+          "code": "担当者",
+          "size": {
+            "width": "344"
+          }
+        },
+        {
+          "type": "FILE",
+          "code": "見積ファイル",
+          "size": {
+            "width": "207"
+          }
+        }
+      ]
+    },
+    {
+      "type": "SUBTABLE",
+      "code": "見積明細",
+      "fields": [
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "型番",
+          "size": {
+            "width": "200"
+          }
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "商品名",
+          "size": {
+            "width": "398"
+          }
+        },
+        {
+          "type": "NUMBER",
+          "code": "数量",
+          "size": {
+            "width": "103"
+          }
+        },
+        {
+          "type": "NUMBER",
+          "code": "単価",
+          "size": {
+            "width": "129"
+          }
+        },
+        {
+          "type": "CALC",
+          "code": "金額",
+          "size": {
+            "width": "134"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "CALC",
+          "code": "小計",
+          "size": {
+            "width": "138"
+          }
+        },
+        {
+          "type": "CALC",
+          "code": "消費税",
+          "size": {
+            "width": "144"
+          }
+        },
+        {
+          "type": "CALC",
+          "code": "合計",
+          "size": {
+            "width": "143"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "HR",
+          "elementId": "",
+          "size": {
+            "width": "787"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "MULTI_LINE_TEXT",
+          "code": "備考",
+          "size": {
+            "width": "750",
+            "innerHeight": "115"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "ダミー",
+          "size": {
+            "width": "193"
+          }
+        }
+      ]
+    }
+  ]
+}
