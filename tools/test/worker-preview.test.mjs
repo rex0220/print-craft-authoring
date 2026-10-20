@@ -7,8 +7,9 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadEngine } from "./helpers.mjs";
 import { FIELDS_FILE, aiSettings } from "./fixtures.mjs";
 import { runPreview } from "../src/commands/preview.ts";
@@ -18,6 +19,7 @@ import { PRINT_CRAFT_ROOT } from "../src/dev-paths.ts";
 
 const ZIP = process.env.PCRAFT_PLUGIN_ZIP;
 const ZIP9 = path.join(PRINT_CRAFT_ROOT, "dist", "print-craft-plugin9.zip");
+const GOSENFU = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "docs", "samples", "五線譜");
 const skip = ZIP && existsSync(ZIP) ? false : "テストの印刷屋の zip が無い";
 const skip9 = existsSync(ZIP9) ? false : `print-craft の Ver.9 の zip が無い: ${ZIP9}`;
 const v = (type, value) => ({ type, value });
@@ -85,4 +87,14 @@ test("メモリの上限: 子プロセスのヒープの上限を超える帳票
 
 test("レコードの形の誤りは EvalError（kind input）。文は中核の決まった文", { skip }, async () => {
   await assert.rejects(previewInChild({ pluginZip: ZIP }, { ...input(), recordFile: [1, 2] }), (e) => e instanceof EvalError && e.kind === "input" && /レコードの JSON/.test(e.message));
+});
+
+test("既定の上限（4,096 MiB）で、docs/samples の五線譜（1 ボタンでヒープ約 1.8 GB）が子プロセスでも Worker thread でも描ける（1,024 MiB では止まり、Worker thread ではプロセスごと落ちた。2026-10-20）", { skip: skip9 }, async () => {
+  const read = (f) => readFileSync(path.join(GOSENFU, f), "utf8");
+  const input = { settingsText: read("settings.json"), fields: JSON.parse(read("fields.json")), recordFile: JSON.parse(read("record.json")), button: "五線譜" };
+  for (const isolation of ["process", "thread"]) {
+    const r = await previewInChild({ pluginZip: ZIP9, run: { isolation } }, input);
+    assert.deepEqual([r.results.length, r.results[0].pages, r.results[0].errors], [1, 1, []], isolation);
+    assert.equal(r.diag.isolation, isolation);
+  }
 });

@@ -6,7 +6,7 @@
  *     - thread（Electron の Node。Claude Desktop の built-in Node.js は runAsNode の fuse が切ってあり、child_process.fork を使えない）: Worker thread（resourceLimits）。
  *       時間の上限は効く（Worker を止める）。印刷屋のエンジンがヒープの上限に当たると、Worker だけでなくプロセス（MCP サーバー）ごと落ちることがある
  *       （2026-10-20 に試した。素の JavaScript では Worker だけが止まる）。受け入れた危険（計画 7 章）
- *   - 時間: 既定 60 秒（上限 600 秒）。超えたら止める（子プロセスは SIGKILL、Worker は terminate）。メモリ: V8 のヒープの上限（既定 1,024 MiB。値は T0d で測って決める）
+ *   - 時間: 既定 60 秒（上限 600 秒）。超えたら止める（子プロセスは SIGKILL、Worker は terminate）。メモリ: V8 のヒープの上限（既定 4,096 MiB。2026-10-20 に 1,024 から上げた: docs/samples の五線譜は 1 ボタンでヒープが約 1.8 GB になり、1,024 では止まった。Desktop の Worker thread ではプロセスごと落ちた）
  *   - 成功・誤り・時間切れ・メモリの上限・結果を返さない終わりのすべての道で、子プロセス・Worker が終わるまで待ってから返し、listener を外す
  *   - 標準出力・標準エラー（zip のコードの console の出力など）は親に流さず、文字数だけを数えて diag に入れる（計画 4.5）。
  *     子プロセスの標準エラーは、メモリの上限で落ちたかの印（V8 の "heap out of memory" など）を探すことにだけ使う（中身は持たない・返さない）
@@ -27,8 +27,11 @@ import type { EvalErrorKind, EvalJob, EvalMessage, EvalOutcome } from "./eval-jo
 
 export const DEFAULT_TIMEOUT_SEC = 60;
 export const MAX_TIMEOUT_SEC = 600;
-/** V8 のヒープの上限（MiB。子プロセスは --max-old-space-size、Worker は resourceLimits.maxOldGenerationSizeMb。値は T0d で測って決める） */
-export const DEFAULT_HEAP_LIMIT_MB = 1024;
+/**
+ * V8 のヒープの上限（MiB。子プロセスは --max-old-space-size、Worker は resourceLimits.maxOldGenerationSizeMb）。既定は範囲の最大の 4,096
+ * （2026-10-20 Takashi「OK」。印刷屋のエンジンは関数の結果を評価が終わるまで持つので、長い文字列の REPLACERE を重ねる帳票は大きい。五線譜の見本は約 1.8 GB）
+ */
+export const DEFAULT_HEAP_LIMIT_MB = 4096;
 
 /** 評価の分け方: process = 子プロセス、thread = Worker thread */
 export type Isolation = "process" | "thread";

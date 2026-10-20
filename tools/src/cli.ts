@@ -206,7 +206,7 @@ function shown(file: string): string {
 
 /** 評価を子プロセスで行う口（tools 2.3.0。zip の式の評価はこの道を通す。print-craft の docs/authoring-try-plan.md 4.6） */
 function evaluatorFor(): Evaluator {
-  // 上限は既定（60 秒、1,024 MiB）。.env か環境変数の PCRAFT_EVAL_TIMEOUT_SEC / PCRAFT_EVAL_HEAP_MB で変えられる
+  // 上限は既定（60 秒、4,096 MiB）。.env か環境変数の PCRAFT_EVAL_TIMEOUT_SEC / PCRAFT_EVAL_HEAP_MB で変えられる
   return { pluginZip: pluginZipPath(authOpt()), devPluginDir: W.env.PCRAFT_ALLOW_DEV_PLUGIN === "1" ? printCraftProdDir(W.env) : undefined, run: { env: W.env, ...evalLimitsFromEnv(W.env) } };
 }
 
