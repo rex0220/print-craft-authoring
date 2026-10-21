@@ -135,7 +135,7 @@ HTML を作る関数（TABLE_HTML など）の結果は長いので、問いは�
 - `${式}` は**エスケープされない**。文字列は `${ESC_HTML(項目)}`、金額や日付は `${FVAL(項目)}` / `${DATE_FORMAT(項目, "YYYY年M月D日")}`、複数行は `${REPLACEALL(ESC_HTML(項目), NEWLINE(), "<br>")}`（`REPLACE` は最初の 1 つだけ置き換える）
 - 計算式の文字列は `\` を解釈しない（`"\n"` は改行でなく `\` と `n` の 2 文字）。改行は `NEWLINE()`
 - 計算式の文字列の中に `//` を書かない（`"https://…"` など）
-- `LET` の変数名を、項目のフィールドコード（テーブルの子、関連レコード一覧の `親$子`、`$html` などの疑似項目を含む）や外側の `LET` / `ARRAY_*` の変数名と同じにしない（印刷屋 Ver.9 から、その式はエラー「LET() variable name (…) is already defined.」。Ver.8 までは、その項目が以後の式で使えなくなっていた）
+- `LET` の変数名を、項目のフィールドコード（テーブルの子、関連レコード一覧の `親$子`、`$html` などの疑似項目を含む）や外側の `LET` / `ARRAY_*` の変数名と同じにしない（印刷屋 Ver.9 から、その式はエラー「LET() variable name (変数名) is already defined.」。Ver.8 までは、その項目が以後の式で使えなくなっていた）
 - 数学関数 `M_*` と財務関数 `R_*` は印刷屋 Ver.9 から（decimal.js を同梱）。Ver.8 までの zip で使うと normalize が「… is not available」のエラーにする（`関数一覧.md` の「（Ver.9 から）」の関数）
 - **`${式}` を属性値の中に置かない**（`src` / `href` / `style` / `title` / `class` …。`ESC_HTML` は引用符を逃がさない）。計算式で `ATTR("…", 項目)` のようにレコードの値を属性に入れない
 - `HTML()` / `FVAL()` / `TABLE_HTML()` / `RECS_HTML()` / `FIELDS_HTML()` / `ADD_TAGS()` はレコードの値を生の HTML として入れる。使うときは利用者にその旨を伝える。`${ESC_HTML(項目)} & HTML(…)` のように `&` でつないだ式も生の HTML
