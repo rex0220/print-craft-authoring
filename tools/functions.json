@@ -1,6 +1,6 @@
 {
   "note": "関数の分類の正本（docs/authoring-plan.md 12.4、12.7）。scripts/gen-functions.mjs が lib と文書から category / doc を作り直し、kind / node の見直しは手で行う（手で直した kind / node は残る）",
-  "engineSha256": "7078f0d21c33864bd55e20de6bdfb480d985605ad3355a1f761a95c191ae9e67",
+  "engineSha256": "924bcc8b8f4be87469c4921b553c9aed08f690a19cbde23d59e8e1bf32ef6410",
   "functions": {
     "ABS": {
       "category": "基本関数（数値・集計・配列・条件）",
