@@ -10,7 +10,16 @@
   "externalRefs": "block",
   "pluginComment": "AI オーサリングのサンプル（一覧帳票）。docs/帳票レシピ集.md の R5",
   "pluginDescription": "一覧画面に表示中のレコード（または選択したレコード）を表にした PDF をダウンロードします。",
-  "menuInfo": { "recselect": true, "enabled": false, "menuLabel": { "default": "印刷屋", "ja": "印刷屋", "en": "Print craft", "zh": "打印" } },
+  "menuInfo": {
+    "recselect": true,
+    "enabled": false,
+    "menuLabel": {
+      "default": "印刷屋",
+      "ja": "印刷屋",
+      "en": "Print craft",
+      "zh": "打印"
+    }
+  },
   "pluginInfos": [
     {
       "state": true,
@@ -23,14 +32,24 @@
       "viewsCsv": "",
       "tagsInfo": {
         "fieldsInfo": [
-          { "state": true, "desc": "ボタン表示条件", "fieldcode": "$out", "formulaSet": "" },
-          { "state": true, "desc": "ファイル名", "fieldcode": "$fname", "formulaSet": "\"案件一覧-\" & DATE_FORMAT(TODAY(), \"YYYYMMDD\") & \".pdf\"" },
+          {
+            "state": true,
+            "desc": "ボタン表示条件",
+            "fieldcode": "$out",
+            "formulaSet": ""
+          },
+          {
+            "state": true,
+            "desc": "ファイル名",
+            "fieldcode": "$fname",
+            "formulaSet": "\"案件一覧-\" & DATE_FORMAT(TODAY(), \"YYYYMMDD\") & \".pdf\""
+          },
           {
             "state": true,
             "desc": "一覧",
             "css": ".pcraft-table-row {\n  height: 40px;\n}\n.value-right {\n  text-align: right;\n}\n.value-center {\n  text-align: center;\n}",
             "html": "",
-            "formulaSet": "RECS_HTML(\n  OPT(\"title\", \"案件情報 \" & DATE_FORMAT(TODAY(), \"YYYY年M月D日\"), \"pagination\", \"Y\", \"perPage\", \"15\", \"footer\", \"Y\"),\n  ARRAY(\"#\", $rseq + 1),\n  顧客名, 部署名, 案件名,\n  ARRAY(\"確度\", 確度, \"value-center\"),\n  ARRAY(\"プラン費用\", YEN(プラン費用), \"value-right\", \"YEN(RECS_SUM(プラン費用))\"),\n  ARRAY(\"オプション費用\", YEN(オプション費用), \"value-right\", \"YEN(RECS_SUM(オプション費用))\"),\n  ARRAY(\"合計費用\", YEN(合計費用), \"value-right\", \"YEN(RECS_SUM(合計費用))\")\n)"
+            "formulaSet": "RECS_HTML(\n  OPT(\"title\", \"案件情報 \" & DATE_FORMAT(TODAY(), \"YYYY年M月D日\"), \"pagination\", \"Y\", \"perPage\", \"15\", \"maxPages\", \"20\", \"footer\", \"Y\"),\n  ARRAY(\"#\", $rseq + 1),\n  顧客名, 部署名, 案件名,\n  ARRAY(\"確度\", 確度, \"value-center\"),\n  ARRAY(\"プラン費用\", YEN(プラン費用), \"value-right\", \"YEN(RECS_SUM(プラン費用))\"),\n  ARRAY(\"オプション費用\", YEN(オプション費用), \"value-right\", \"YEN(RECS_SUM(オプション費用))\"),\n  ARRAY(\"合計費用\", YEN(合計費用), \"value-right\", \"YEN(RECS_SUM(合計費用))\")\n)"
           }
         ],
         "filecode": "",
@@ -38,7 +57,9 @@
         "orientation": "l",
         "dpi": "96"
       },
-      "calcInfo": { "fieldsInfo": [] }
+      "calcInfo": {
+        "fieldsInfo": []
+      }
     }
   ]
 }
