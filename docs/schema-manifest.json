@@ -1,9 +1,9 @@
 {
   "note": "印刷屋の authoring API の CONFIG_SCHEMA から tools/scripts/gen-schema-manifest.mjs が作る。手で直さない。仕様書（設定ファイル仕様.md）との照合は tools/test/spec-sync.test.mjs",
-  "pluginVersion": "6",
-  "apiVersion": 1,
-  "schemaRevision": "37d2ddd3907c",
-  "source": "zip: print-craft-plugin6.zip",
+  "pluginVersion": "10",
+  "apiVersion": 3,
+  "schemaRevision": "16d28b32cfb9",
+  "source": "zip: print-craft-plugin10.zip",
   "limits": {
     "maxDepth": 16,
     "maxArrayItems": 5000,
@@ -312,6 +312,12 @@
     },
     {
       "path": "externalRefs",
+      "type": "string",
+      "optional": true,
+      "maxLength": 10
+    },
+    {
+      "path": "listRecordScope",
       "type": "string",
       "optional": true,
       "maxLength": 10

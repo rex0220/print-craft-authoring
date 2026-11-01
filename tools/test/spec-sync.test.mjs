@@ -3,18 +3,30 @@
  *   - manifest（docs/schema-manifest.json。gen-schema-manifest.mjs が zip の API の CONFIG_SCHEMA から作る）が今の CONFIG_SCHEMA と同じ版か
  *   - manifest の全キーが仕様書のキー表（`| \`パス\` |` で始まる行）にあるか、仕様書のキー表に manifest に無いパスが無いか
  *   - 仕様書の列挙（用紙、向き、dpi、printMode）が印刷屋の定数と同じか
+ * 照合に使う zip は、**manifest を作った zip**（manifest の `source` の名前を print-craft の dist/ で探す。他のテストの fixture は Ver.6 だが、
+ * manifest と仕様書は最も新しい版で作る。印刷屋 Ver.10 の `listRecordScope` のように、新しい版だけにあるキーがある）。その zip が無ければ飛ばす。
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
-import { loadEngine } from "./helpers.mjs";
+import { loadEngine } from "../src/engine.ts";
+import { PRINT_CRAFT_ROOT } from "../src/dev-paths.ts";
 import { REPO_ROOT } from "../src/paths.ts";
 import { schemaRevisionOf } from "../src/meta.ts";
 
 const docs = path.join(REPO_ROOT, "docs");
 const manifestFile = path.join(docs, "schema-manifest.json");
 const specFile = path.join(docs, "設定ファイル仕様.md");
+
+/** manifest を作った zip（`source` が `zip: print-craft-plugin10.zip` の形。dev から作った manifest なら null） */
+function schemaZip() {
+  if (!existsSync(manifestFile)) return null;
+  const name = String(JSON.parse(readFileSync(manifestFile, "utf8")).source ?? "").replace(/^[a-z]+:\s*/, "");
+  return name.endsWith(".zip") ? path.join(PRINT_CRAFT_ROOT, "dist", name) : null;
+}
+const SCHEMA_ZIP = schemaZip();
+const skip = SCHEMA_ZIP && existsSync(SCHEMA_ZIP) ? false : `manifest（docs/schema-manifest.json）を作った印刷屋の zip が無い: ${SCHEMA_ZIP ?? "source が zip ではない"}`;
 
 export function tablePaths(markdown) {
   const out = [];
@@ -37,10 +49,10 @@ export function enumTable(markdown) {
   return out;
 }
 
-test("manifest がある。schemaRevision が zip の API の CONFIG_SCHEMA と同じ（違えば npm run gen-schema）", async () => {
+test("manifest がある。schemaRevision が zip の API の CONFIG_SCHEMA と同じ（違えば npm run gen-schema）", { skip }, async () => {
   assert.ok(existsSync(manifestFile), "docs/schema-manifest.json が無い（tools で npm run gen-schema）");
   const manifest = JSON.parse(readFileSync(manifestFile, "utf8"));
-  const engine = await loadEngine();
+  const engine = await loadEngine({ pluginZip: SCHEMA_ZIP });
   assert.equal(manifest.schemaRevision, schemaRevisionOf(engine.api.CONFIG_SCHEMA), "CONFIG_SCHEMA が変わっている。npm run gen-schema と仕様書の見直し");
   assert.equal(manifest.pluginVersion, engine.source.pluginVersion);
   assert.ok(manifest.entries.length > 50);

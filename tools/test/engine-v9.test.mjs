@@ -5,6 +5,7 @@
  *   - 版 9、decimal の SHA-256 が zip の中のファイルと同じ、warning なし
  *   - M_* / R_*（decimal）、小数の指数、MEDIAN などの関数、0 / false、エラーの文（入れ子でも頭に Error: を重ねない）、getCount
  *   - normalize → preview で M_* / R_* の式が通る
+ *   - Ver.10 で足したキー（listRecordScope）は、この版のスキーマに無いので normalize が黙って落とす（engine-v10.test.mjs の裏返し）
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -97,6 +98,17 @@ test("normalize → preview: M_* / R_* と小数の指数を使う帳票が、�
   assert.ok(!r.findings.hasErrors, r.findings.format());
   assert.equal(r.results.length, 1);
   assert.deepEqual(r.results[0].errors, []);
+});
+
+// 印刷屋 Ver.10 で足した共通設定 listRecordScope（一覧帳票の対象）は、Ver.9 までの CONFIG_SCHEMA に無い。スキーマに無いキーは黙って落ちる（kit の validate の unknown: strip）
+test("Ver.9 の zip: Ver.10 のキー listRecordScope は normalize が黙って落とす（エラーにしない）", { skip }, async () => {
+  const engine = await engineP;
+  assert.equal(engine.api.CONFIG_SCHEMA.props.listRecordScope, undefined, "Ver.9 の CONFIG_SCHEMA には無い");
+  const { normalizeSettings } = await import("../src/commands/normalize.ts");
+  const input = { ...settingsOf(engine), listRecordScope: "all" };
+  const n = await normalizeSettings({ settingsText: JSON.stringify(input), settingsFile: "settings/確かめ.json", fields: FIELDS9, engine, now: () => new Date(2026, 9, 20, 12, 0, 0) });
+  assert.deepEqual(n.findings.items.filter((f) => f.level === "error").map((f) => f.rule), [], n.findings.format());
+  assert.equal(Object.prototype.hasOwnProperty.call(n.output, "listRecordScope"), false, "古い zip では落ちる（.env の zip を Ver.10 にする）");
 });
 
 // docs/samples の設定のうち版 9 以下のもの（Ver.8 の印刷屋から取り出した五線譜・盤面図を含む）は、Ver.9 の zip でも preview が通る（関連レコード一覧の工程表は engine-v8.test.mjs）

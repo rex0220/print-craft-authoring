@@ -3,7 +3,9 @@
  *   docs/schema-manifest.json … 印刷屋の authoring API の CONFIG_SCHEMA を歩いて、キーのパス・型・上限・任意か・列挙を機械的に出したもの
  *                               + 列挙（用紙、向き、dpi、printMode）+ スキーマの版 + 印刷屋の版
  *   docs/defaults/cssInfo.json、menuInfo.json、calcInfo.json … 設定画面の既定値
- * API は engine.ts と同じ経路（PCRAFT_PLUGIN_ZIP の zip、無ければ開発中の print-craft の prod/）から読む。
+ * API は OS の環境変数 PCRAFT_PLUGIN_ZIP の zip、無ければ開発中の print-craft の prod/ から読む（中核は環境変数を読まないので、この script が渡す）。
+ * **作り直すのは、その時点で最も新しい印刷屋の zip**（manifest の source に名前が残る。spec-sync.test.mjs はその zip を探して照合する）:
+ *   PCRAFT_PLUGIN_ZIP=../../print-craft/dist/print-craft-plugin10.zip npm run gen-schema
  * 仕様書（docs/設定ファイル仕様.md）は手で書き、test/spec-sync.test.mjs が manifest と仕様書のキー表を比べる。tools/ で `npm run gen-schema`。
  */
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -15,7 +17,8 @@ const tools = path.resolve(here, "..");
 const repo = path.resolve(tools, "..");
 const { loadEngine } = await import(pathToFileURL(path.join(tools, "src", "engine.ts")).href);
 const { schemaRevisionOf } = await import(pathToFileURL(path.join(tools, "src", "meta.ts")).href);
-const engine = await loadEngine();
+const { printCraftProdDir } = await import(pathToFileURL(path.join(tools, "src", "dev-paths.ts")).href);
+const engine = await loadEngine({ pluginZip: process.env.PCRAFT_PLUGIN_ZIP, devPluginDir: printCraftProdDir(process.env) });
 const api = engine.api;
 
 const entries = [];
