@@ -1,9 +1,9 @@
 {
   "note": "印刷屋の authoring API の CONFIG_SCHEMA から tools/scripts/gen-schema-manifest.mjs が作る。手で直さない。仕様書（設定ファイル仕様.md）との照合は tools/test/spec-sync.test.mjs",
-  "pluginVersion": "10",
+  "pluginVersion": "11",
   "apiVersion": 3,
-  "schemaRevision": "16d28b32cfb9",
-  "source": "zip: print-craft-plugin10.zip",
+  "schemaRevision": "6bc5073eb52b",
+  "source": "zip: print-craft-plugin11.zip",
   "limits": {
     "maxDepth": 16,
     "maxArrayItems": 5000,
@@ -538,13 +538,13 @@
       "path": "pluginInfos[].tagsInfo.fieldsInfo[].formulaSet",
       "type": "string",
       "optional": true,
-      "maxLength": 20000
+      "maxLength": 200000
     },
     {
       "path": "pluginInfos[].tagsInfo.fieldsInfo[].formula",
       "type": "string",
       "optional": true,
-      "maxLength": 20000
+      "maxLength": 200000
     },
     {
       "path": "pluginInfos[].tagsInfo.fieldsInfo[].usedFields",
@@ -665,13 +665,13 @@
       "path": "pluginInfos[].calcInfo.fieldsInfo[].formulaSet",
       "type": "string",
       "optional": true,
-      "maxLength": 20000
+      "maxLength": 200000
     },
     {
       "path": "pluginInfos[].calcInfo.fieldsInfo[].formula",
       "type": "string",
       "optional": true,
-      "maxLength": 20000
+      "maxLength": 200000
     },
     {
       "path": "pluginInfos[].calcInfo.fieldsInfo[].usedFields",
@@ -706,7 +706,7 @@
       "path": "pluginInfos[].calcInfo.fieldsInfo[].options",
       "type": "string",
       "optional": true,
-      "maxLength": 20000
+      "maxLength": 200000
     },
     {
       "path": "pluginInfos[].calcInfo.usedFields",
